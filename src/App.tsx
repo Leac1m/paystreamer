@@ -1,89 +1,154 @@
-import { useState } from "react";
-import { ConnectButton } from "@mysten/dapp-kit-react/ui";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Wallet } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
 import { CreateAccount } from "./components/subscriptions/CreateAccount";
 import { MySubscriptionAccount } from "./components/subscriptions/MySubscriptionAccount";
 import { PlatformBrowser } from "./components/subscriptions/PlatformBrowser";
 import { PlatformOwnerDashboard } from "./components/subscriptions/PlatformOwnerDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import NavBar from './components/NavBar';
+import HeroSection from './components/HeroSection';
+import UserFlow from './components/UserFlow';
+import ForUsers from './components/ForUsers';
+import ForPlatforms from './components/ForPlatforms';
+import SecuritySection from './components/SecuritySection';
+import CTASection from './components/CTASection';
+import Footer from './components/Footer';
 
 type Tab = "browse" | "my-account" | "owner";
 
-function App() {
+export default function App() {
+  const client = useCurrentClient();
   const currentAccount = useCurrentAccount();
   const [activeTab, setActiveTab] = useState<Tab>("browse");
-  const [hasAccount, setHasAccount] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [accountCapId, setAccountCapId] = useState<string | null>(null);
 
-  return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <h1 className="text-lg font-semibold">Sui Subscriptions</h1>
-          <ConnectButton />
-        </div>
-      </header>
+  // Query for existing AccountCap on wallet connection
+  const { data: accountCaps, isPending: capsPending } = useQuery({
+    queryKey: ["account-caps", currentAccount?.address],
+    queryFn: async () => {
+      if (!currentAccount?.address) return [];
+      const { objects } = await client.core.listOwnedObjects({
+        owner: currentAccount.address,
+        limit: 10,
+      });
+      // Filter to AccountCap type when package ID is available
+      //暂时返回所有对象，在上层过滤
+      return objects;
+    },
+    enabled: !!currentAccount?.address,
+  });
 
-      <main className="container mx-auto px-4 py-8">
-        {!currentAccount ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                Connect Wallet
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Connect your wallet to create subscription accounts and subscribe
-                to platforms on Sui.
-              </p>
-            </CardContent>
-          </Card>
-        ) : !hasAccount ? (
+  // Restore account from existing AccountCap on mount
+  useEffect(() => {
+    if (capsPending || !accountCaps || accountCaps.length === 0) return;
+    // Find AccountCap by checking object json (when codegen types are available)
+    // For now, use the first object as placeholder - actual implementation
+    // will use generated types to filter AccountCap objects
+    const cap = accountCaps.find((o: any) => o.json && o.json.account_id);
+    if (cap) {
+      const json = cap.json as { account_id: string } | undefined;
+      if (json?.account_id) {
+        setAccountId(json.account_id);
+        setAccountCapId(cap.objectId);
+      }
+    }
+  }, [capsPending, accountCaps]);
+
+  function handleAccountCreated(id: string, capId: string) {
+    setAccountId(id);
+    setAccountCapId(capId);
+  }
+
+  function handleAccountLost() {
+    setAccountId(null);
+    setAccountCapId(null);
+  }
+
+  if (!currentAccount) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        {/* Noise texture overlay */}
+        <div className="noise" />
+
+        {/* Navigation */}
+        <NavBar />
+
+        {/* Main Content */}
+        <main>
+          <HeroSection />
+          <UserFlow />
+          <ForUsers />
+          <ForPlatforms />
+          <SecuritySection />
+          <CTASection />
+        </main>
+
+        {/* Footer */}
+        <Footer />
+      </div>
+    );
+  }
+
+  if (capsPending) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <div className="noise" />
+        <NavBar />
+        <main className="container mx-auto px-4 pt-32 pb-8">
+          <div className="text-center py-12 text-white">Loading...</div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!accountId || !accountCapId) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <div className="noise" />
+        <NavBar />
+        <main className="container mx-auto px-4 pt-32 pb-8">
           <div className="mx-auto max-w-md space-y-6">
-            <CreateAccount
-              onCreated={(id, capId) => {
-                setAccountId(id);
-                setAccountCapId(capId);
-                setHasAccount(true);
-              }}
-            />
+            <CreateAccount onCreated={handleAccountCreated} />
           </div>
-        ) : accountId && accountCapId ? (
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as Tab)}
-          >
-            <TabsList className="mb-6 grid w-full grid-cols-3">
-              <TabsTrigger value="browse">Browse Platforms</TabsTrigger>
-              <TabsTrigger value="my-account">My Account</TabsTrigger>
-              <TabsTrigger value="owner">Platform Owner</TabsTrigger>
-            </TabsList>
+        </main>
+      </div>
+    );
+  }
 
-            <TabsContent value="browse">
-              <PlatformBrowser />
-            </TabsContent>
+  return (
+    <div className="min-h-screen bg-[#0a0a0f]">
+      <div className="noise" />
+      <NavBar />
+      <main className="container mx-auto px-4 pt-32 pb-8">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as Tab)}
+        >
+          <TabsList className="mb-6 grid w-full grid-cols-3 bg-white/5 border border-white/10 text-white">
+            <TabsTrigger value="browse" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Browse Platforms</TabsTrigger>
+            <TabsTrigger value="my-account" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">My Account</TabsTrigger>
+            <TabsTrigger value="owner" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Platform Owner</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="my-account">
-              <MySubscriptionAccount
-                accountId={accountId}
-                accountCapId={accountCapId}
-                onAccountLost={() => setHasAccount(false)}
-              />
-            </TabsContent>
+          <TabsContent value="browse">
+            <PlatformBrowser />
+          </TabsContent>
 
-            <TabsContent value="owner">
-              <PlatformOwnerDashboard />
-            </TabsContent>
-          </Tabs>
-        ) : null}
+          <TabsContent value="my-account">
+            <MySubscriptionAccount
+              accountId={accountId}
+              accountCapId={accountCapId}
+              onAccountLost={handleAccountLost}
+            />
+          </TabsContent>
+
+          <TabsContent value="owner">
+            <PlatformOwnerDashboard />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
 }
-
-export default App;

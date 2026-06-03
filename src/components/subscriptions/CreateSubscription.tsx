@@ -41,11 +41,11 @@ export function CreateSubscription({
         module: "subscription_manager",
         function: "create_subscription",
         arguments: [
-          tx.object(accountCapId),
-          tx.object(accountId),
-          tx.object(platformId),
-          tx.pure.u64(BigInt(tierIndex)),
-          tx.object("0x6"),
+          tx.object(accountCapId),    // &AccountCap
+          tx.object(accountId),       // &mut SubscriptionAccount<T>
+          tx.object(platformId),      // &Platform
+          tx.pure.u64(BigInt(tierIndex)), // u64
+          tx.object("0x6"),           // &Clock
         ],
         typeArguments: [SUI_TYPE],
       }),
