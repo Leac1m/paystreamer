@@ -13,12 +13,7 @@ module subscriptions::platform_registry {
     // Import from subscription_account module
     use subscriptions::subscription_account::{
         SubscriptionAccount,
-        PlatformCap,
-        platform_cap_platform_id,
-        platform_cap_platform_address,
         withdraw,
-        has_subscription,
-        create_platform_cap,
     };
 
     // === Error constants ===
@@ -324,21 +319,22 @@ module subscriptions::platform_registry {
     // === Platform withdrawal operations ===
 
     /// Processes a withdrawal from a user account.
-    /// Requires a valid PlatformCap for the specific account.
+    /// Requires a valid PlatformOwnerCap for the platform.
     /// Calls subscription_account::withdraw to process the actual transfer.
     public fun process_withdrawal<T>(
-        platform_cap: &PlatformCap<T>,
+        owner_cap: &PlatformOwnerCap,
         account: &mut SubscriptionAccount<T>,
         amount: u64,
         subscription_id: ID,
         _clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let recipient = platform_cap_platform_address(platform_cap);
+        let platform_id = owner_cap_platform_id(owner_cap);
+        let recipient = ctx.sender();
 
         // Delegate to subscription_account::withdraw
         let withdrawn: Balance<T> = withdraw<T>(
-            platform_cap,
+            platform_id,
             account,
             amount,
             recipient,
@@ -351,7 +347,7 @@ module subscriptions::platform_registry {
         transfer::public_transfer(coin, recipient);
 
         emit(WithdrawalProcessed {
-            platform_id: platform_cap_platform_id(platform_cap),
+            platform_id,
             account_id: object::id(account),
             subscription_id,
             amount,
@@ -363,7 +359,7 @@ module subscriptions::platform_registry {
     /// Batch withdrawal processing for multiple accounts.
     /// Optimized for platform server efficiency.
     public fun batch_withdraw<T>(
-        platform_cap: &PlatformCap<T>,
+        owner_cap: &PlatformOwnerCap,
         accounts: &mut vector<SubscriptionAccount<T>>,
         amounts: &vector<u64>,
         subscription_ids: &vector<ID>,
@@ -382,7 +378,7 @@ module subscriptions::platform_registry {
 
             // Process withdrawal for this account
             // We use a simple loop; in production this could be optimized
-            process_withdrawal<T>(platform_cap, account, amount, sub_id, clock, ctx);
+            process_withdrawal<T>(owner_cap, account, amount, sub_id, clock, ctx);
 
             i = i + 1;
         };
@@ -453,43 +449,5 @@ module subscriptions::platform_registry {
 
     public fun owner_cap_platform_id(cap: &PlatformOwnerCap): ID {
         cap.platform_id
-    }
-
-    // === PlatformCap creation ===
-
-    public struct PlatformCapClaimed has copy, drop {
-        account_id: ID,
-        platform_id: ID,
-        platform_address: address,
-        timestamp: u64,
-    }
-
-    /// Allows a platform to claim their PlatformCap after user has created a subscription.
-    /// Requires PlatformOwnerCap to prove platform ownership.
-    public fun claim_platform_cap<T>(
-        account: &mut SubscriptionAccount<T>,
-        platform: &Platform,
-        owner_cap: &PlatformOwnerCap,
-        ctx: &mut TxContext
-    ) {
-        let platform_address = platform_owner_address(platform);
-        assert!(object::id(platform) == owner_cap_platform_id(owner_cap), E_UNAUTHORIZED_OWNER);
-        assert!(has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_NOT_FOUND);
-
-        let platform_cap = create_platform_cap<T>(
-            account,
-            object::id(platform),
-            platform_address,
-            ctx,
-        );
-
-        transfer::public_transfer(platform_cap, platform_address);
-
-        emit(PlatformCapClaimed {
-            account_id: object::id(account),
-            platform_id: object::id(platform),
-            platform_address,
-            timestamp: ctx.epoch_timestamp_ms(),
-        });
     }
 }

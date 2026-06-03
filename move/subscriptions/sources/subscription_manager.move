@@ -16,7 +16,6 @@ module subscriptions::subscription_manager {
     use subscriptions::subscription_account::{
         SubscriptionAccount,
         AccountCap,
-        PlatformCap,
         cap_account_id,
         add_subscription,
         has_subscription,
@@ -216,14 +215,14 @@ module subscriptions::subscription_manager {
         let account_id = object::id(account);
         assert!(account_id == cap_account_id(account_cap), 0x10001);
 
-        let platform_address = subscription.platform_address;
+        let platform_id = subscription.platform_id;
 
         // Idempotency check
-        assert!(!has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_ALREADY_EXISTS);
+        assert!(!has_subscription<T>(account, &platform_id), E_SUBSCRIPTION_ALREADY_EXISTS);
 
         // Add subscription ID to VecMap for authorization lookup
         let sub_id = object::id(subscription);
-        add_subscription<T>(account, platform_address, sub_id);
+        add_subscription<T>(account, platform_id, sub_id);
 
         emit(SubscriptionCreated {
             subscription_id: sub_id,

@@ -53,7 +53,7 @@ module subscriptions::subscription_account {
         id: UID,
         balance: Balance<T>,
         policies: PolicyConfig,
-        subscriptions: VecMap<address, ID>,  // platform address -> subscription object ID
+        subscriptions: VecMap<ID, ID>,  // platform_id -> subscription object ID
         monthly_withdrawn: u64,
         current_month_start: u64,
         created_at: u64,
@@ -220,11 +220,11 @@ module subscriptions::subscription_account {
 
     /// Withdraws stablecoins from the account to a specified recipient.
     /// Used by platforms to collect subscription payments.
-    /// Requires platform authorization through the PlatformCap.
+    /// Requires platform authorization via platform_id (checked by caller).
     /// Enforces all policy constraints.
     /// Returns the withdrawn Balance so the PTB can transfer to recipient.
     public fun withdraw<T>(
-        platform_cap: &PlatformCap<T>,
+        platform_id: ID,
         account: &mut SubscriptionAccount<T>,
         amount: u64,
         _recipient: address,
@@ -235,7 +235,7 @@ module subscriptions::subscription_account {
         assert!(account.status.variant == 0, E_ACCOUNT_PAUSED);
 
         // Verify platform is authorized via subscription
-        assert!(vec_map::contains(&account.subscriptions, &platform_cap.platform_address), E_UNAUTHORIZED_PLATFORM);
+        assert!(vec_map::contains(&account.subscriptions, &platform_id), E_UNAUTHORIZED_PLATFORM);
 
         let max_per_tx = account.policies.max_per_transaction;
         let min_balance = account.policies.min_balance;
@@ -274,8 +274,8 @@ module subscriptions::subscription_account {
 
         emit(Withdrawal {
             account_id: object::id(account),
-            platform_id: platform_cap.platform_id,
-            platform_address: platform_cap.platform_address,
+            platform_id,
+            platform_address: _recipient,
             amount,
             remaining_balance: account.balance.value(),
             monthly_total: account.monthly_withdrawn,
@@ -348,26 +348,26 @@ module subscriptions::subscription_account {
         &account.policies
     }
 
-    public fun get_subscriptions<T>(account: &SubscriptionAccount<T>): &VecMap<address, ID> {
+    public fun get_subscriptions<T>(account: &SubscriptionAccount<T>): &VecMap<ID, ID> {
         &account.subscriptions
     }
 
-    public fun get_subscription_id<T>(account: &SubscriptionAccount<T>, platform: &address): ID {
-        *vec_map::get(&account.subscriptions, platform)
+    public fun get_subscription_id<T>(account: &SubscriptionAccount<T>, platform_id: &ID): ID {
+        *vec_map::get(&account.subscriptions, platform_id)
     }
 
-    public fun has_subscription<T>(account: &SubscriptionAccount<T>, platform: &address): bool {
-        vec_map::contains(&account.subscriptions, platform)
+    public fun has_subscription<T>(account: &SubscriptionAccount<T>, platform_id: &ID): bool {
+        vec_map::contains(&account.subscriptions, platform_id)
     }
 
     /// Internal: adds a subscription entry to the account's VecMap.
     /// Called by subscription_manager::authorize_platform.
     public fun add_subscription<T>(
         account: &mut SubscriptionAccount<T>,
-        platform_address: address,
+        platform_id: ID,
         subscription_id: ID
     ) {
-        vec_map::insert(&mut account.subscriptions, platform_address, subscription_id);
+        vec_map::insert(&mut account.subscriptions, platform_id, subscription_id);
     }
 
     public fun get_account_info<T>(account: &SubscriptionAccount<T>): (u8, u64, u64) {
@@ -387,49 +387,5 @@ module subscriptions::subscription_account {
 
         let allowed = vector::length(&errors) == 0;
         (allowed, errors)
-    }
-
-    // === PlatformCap (defined here to avoid circular dependency issues) ===
-
-    /// Capability granting platform withdrawal authority for a specific account.
-    /// Claimed by platform via claim_platform_cap in platform_registry.
-    public struct PlatformCap<phantom T> has key, store {
-        id: UID,
-        platform_id: ID,
-        platform_address: address,
-        account_id: ID,
-        created_at: u64,
-    }
-
-    // === PlatformCap accessors (for cross-module use) ===
-
-    public fun platform_cap_platform_id<T>(cap: &PlatformCap<T>): ID {
-        cap.platform_id
-    }
-
-    public fun platform_cap_platform_address<T>(cap: &PlatformCap<T>): address {
-        cap.platform_address
-    }
-
-    public fun platform_cap_account_id<T>(cap: &PlatformCap<T>): ID {
-        cap.account_id
-    }
-
-    /// Internal: creates a PlatformCap for the given account and platform.
-    /// Called by platform_registry::claim_platform_cap via cross-module invocation.
-    /// Returns the PlatformCap object (not transferred).
-    public fun create_platform_cap<T>(
-        account: &SubscriptionAccount<T>,
-        platform_id: ID,
-        platform_address: address,
-        ctx: &mut TxContext
-    ): PlatformCap<T> {
-        PlatformCap<T> {
-            id: object::new(ctx),
-            platform_id,
-            platform_address,
-            account_id: object::id(account),
-            created_at: ctx.epoch_timestamp_ms(),
-        }
     }
 }
