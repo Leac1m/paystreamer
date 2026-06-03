@@ -4,13 +4,11 @@
 /// Platform registry module: platform registration, tier management,
 /// and withdrawal operations for the subscription system.
 module subscriptions::platform_registry {
-    use sui::object::{Self, UID, ID};
-    use sui::transfer;
     use sui::coin::Coin;
     use sui::balance::Balance;
     use sui::clock::Clock;
-    use sui::tx_context::TxContext;
     use sui::event::emit;
+    use sui::transfer;
 
     // Import from subscription_account module
     use subscriptions::subscription_account::{
@@ -19,6 +17,8 @@ module subscriptions::platform_registry {
         platform_cap_platform_id,
         platform_cap_platform_address,
         withdraw,
+        has_subscription,
+        create_platform_cap,
     };
 
     // === Error constants ===
@@ -27,6 +27,7 @@ module subscriptions::platform_registry {
     const E_TOO_MANY_TIERS: u64 = 0x20004;
     const E_DUPLICATE_TIER_NAME: u64 = 0x20005;
     const E_BATCH_LENGTH_MISMATCH: u64 = 0x20007;
+    const E_SUBSCRIPTION_NOT_FOUND: u64 = 0x20008;
 
     // === Enums ===
 
@@ -446,7 +447,49 @@ module subscriptions::platform_registry {
         object::id(platform)
     }
 
+    public fun platform_owner_address(platform: &Platform): address {
+        platform.owner
+    }
+
     public fun owner_cap_platform_id(cap: &PlatformOwnerCap): ID {
         cap.platform_id
+    }
+
+    // === PlatformCap creation ===
+
+    public struct PlatformCapClaimed has copy, drop {
+        account_id: ID,
+        platform_id: ID,
+        platform_address: address,
+        timestamp: u64,
+    }
+
+    /// Allows a platform to claim their PlatformCap after user has created a subscription.
+    /// Requires PlatformOwnerCap to prove platform ownership.
+    public fun claim_platform_cap<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform: &Platform,
+        owner_cap: &PlatformOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        let platform_address = platform_owner_address(platform);
+        assert!(object::id(platform) == owner_cap_platform_id(owner_cap), E_UNAUTHORIZED_OWNER);
+        assert!(has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_NOT_FOUND);
+
+        let platform_cap = create_platform_cap<T>(
+            account,
+            object::id(platform),
+            platform_address,
+            ctx,
+        );
+
+        transfer::public_transfer(platform_cap, platform_address);
+
+        emit(PlatformCapClaimed {
+            account_id: object::id(account),
+            platform_id: object::id(platform),
+            platform_address,
+            timestamp: ctx.epoch_timestamp_ms(),
+        });
     }
 }

@@ -8,6 +8,8 @@ module subscriptions::subscription_manager {
     use sui::clock::Clock;
     use sui::tx_context::TxContext;
     use sui::event::emit;
+    use sui::vec_map;
+    use sui::transfer;
     use std::vector;
 
     // Import from subscription_account module
@@ -16,6 +18,8 @@ module subscriptions::subscription_manager {
         AccountCap,
         PlatformCap,
         cap_account_id,
+        add_subscription,
+        has_subscription,
     };
 
     // Import from platform_registry module
@@ -26,12 +30,15 @@ module subscriptions::subscription_manager {
         get_platform_tiers,
         tier_is_active,
         tier_frequency_variant,
+        tier_amount,
+        platform_owner_address,
     };
 
     // === Error constants ===
     const E_INVALID_TIER: u64 = 0x30003;
     const E_SUBSCRIPTION_PAUSED: u64 = 0x30006;
     const E_SUBSCRIPTION_NOT_PAUSED: u64 = 0x30007;
+    const E_SUBSCRIPTION_ALREADY_EXISTS: u64 = 0x30008;
 
     // === Enums ===
 
@@ -59,7 +66,10 @@ module subscriptions::subscription_manager {
     public struct Subscription has key, store {
         id: UID,
         platform_id: ID,
+        platform_address: address,
         tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_days: u64,
         status: SubscriptionStatus,
         schedule: BillingSchedule,
         total_paid: u64,
@@ -150,7 +160,8 @@ module subscriptions::subscription_manager {
     // === Entry points ===
 
     /// Creates a new subscription for the account-cap holder.
-    /// Does NOT perform payment — use subscribe_with_payment for atomic creation + payment.
+    /// Stores the Subscription object and adds entry to SubscriptionAccount's VecMap.
+    /// Does NOT perform payment — payment is a separate PTB step.
     public fun create_subscription<T>(
         account_cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
@@ -158,9 +169,14 @@ module subscriptions::subscription_manager {
         tier_index: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ): Subscription {
+    ) {
         let account_id = object::id(account);
         assert!(account_id == cap_account_id(account_cap), 0x10001); // E_INVALID_CAP
+
+        let platform_address = platform_owner_address(platform);
+
+        // Idempotency check
+        assert!(!has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_ALREADY_EXISTS);
 
         let tiers = get_platform_tiers(platform);
         assert!(tier_index < vector::length(tiers), E_INVALID_TIER);
@@ -170,10 +186,11 @@ module subscriptions::subscription_manager {
 
         let now = clock.timestamp_ms();
         let freq_variant = tier_frequency_variant(tier);
-        let frequency_ms = (freq_variant as u64 + 1) * 30 * 86400000u64;
+        let freq_days = (freq_variant as u64 + 1) * 30;
+        let frequency_ms = freq_days * 86400000u64;
 
         let schedule = BillingSchedule {
-            frequency_days: (freq_variant as u64 + 1) * 30,
+            frequency_days: freq_days,
             next_billing_time: now + frequency_ms,
             last_billing_time: 0,
         };
@@ -181,7 +198,10 @@ module subscriptions::subscription_manager {
         let subscription = Subscription {
             id: object::new(ctx),
             platform_id: object::id(platform),
+            platform_address,
             tier_index,
+            tier_amount: tier_amount(tier),
+            tier_frequency_days: freq_days,
             status: subscription_status_active(),
             schedule,
             total_paid: 0,
@@ -192,6 +212,12 @@ module subscriptions::subscription_manager {
 
         let sub_id = object::id(&subscription);
 
+        // Publish Subscription object to the user (account owner)
+        transfer::transfer(subscription, ctx.sender());
+
+        // Add to VecMap for authorization lookup
+        add_subscription<T>(account, platform_address, sub_id);
+
         emit(SubscriptionCreated {
             subscription_id: sub_id,
             account_id,
@@ -199,39 +225,7 @@ module subscriptions::subscription_manager {
             tier_index,
             timestamp: now,
         });
-
-        subscription
     }
-
-    /// Atomic: creates subscription AND processes first payment via platform.
-    /// Chains account creation, deposit, platform authorization, and first payment.
-    public fun subscribe_with_payment<T>(
-        _account_cap: &AccountCap,
-        _account: &mut SubscriptionAccount<T>,
-        _platform: &Platform,
-        _platform_cap: &PlatformCap<T>,
-        tier_index: u64,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ): Subscription {
-        // Create the subscription (reuses create_subscription logic)
-        // Note: In PTB, you'd call create_subscription first, then process payment
-        // This function is a placeholder for the atomic pattern
-        let sub = create_subscription<T>(_account_cap, _account, _platform, tier_index, clock, ctx);
-
-        // Emit event for payment (first payment is 0 until platform processes withdraw)
-        emit(PaymentRecorded {
-            subscription_id: object::id(&sub),
-            account_id: object::id(_account),
-            platform_id: object::id(_platform),
-            amount: 0,
-            new_total_paid: 0,
-            timestamp: clock.timestamp_ms(),
-        });
-
-        sub
-    }
-
     /// Updates subscription tier.
     public fun update_subscription_tier<T>(
         account_cap: &AccountCap,
