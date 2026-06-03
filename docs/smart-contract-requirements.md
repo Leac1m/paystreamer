@@ -24,7 +24,7 @@ The design leverages Sui's unique features including shared objects for efficien
 
 The smart contract system consists of three primary modules deployed as a single package under the package ID `0xSUBSCRIPTIONS`. Each module encapsulates specific domain logic while maintaining clear boundaries of responsibility. Cross-module communication occurs through well-defined interface functions that enforce all security constraints at the point of interaction.
 
-The subscription account module serves as the central component managing user accounts, balances, and policy enforcement. The platform registry module handles platform registration, authorization, and withdrawal operations. The subscription manager module coordinates the lifecycle of individual subscriptions including creation, modification, and cancellation. All three modules share common type definitions through the `types` module to ensure consistency across the codebase.
+The subscription account module serves as the central component managing user accounts, balances, and policy enforcement. The platform registry module handles platform registration, authorization, and withdrawal operations. The subscription manager module coordinates the lifecycle of individual subscriptions including creation, modification, and cancellation. Type definitions are distributed across modules rather than centralized.
 
 ### 2.2 Object Model
 
@@ -48,10 +48,15 @@ The principle of least privilege guides the security design, with each capabilit
 
 **Package**: `0xSUBSCRIPTIONS`
 **Module ID**: `subscription_account`
-**Dependency**: `types` module
 **Purpose**: Core account management, balance operations, and policy enforcement
 
 The subscription account module implements the foundational account infrastructure that enables users to manage their subscription payment funds. Each account maintains a balance in a specified stablecoin type, a complete policy configuration defining withdrawal constraints, and an authorization registry tracking which platforms have withdrawal permissions. The module enforces all policy constraints at the contract level, ensuring that no withdrawal operation can exceed the limits defined by the account owner.
+
+**Local Types:**
+- `USDC`, `USDSui` — stablecoin type tags for type-gated accounts
+- `AccountStatus` — account lifecycle state (ACTIVE, PAUSED, CLOSED)
+- `BillingFrequency` — billing cycle options (DAILY, WEEKLY, MONTHLY, etc.)
+- Error constants for policy violations (E_POLICY_EXCEEDED_MONTHLY, etc.)
 
 #### 3.1.1 Data Structures
 
@@ -88,7 +93,7 @@ The `PolicyConfig` structure defines all withdrawal constraints for an account. 
 
 ```move
 /// Defines withdrawal constraints enforced by the smart contract
-struct PolicyConfig has store, drop {
+public struct PolicyConfig has store, drop {
     /// Maximum total withdrawal allowed per calendar month
     max_monthly_withdrawal: u64,
     /// Maximum amount allowed per single withdrawal transaction
@@ -256,10 +261,14 @@ The `check_withdrawal` view function enables off-chain systems to verify whether
 
 **Package**: `0xSUBSCRIPTIONS`
 **Module ID**: `platform_registry`
-**Dependency**: `types` module, `subscription_account` module
 **Purpose**: Platform registration, management, and withdrawal operations
 
 The platform registry module handles all platform-related functionality in the subscription system. Platforms must register with the system and receive a PlatformCap capability that grants authority to withdraw from authorized user accounts. The module also manages platform metadata including name, description, category, and API endpoint for webhook integrations.
+
+**Local Types:**
+- `PlatformOwnerCap` — capability granting platform management authority
+- `PlatformStatus` — platform lifecycle state (ACTIVE, SUSPENDED, DEPRECATED)
+- Error constants for platform operations (E_UNAUTHORIZED_PLATFORM, E_PLATFORM_NOT_FOUND, etc.)
 
 #### 3.2.1 Data Structures
 
@@ -311,7 +320,7 @@ The `platform_address` field is omitted — validation uses the `PlatformCap` ob
 
 ```move
 /// Platform subscription tier definition
-struct SubscriptionTier has store, drop {
+public struct SubscriptionTier has store, drop {
     /// Tier name (Basic, Pro, Enterprise, etc.)
     name: String,
     /// Price per billing period in smallest unit
@@ -457,11 +466,14 @@ public fun get_subscriber_count(
 ### 3.3 Module: `subscription_manager`
 
 **Package**: `0xSUBSCRIPTIONS`
-**Module ID: `subscription_manager`
-**Dependency**: `types` module, `subscription_account` module, `platform_registry` module
+**Module ID**: `subscription_manager`
 **Purpose**: Subscription lifecycle management
 
 The subscription manager module handles the complete lifecycle of individual subscriptions within the system. Each subscription represents a user's commitment to a specific platform tier and includes billing schedule information, status tracking, and payment history references.
+
+**Local Types:**
+- `SubscriptionStatus` — subscription state (ACTIVE, PAUSED, CANCELLED, PAYMENT_FAILED, EXPIRED)
+- Error constants for subscription operations (E_INVALID_TIER_INDEX, E_SUBSCRIPTION_NOT_FOUND, etc.)
 
 #### 3.3.1 Data Structures
 
@@ -502,7 +514,7 @@ public struct Subscription has key, store {
 
 ```move
 /// Subscription status enumeration
-struct SubscriptionStatus has store, drop {
+public struct SubscriptionStatus has store, drop {
     variant: u8,
 }
 ```
@@ -657,78 +669,6 @@ public fun get_next_withdrawal_time(
 
 ---
 
-### 3.4 Module: `types`
-
-**Package**: `0xSUBSCRIPTIONS`
-**Module ID**: `types`
-**Dependency**: None
-**Purpose**: Shared type definitions and constants
-
-The types module contains all shared type definitions, constants, and utility functions used across the other modules. This centralized definition ensures consistency and reduces code duplication.
-
-#### 3.4.1 Type Definitions
-
-```move
-/// Stablecoin type enumeration for type-gated accounts
-public struct USDC has drop, store {}
-public struct USDSui has drop, store {}
-```
-
-```move
-/// Billing frequency enumeration
-public struct BillingFrequency has store, drop {
-    variant: u8,
-}
-```
-
-The frequency variants should be defined as constants:
-- DAILY (0): Billing occurs daily
-- WEEKLY (1): Billing occurs weekly
-- BIWEEKLY (2): Billing occurs every two weeks
-- MONTHLY (3): Billing occurs monthly
-- QUARTERLY (4): Billing occurs quarterly
-- YEARLY (5): Billing occurs yearly
-
-```move
-/// Account status enumeration
-public struct AccountStatus has store, drop {
-    variant: u8,
-}
-```
-
-Account status variants: ACTIVE (0), PAUSED (1), CLOSED (2)
-
-```move
-/// Platform status enumeration
-public struct PlatformStatus has store, drop {
-    variant: u8,
-}
-```
-
-Platform status variants: ACTIVE (0), SUSPENDED (1), DEPRECATED (2)
-
-#### 3.4.2 Error Codes
-
-```move
-/// Error code constants for consistent error handling
-const E_POLICY_EXCEEDED_MONTHLY: u64 = 1001;
-const E_POLICY_EXCEEDED_TRANSACTION: u64 = 1002;
-const E_POLICY_MIN_BALANCE_VIOLATION: u64 = 1003;
-const E_POLICY_FREQUENCY_VIOLATION: u64 = 1004;
-const E_UNAUTHORIZED_PLATFORM: u64 = 2001;
-const E_INVALID_PLATFORM_CAP: u64 = 2002;
-const E_PLATFORM_NOT_FOUND: u64 = 2003;
-const E_DUPLICATE_AUTHORIZATION: u64 = 3001;
-const E_INVALID_TIER_INDEX: u64 = 4001;
-const E_SUBSCRIPTION_NOT_FOUND: u64 = 4002;
-const E_SUBSCRIPTION_PAUSED: u64 = 4003;
-const E_INVALID_COIN_TYPE: u64 = 5001;
-const E_INSUFFICIENT_BALANCE: u64 = 5002;
-const E_ACCOUNT_NOT_FOUND: u64 = 5003;
-```
-
----
-
 ## 4. Event Specifications
 
 Events are emitted on all significant state changes to enable off-chain indexing, notifications, and audit trails. Events are defined in each module and follow a consistent naming and structure pattern.
@@ -737,9 +677,8 @@ Events are emitted on all significant state changes to enable off-chain indexing
 
 ```move
 /// Emitted when a new subscription account is created
-struct AccountCreated has copy, drop {
+public struct AccountCreated has copy, drop {
     account_id: ID,
-    owner: address,
     stablecoin_type: u8,
     timestamp: u64,
 }
@@ -747,7 +686,7 @@ struct AccountCreated has copy, drop {
 
 ```move
 /// Emitted on every successful deposit
-struct Deposit has copy, drop {
+public struct Deposit has copy, drop {
     account_id: ID,
     depositor: address,
     amount: u64,
@@ -758,7 +697,7 @@ struct Deposit has copy, drop {
 
 ```move
 /// Emitted on every successful withdrawal
-struct Withdrawal has copy, drop {
+public struct Withdrawal has copy, drop {
     account_id: ID,
     platform_id: ID,
     platform_address: address,
@@ -772,7 +711,7 @@ struct Withdrawal has copy, drop {
 
 ```move
 /// Emitted when policy configuration is updated
-struct PolicyUpdated has copy, drop {
+public struct PolicyUpdated has copy, drop {
     account_id: ID,
     old_max_monthly: u64,
     new_max_monthly: u64,
@@ -786,7 +725,7 @@ struct PolicyUpdated has copy, drop {
 
 ```move
 /// Emitted when a platform is authorized
-struct PlatformAuthorized has copy, drop {
+public struct PlatformAuthorized has copy, drop {
     account_id: ID,
     platform_id: ID,
     platform_address: address,
@@ -796,7 +735,7 @@ struct PlatformAuthorized has copy, drop {
 
 ```move
 /// Emitted when a platform authorization is revoked
-struct PlatformRevoked has copy, drop {
+public struct PlatformRevoked has copy, drop {
     account_id: ID,
     platform_id: ID,
     platform_address: address,
@@ -808,7 +747,7 @@ struct PlatformRevoked has copy, drop {
 
 ```move
 /// Emitted when a platform registers
-struct PlatformRegistered has copy, drop {
+public struct PlatformRegistered has copy, drop {
     platform_id: ID,
     owner: address,
     name: String,
@@ -819,7 +758,7 @@ struct PlatformRegistered has copy, drop {
 
 ```move
 /// Emitted when a platform tier is created
-struct TierCreated has copy, drop {
+public struct TierCreated has copy, drop {
     platform_id: ID,
     tier_index: u64,
     tier_name: String,
@@ -831,7 +770,7 @@ struct TierCreated has copy, drop {
 
 ```move
 /// Emitted when a platform tier is updated
-struct TierUpdated has copy, drop {
+public struct TierUpdated has copy, drop {
     platform_id: ID,
     tier_index: u64,
     changes: String,
@@ -843,7 +782,7 @@ struct TierUpdated has copy, drop {
 
 ```move
 /// Emitted when a new subscription is created
-struct SubscriptionCreated has copy, drop {
+public struct SubscriptionCreated has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
@@ -858,7 +797,7 @@ struct SubscriptionCreated has copy, drop {
 
 ```move
 /// Emitted when a subscription is cancelled
-struct SubscriptionCancelled has copy, drop {
+public struct SubscriptionCancelled has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
@@ -871,7 +810,7 @@ struct SubscriptionCancelled has copy, drop {
 
 ```move
 /// Emitted when a subscription is paused
-struct SubscriptionPaused has copy, drop {
+public struct SubscriptionPaused has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
@@ -881,7 +820,7 @@ struct SubscriptionPaused has copy, drop {
 
 ```move
 /// Emitted when a subscription is resumed
-struct SubscriptionResumed has copy, drop {
+public struct SubscriptionResumed has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
@@ -891,7 +830,7 @@ struct SubscriptionResumed has copy, drop {
 
 ```move
 /// Emitted when a payment is successfully processed
-struct PaymentProcessed has copy, drop {
+public struct PaymentProcessed has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
@@ -903,7 +842,7 @@ struct PaymentProcessed has copy, drop {
 
 ```move
 /// Emitted when a payment fails
-struct PaymentFailed has copy, drop {
+public struct PaymentFailed has copy, drop {
     subscription_id: ID,
     account_id: ID,
     platform_id: ID,
