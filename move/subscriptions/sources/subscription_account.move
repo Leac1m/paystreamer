@@ -179,7 +179,7 @@ module subscriptions::subscription_account {
     /// Creates a new subscription account for the caller.
     /// Returns the AccountCap to the transaction sender.
     public fun create_account<T: drop>(
-        _stablecoin_type: T,
+        _stablecoin_type: &T,
         ctx: &mut TxContext
     ): (ID, AccountCap) {
         let id = object::new(ctx);
@@ -488,6 +488,23 @@ module subscriptions::subscription_account {
             payment_count,
             created_at,
             updated_at,
+        }
+    }
+
+    // === Policy helpers ===
+
+    public fun new_policy_config(
+        max_monthly_withdrawal: u64,
+        max_per_transaction: u64,
+        min_balance: u64,
+        min_frequency_days: u64,
+    ): PolicyConfig {
+        PolicyConfig {
+            max_monthly_withdrawal,
+            max_per_transaction,
+            min_balance,
+            min_frequency_days,
+            last_withdrawal_time: 0,
         }
     }
 
