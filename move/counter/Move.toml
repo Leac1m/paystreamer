@@ -1,0 +1,9 @@
+[package]
+name = "counter"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+
+[addresses]
+counter = "0x0"
