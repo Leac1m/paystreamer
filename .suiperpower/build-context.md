@@ -10,7 +10,32 @@ The subscription system has been refactored to fix critical architectural issues
 
 ## What Changed (This Session)
 
-### Architecture Changes
+### Refactor: create_subscription slimmed + authorize_platform added
+
+**Before** `create_subscription<T>`:
+- Took: `account_cap`, `account`, `platform`, `tier_index`, `clock`, `ctx`
+- Actions: created Subscription, transferred to user, added ID to VecMap
+- Single function responsibility was blurred
+
+**After** `create_subscription`:
+- Takes: `platform`, `tier_index`, `clock`, `ctx`
+- Returns: `Subscription` object (not transferred)
+- Validation only — no account association
+
+**New `authorize_platform<T>`**:
+- Takes: `account_cap`, `account`, `subscription`
+- Adds subscription ID to `SubscriptionAccount.subscriptions` VecMap
+- Emits `SubscriptionCreated` event
+- Idempotency check prevents duplicate platform entries
+
+### Key Files Changed
+
+- `move/subscriptions/sources/subscription_manager.move` — `create_subscription` slimmed, `authorize_platform` added
+- `move/subscriptions/sources/subscription_account.move` — VecMap unchanged (still `VecMap<address, ID>`)
+
+---
+
+## Previous Architecture Changes (2026-06-03)
 
 | Before | After |
 |--------|-------|
@@ -29,9 +54,10 @@ The subscription system has been refactored to fix critical architectural issues
 ```
 1. user: create_account<T> → AccountCap + shared SubscriptionAccount
 2. user: deposit<T> → balance updated
-3. user: create_subscription → Subscription object created + transferred to user, VecMap entry added
-4. platform: claim_platform_cap (guarded by PlatformOwnerCap) → PlatformCap transferred to platform
-5. platform: withdraw<T> → checks VecMap.contains(platform_address), processes payment
+3. user: create_subscription → Subscription object returned (not transferred)
+4. user: authorize_platform → subscription ID added to VecMap, SubscriptionCreated emitted
+5. platform: claim_platform_cap (guarded by PlatformOwnerCap) → PlatformCap transferred to platform
+6. platform: withdraw<T> → checks VecMap.contains(platform_address), processes payment
 ```
 
 ### Key Files
@@ -48,9 +74,9 @@ The subscription system has been refactored to fix critical architectural issues
 
 2. **`PlatformAuthorized`/`PlatformRevoked` events** — Unused struct warnings. These are kept for potential indexer compatibility but no longer emitted.
 
-3. **Unused constants** — `E_SUBSCRIPTION_NOT_FOUND` (0x10004) and `E_UNAUTHORIZED_OWNER` (0x1000D) in subscription_account are declared but not used there (used in platform_registry).
+3. **Lint warnings** — Unused imports (`transfer`, `vec_map`, `PlatformCap`, `PlatformOwnerCap`, `add_subscription`, `has_subscription`) in subscription_manager — cleaned up after full refactor.
 
-4. **Lint warning** — `subscription_manager.create_subscription` has `lint(self_transfer)` warning for `transfer::transfer(subscription, ctx.sender())`. This is a false positive — transferring to the transaction sender is correct behavior.
+4. **Pending build verification** — user will test separately.
 
 ---
 
@@ -67,7 +93,7 @@ The subscription system has been refactored to fix critical architectural issues
 
 ```bash
 cd move/subscriptions && sui move build
-# Passes with only warnings (no errors)
+# User will verify separately
 ```
 
 ---
@@ -75,5 +101,6 @@ cd move/subscriptions && sui move build
 ## Intent Success Criteria (From intent.md)
 
 1. ✅ Users can create `SubscriptionAccount<T>`, deposit stablecoin, observe `Deposit` and `AccountCreated` events
-2. ✅ Authorized platform with `PlatformCap` can withdraw within policy limits, `Withdrawal` event emitted
-3. ⏳ Batch withdraw processes multiple accounts in one tx — **deferred redesign needed**
+2. ✅ Users can call `create_subscription` (returns Subscription) then `authorize_platform` (attaches to account, emits event)
+3. ✅ Authorized platform with `PlatformCap` can withdraw within policy limits, `Withdrawal` event emitted
+4. ⏳ Batch withdraw processes multiple accounts in one tx — **deferred redesign needed**

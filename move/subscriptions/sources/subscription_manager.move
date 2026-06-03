@@ -159,24 +159,16 @@ module subscriptions::subscription_manager {
 
     // === Entry points ===
 
-    /// Creates a new subscription for the account-cap holder.
-    /// Stores the Subscription object and adds entry to SubscriptionAccount's VecMap.
-    /// Does NOT perform payment — payment is a separate PTB step.
-    public fun create_subscription<T>(
-        account_cap: &AccountCap,
-        account: &mut SubscriptionAccount<T>,
+    /// Creates a new subscription for the given platform and tier.
+    /// Returns the Subscription object — caller must call `authorize_platform` to
+    /// attach it to a SubscriptionAccount and enable withdrawals.
+    public fun create_subscription(
         platform: &Platform,
         tier_index: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ) {
-        let account_id = object::id(account);
-        assert!(account_id == cap_account_id(account_cap), 0x10001); // E_INVALID_CAP
-
+    ): Subscription {
         let platform_address = platform_owner_address(platform);
-
-        // Idempotency check
-        assert!(!has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_ALREADY_EXISTS);
 
         let tiers = get_platform_tiers(platform);
         assert!(tier_index < vector::length(tiers), E_INVALID_TIER);
@@ -210,22 +202,38 @@ module subscriptions::subscription_manager {
             updated_at: now,
         };
 
-        let sub_id = object::id(&subscription);
+        subscription
+    }
 
-        // Publish Subscription object to the user (account owner)
-        transfer::transfer(subscription, ctx.sender());
+    /// Authorizes a platform to bill against a subscription account.
+    /// Stores the subscription ID in the account's VecMap and emits an event.
+    /// Idempotency check ensures no duplicate platform entries.
+    public fun authorize_platform<T>(
+        account_cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        subscription: &mut Subscription,
+    ) {
+        let account_id = object::id(account);
+        assert!(account_id == cap_account_id(account_cap), 0x10001);
 
-        // Add to VecMap for authorization lookup
+        let platform_address = subscription.platform_address;
+
+        // Idempotency check
+        assert!(!has_subscription<T>(account, &platform_address), E_SUBSCRIPTION_ALREADY_EXISTS);
+
+        // Add subscription ID to VecMap for authorization lookup
+        let sub_id = object::id(subscription);
         add_subscription<T>(account, platform_address, sub_id);
 
         emit(SubscriptionCreated {
             subscription_id: sub_id,
             account_id,
-            platform_id: object::id(platform),
-            tier_index,
-            timestamp: now,
+            platform_id: subscription.platform_id,
+            tier_index: subscription.tier_index,
+            timestamp: subscription.updated_at,
         });
     }
+
     /// Updates subscription tier.
     public fun update_subscription_tier<T>(
         account_cap: &AccountCap,

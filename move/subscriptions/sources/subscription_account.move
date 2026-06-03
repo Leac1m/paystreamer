@@ -361,7 +361,7 @@ module subscriptions::subscription_account {
     }
 
     /// Internal: adds a subscription entry to the account's VecMap.
-    /// Called by subscription_manager::create_subscription.
+    /// Called by subscription_manager::authorize_platform.
     public fun add_subscription<T>(
         account: &mut SubscriptionAccount<T>,
         platform_address: address,
