@@ -22,7 +22,6 @@ module subscriptions::platform_registry {
     const E_TOO_MANY_TIERS: u64 = 0x20004;
     const E_DUPLICATE_TIER_NAME: u64 = 0x20005;
     const E_BATCH_LENGTH_MISMATCH: u64 = 0x20007;
-    const E_SUBSCRIPTION_NOT_FOUND: u64 = 0x20008;
 
     // === Enums ===
 

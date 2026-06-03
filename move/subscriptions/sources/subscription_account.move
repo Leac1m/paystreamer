@@ -36,6 +36,19 @@ module subscriptions::subscription_account {
     public fun account_status_closed(): AccountStatus { AccountStatus { variant: 2 } }
     public fun account_status_variant(s: &AccountStatus): u8 { s.variant }
 
+    /// Subscription lifecycle status
+    public struct SubscriptionStatus has store, drop {
+        variant: u8,
+    }
+
+    public fun subscription_status_active(): SubscriptionStatus { SubscriptionStatus { variant: 0 } }
+    public fun subscription_status_paused(): SubscriptionStatus { SubscriptionStatus { variant: 1 } }
+    public fun subscription_status_cancelled(): SubscriptionStatus { SubscriptionStatus { variant: 2 } }
+    public fun subscription_status_variant(s: &SubscriptionStatus): u8 { s.variant }
+    public fun subscription_status_is_active(s: &SubscriptionStatus): bool { s.variant == 0 }
+    public fun subscription_status_is_paused(s: &SubscriptionStatus): bool { s.variant == 1 }
+    public fun subscription_status_is_cancelled(s: &SubscriptionStatus): bool { s.variant == 2 }
+
     // === Data structures ===
 
     /// Defines withdrawal constraints enforced by the smart contract.
@@ -47,13 +60,35 @@ module subscriptions::subscription_account {
         last_withdrawal_time: u64,
     }
 
+    /// Billing schedule for a subscription
+    public struct BillingSchedule has store, drop {
+        frequency_days: u64,
+        next_billing_time: u64,
+        last_billing_time: u64,
+    }
+
+    /// Individual subscription embedded in SubscriptionAccount.
+    /// Tracks lifecycle, billing schedule, and payment history.
+    public struct Subscription has store, drop {
+        platform_id: ID,
+        tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_days: u64,
+        status: SubscriptionStatus,
+        schedule: BillingSchedule,
+        total_paid: u64,
+        payment_count: u64,
+        created_at: u64,
+        updated_at: u64,
+    }
+
     /// Represents a user's subscription account holding stablecoin funds and policy configuration.
     /// Shared object enabling concurrent access for deposits and withdrawals.
     public struct SubscriptionAccount<phantom T> has key, store {
         id: UID,
         balance: Balance<T>,
         policies: PolicyConfig,
-        subscriptions: VecMap<ID, ID>,  // platform_id -> subscription object ID
+        subscriptions: VecMap<ID, Subscription>,  // platform_id -> Subscription
         monthly_withdrawn: u64,
         current_month_start: u64,
         created_at: u64,
@@ -338,6 +373,131 @@ module subscriptions::subscription_account {
         }
     }
 
+    // === Subscription helpers ===
+
+    public fun get_subscriptions<T>(account: &SubscriptionAccount<T>): &VecMap<ID, Subscription> {
+        &account.subscriptions
+    }
+
+    public fun get_subscription<T>(account: &SubscriptionAccount<T>, platform_id: &ID): &Subscription {
+        vec_map::get(&account.subscriptions, platform_id)
+    }
+
+    public fun has_subscription<T>(account: &SubscriptionAccount<T>, platform_id: &ID): bool {
+        vec_map::contains(&account.subscriptions, platform_id)
+    }
+
+    /// Internal: adds a subscription to the account's VecMap.
+    public fun add_subscription<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        subscription: Subscription
+    ) {
+        vec_map::insert(&mut account.subscriptions, platform_id, subscription);
+    }
+
+    /// Internal: gets a mutable reference to a subscription.
+    public fun get_subscription_mut<T>(account: &mut SubscriptionAccount<T>, platform_id: &ID): &mut Subscription {
+        vec_map::get_mut(&mut account.subscriptions, platform_id)
+    }
+
+    // === Subscription accessors ===
+
+    public fun subscription_platform_id(sub: &Subscription): ID {
+        sub.platform_id
+    }
+
+    public fun subscription_tier_index(sub: &Subscription): u64 {
+        sub.tier_index
+    }
+
+    public fun subscription_status(sub: &Subscription): &SubscriptionStatus {
+        &sub.status
+    }
+
+    public fun subscription_total_paid(sub: &Subscription): u64 {
+        sub.total_paid
+    }
+
+    public fun subscription_payment_count(sub: &Subscription): u64 {
+        sub.payment_count
+    }
+
+    public fun subscription_schedule(sub: &Subscription): &BillingSchedule {
+        &sub.schedule
+    }
+
+    public fun billing_schedule_frequency_days(s: &BillingSchedule): u64 {
+        s.frequency_days
+    }
+
+    public fun billing_schedule_next_billing_time(s: &BillingSchedule): u64 {
+        s.next_billing_time
+    }
+
+    // === Subscription mutators ===
+
+    public fun subscription_set_tier_index(sub: &mut Subscription, tier_index: u64) {
+        sub.tier_index = tier_index;
+    }
+
+    public fun subscription_set_status(sub: &mut Subscription, status: SubscriptionStatus) {
+        sub.status = status;
+    }
+
+    public fun subscription_inc_total_paid(sub: &mut Subscription, amount: u64) {
+        sub.total_paid = sub.total_paid + amount;
+    }
+
+    public fun subscription_inc_payment_count(sub: &mut Subscription) {
+        sub.payment_count = sub.payment_count + 1;
+    }
+
+    public fun subscription_update_schedule(sub: &mut Subscription, last_billing_time: u64, next_billing_time: u64) {
+        sub.schedule.last_billing_time = last_billing_time;
+        sub.schedule.next_billing_time = next_billing_time;
+    }
+
+    public fun subscription_set_updated_at(sub: &mut Subscription, timestamp: u64) {
+        sub.updated_at = timestamp;
+    }
+
+    // === Subscription constructors (called by subscription_manager) ===
+
+    public fun new_billing_schedule(frequency_days: u64, next_billing_time: u64, last_billing_time: u64): BillingSchedule {
+        BillingSchedule {
+            frequency_days,
+            next_billing_time,
+            last_billing_time,
+        }
+    }
+
+    public fun new_subscription(
+        platform_id: ID,
+        tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_days: u64,
+        status: SubscriptionStatus,
+        schedule: BillingSchedule,
+        total_paid: u64,
+        payment_count: u64,
+        created_at: u64,
+        updated_at: u64,
+    ): Subscription {
+        Subscription {
+            platform_id,
+            tier_index,
+            tier_amount,
+            tier_frequency_days,
+            status,
+            schedule,
+            total_paid,
+            payment_count,
+            created_at,
+            updated_at,
+        }
+    }
+
     // === View functions ===
 
     public fun get_balance<T>(account: &SubscriptionAccount<T>): u64 {
@@ -346,28 +506,6 @@ module subscriptions::subscription_account {
 
     public fun get_policies<T>(account: &SubscriptionAccount<T>): &PolicyConfig {
         &account.policies
-    }
-
-    public fun get_subscriptions<T>(account: &SubscriptionAccount<T>): &VecMap<ID, ID> {
-        &account.subscriptions
-    }
-
-    public fun get_subscription_id<T>(account: &SubscriptionAccount<T>, platform_id: &ID): ID {
-        *vec_map::get(&account.subscriptions, platform_id)
-    }
-
-    public fun has_subscription<T>(account: &SubscriptionAccount<T>, platform_id: &ID): bool {
-        vec_map::contains(&account.subscriptions, platform_id)
-    }
-
-    /// Internal: adds a subscription entry to the account's VecMap.
-    /// Called by subscription_manager::authorize_platform.
-    public fun add_subscription<T>(
-        account: &mut SubscriptionAccount<T>,
-        platform_id: ID,
-        subscription_id: ID
-    ) {
-        vec_map::insert(&mut account.subscriptions, platform_id, subscription_id);
     }
 
     public fun get_account_info<T>(account: &SubscriptionAccount<T>): (u8, u64, u64) {
