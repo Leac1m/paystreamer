@@ -7,6 +7,10 @@ const config: SuiCodegenConfig = {
       package: "@local-pkg/counter",
       path: "./move/counter",
     },
+    {
+      package: "@local-pkg/subscriptions",
+      path: "./move/subscriptions",
+    },
   ],
 };
 
