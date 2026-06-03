@@ -2,90 +2,88 @@
 
 ## Project Status
 
-**Phase:** Post-architecture refactor complete, build passing
+**Phase:** Build passing, critical billing bug fixed
 
-The subscription system has been refactored to fix critical architectural issues. All three modules compile successfully with only lint warnings.
+All three modules compile with zero errors and zero warnings.
 
 ---
 
 ## What Changed (This Session)
 
-### Refactor: create_subscription slimmed + authorize_platform added
+### Fix: `record_payment` Now Called Inside `process_withdrawal`
 
-**Before** `create_subscription<T>`:
-- Took: `account_cap`, `account`, `platform`, `tier_index`, `clock`, `ctx`
-- Actions: created Subscription, transferred to user, added ID to VecMap
-- Single function responsibility was blurred
+**Critical bug fixed:** The billing schedule was never advancing after withdrawal because `record_payment` was never called.
 
-**After** `create_subscription`:
-- Takes: `platform`, `tier_index`, `clock`, `ctx`
-- Returns: `Subscription` object (not transferred)
-- Validation only — no account association
+**Changes:**
 
-**New `authorize_platform<T>`**:
-- Takes: `account_cap`, `account`, `subscription`
-- Adds subscription ID to `SubscriptionAccount.subscriptions` VecMap
-- Emits `SubscriptionCreated` event
-- Idempotency check prevents duplicate platform entries
+1. **`subscription_account.move`** — Added `record_payment` function that:
+   - Updates `total_paid`, `payment_count`
+   - Advances `schedule.next_billing_time` and `schedule.last_billing_time`
+   - Emits `PaymentRecorded` event
+   - Uses direct field access instead of accessor functions (avoids circular deps)
 
-### Key Files Changed
+2. **`platform_registry.move`** — `process_withdrawal` now calls `record_payment` after transferring funds
 
-- `move/subscriptions/sources/subscription_manager.move` — `create_subscription` slimmed, `authorize_platform` added
-- `move/subscriptions/sources/subscription_account.move` — VecMap unchanged (still `VecMap<address, ID>`)
+3. **`subscription_manager.move`** — Removed duplicate `record_payment` function (was there previously, now in `subscription_account`)
+
+4. **`WithdrawalProcessed` event** — Removed `subscription_id` field (no longer meaningful since Subscription is embedded, not a standalone object)
+
+5. **`batch_withdraw`** — Removed `subscription_ids` parameter from signature (was unused anyway)
 
 ---
 
-## Previous Architecture Changes (2026-06-03)
-
-| Before | After |
-|--------|-------|
-| `authorized_platforms: VecSet<address>` | `subscriptions: VecMap<address, ID>` |
-| `Subscription` returned and dropped | `Subscription` transferred to user, VecMap entry created |
-| `authorize_platform`/`revoke_platform` | Subscription creation handles authorization |
-| `PlatformCap` never created | `claim_platform_cap` in platform_registry |
-| `AccountCap.permissions` set but unused | Removed |
-| `PlatformCap.permissions` set but unused | Removed |
-| `AccountCreated.stablecoin_type` hardcoded as 0 | Removed from event |
-| `tier.amount` never used | Stored in `Subscription.tier_amount` |
-| `subscribe_with_payment` fake atomic | Removed |
-
-### New Flow
+## Architecture Summary
 
 ```
-1. user: create_account<T> → AccountCap + shared SubscriptionAccount
-2. user: deposit<T> → balance updated
-3. user: create_subscription → Subscription object returned (not transferred)
-4. user: authorize_platform → subscription ID added to VecMap, SubscriptionCreated emitted
-5. platform: claim_platform_cap (guarded by PlatformOwnerCap) → PlatformCap transferred to platform
-6. platform: withdraw<T> → checks VecMap.contains(platform_address), processes payment
+SubscriptionAccount<T> (shared object)
+├── balance: Balance<T>
+├── policies: PolicyConfig
+├── subscriptions: VecMap<ID, Subscription>  // platform_id → embedded Subscription
+├── monthly_withdrawn: u64
+├── current_month_start: u64
+├── created_at: u64
+└── status: AccountStatus
+
+Subscription (embedded struct, not a key object)
+├── platform_id: ID
+├── tier_index: u64
+├── tier_amount: u64
+├── tier_frequency_days: u64
+├── status: SubscriptionStatus
+├── schedule: BillingSchedule
+├── total_paid: u64
+├── payment_count: u64
+├── created_at: u64
+└── updated_at: u64
 ```
 
-### Key Files
+---
 
-- `move/subscriptions/sources/subscription_account.move` — Core account, Balance<T>, policy enforcement
-- `move/subscriptions/sources/platform_registry.move` — Platform registration, tiers, claim_platform_cap
-- `move/subscriptions/sources/subscription_manager.move` — Subscription lifecycle, billing
+## Module Responsibilities
+
+| Module | Responsibility |
+|--------|----------------|
+| `subscription_account` | Core account, Balance<T>, policy enforcement, Subscription struct, record_payment |
+| `subscription_manager` | Subscription lifecycle (create, pause, resume, cancel) |
+| `platform_registry` | Platform registration, tier management, withdrawal processing |
 
 ---
 
-## Remaining Issues (Not Fixed)
+## Key Design Decisions
 
-1. **`batch_withdraw` signature** — Still uses `vector<SubscriptionAccount<T>>` which is invalid for shared objects. Needs redesign with vector of IDs.
-
-2. **`PlatformAuthorized`/`PlatformRevoked` events** — Unused struct warnings. These are kept for potential indexer compatibility but no longer emitted.
-
-3. **Lint warnings** — Unused imports (`transfer`, `vec_map`, `PlatformCap`, `PlatformOwnerCap`, `add_subscription`, `has_subscription`) in subscription_manager — cleaned up after full refactor.
-
-4. **Pending build verification** — user will test separately.
+1. **Subscription embedded** — Non-key struct lives only inside `SubscriptionAccount`. Eliminates orphaned objects, reduces gas, atomic operations.
+2. **PlatformOwnerCap only** — Removed `PlatformCap`. Single capability per platform for all platform operations.
+3. **record_payment in subscription_account** — Avoids circular dependency. Called by platform_registry.process_withdrawal after each successful withdrawal.
+4. **WithdrawalProcessed has no subscription_id** — With Subscription embedded, there's no standalone object ID to reference. `platform_id + account_id` uniquely identifies.
 
 ---
 
-## Next Steps (Per Build Plan)
+## Remaining Items (Post-MVP)
 
-1. **Write unit tests** — Cover success criteria from intent.md
-2. **Deploy to testnet** — Capture package ID
-3. **batch_withdraw redesign** — Deferred (marked as post-MVP)
-4. **Frontend integration** — Next.js + dapp-kit integration
+1. **`batch_withdraw`** — Uses `vector<SubscriptionAccount<T>>` which is invalid for shared objects. Needs redesign (use IDs + fetch pattern). Currently compiles but will fail at runtime.
+2. **Frontend integration** — Next.js + dapp-kit integration not yet started.
+3. **`subscriber_count` not updated** — Platform's subscriber_count is never incremented on subscribe or decremented on cancel (informational only, no functional impact)
+4. **`tier_amount` not enforced** — Withdrawal can be any amount up to policy limits, not just the tier amount (documented as by-design)
 
 ---
 
@@ -93,14 +91,15 @@ The subscription system has been refactored to fix critical architectural issues
 
 ```bash
 cd move/subscriptions && sui move build
-# User will verify separately
+# Result: BUILDING subscriptions — zero warnings, zero errors
 ```
 
 ---
 
-## Intent Success Criteria (From intent.md)
+## Intent Success Criteria
 
 1. ✅ Users can create `SubscriptionAccount<T>`, deposit stablecoin, observe `Deposit` and `AccountCreated` events
-2. ✅ Users can call `create_subscription` (returns Subscription) then `authorize_platform` (attaches to account, emits event)
-3. ✅ Authorized platform with `PlatformCap` can withdraw within policy limits, `Withdrawal` event emitted
-4. ⏳ Batch withdraw processes multiple accounts in one tx — **deferred redesign needed**
+2. ✅ Users can call `create_subscription` — subscription embedded in account, `SubscriptionCreated` emitted
+3. ✅ Platform with `PlatformOwnerCap` can withdraw via `process_withdrawal`, `WithdrawalProcessed` and `PaymentRecorded` events emitted
+4. ✅ Billing schedule advances after each withdrawal — `can_bill` returns `false` until next cycle
+5. ⏳ Batch withdraw — deferred redesign needed

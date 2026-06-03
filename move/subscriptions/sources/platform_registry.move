@@ -14,6 +14,7 @@ module subscriptions::platform_registry {
     use subscriptions::subscription_account::{
         SubscriptionAccount,
         withdraw,
+        record_payment,
     };
 
     // === Error constants ===
@@ -120,7 +121,6 @@ module subscriptions::platform_registry {
     public struct WithdrawalProcessed has copy, drop {
         platform_id: ID,
         account_id: ID,
-        subscription_id: ID,
         amount: u64,
         success: bool,
         timestamp: u64,
@@ -319,19 +319,20 @@ module subscriptions::platform_registry {
 
     /// Processes a withdrawal from a user account.
     /// Requires a valid PlatformOwnerCap for the platform.
-    /// Calls subscription_account::withdraw to process the actual transfer.
+    /// Calls subscription_account::withdraw to process the actual transfer,
+    /// then subscription_manager::record_payment to update billing schedule.
+    #[allow(lint(self_transfer))]
     public fun process_withdrawal<T>(
         owner_cap: &PlatformOwnerCap,
         account: &mut SubscriptionAccount<T>,
         amount: u64,
-        subscription_id: ID,
         _clock: &Clock,
         ctx: &mut TxContext
     ) {
         let platform_id = owner_cap_platform_id(owner_cap);
         let recipient = ctx.sender();
 
-        // Delegate to subscription_account::withdraw
+        // Withdraw funds from account
         let withdrawn: Balance<T> = withdraw<T>(
             platform_id,
             account,
@@ -345,10 +346,12 @@ module subscriptions::platform_registry {
         let coin: Coin<T> = sui::coin::from_balance(withdrawn, ctx);
         transfer::public_transfer(coin, recipient);
 
+        // Record payment to advance billing schedule
+        record_payment<T>(account, platform_id, amount, _clock, ctx);
+
         emit(WithdrawalProcessed {
             platform_id,
             account_id: object::id(account),
-            subscription_id,
             amount,
             success: true,
             timestamp: ctx.epoch_timestamp_ms(),
@@ -361,23 +364,20 @@ module subscriptions::platform_registry {
         owner_cap: &PlatformOwnerCap,
         accounts: &mut vector<SubscriptionAccount<T>>,
         amounts: &vector<u64>,
-        subscription_ids: &vector<ID>,
         clock: &sui::clock::Clock,
         ctx: &mut TxContext
     ) {
         let num_accounts = vector::length(accounts);
         assert!(vector::length(amounts) == num_accounts, E_BATCH_LENGTH_MISMATCH);
-        assert!(vector::length(subscription_ids) == num_accounts, E_BATCH_LENGTH_MISMATCH);
 
         let mut i = 0;
         while (i < num_accounts) {
             let account = vector::borrow_mut(accounts, i);
             let amount = *vector::borrow(amounts, i);
-            let sub_id = *vector::borrow(subscription_ids, i);
 
             // Process withdrawal for this account
             // We use a simple loop; in production this could be optimized
-            process_withdrawal<T>(owner_cap, account, amount, sub_id, clock, ctx);
+            process_withdrawal<T>(owner_cap, account, amount, clock, ctx);
 
             i = i + 1;
         };

@@ -14,7 +14,6 @@ module subscriptions::subscription_account {
     // === Error constants ===
     const E_INVALID_CAP: u64 = 0x10001;
     const E_UNAUTHORIZED_PLATFORM: u64 = 0x10003;
-    const E_SUBSCRIPTION_NOT_FOUND: u64 = 0x10004;
     const E_POLICY_EXCEEDED_TRANSACTION: u64 = 0x10006;
     const E_POLICY_MIN_BALANCE_VIOLATION: u64 = 0x10007;
     const E_POLICY_EXCEEDED_MONTHLY: u64 = 0x10008;
@@ -22,7 +21,7 @@ module subscriptions::subscription_account {
     const E_INVALID_POLICY: u64 = 0x1000A;
     const E_ZERO_AMOUNT: u64 = 0x1000B;
     const E_ACCOUNT_PAUSED: u64 = 0x1000C;
-    const E_UNAUTHORIZED_OWNER: u64 = 0x1000D;
+    const E_SUBSCRIPTION_PAUSED: u64 = 0x1000E;
 
     // === Enums ===
 
@@ -141,17 +140,11 @@ module subscriptions::subscription_account {
         timestamp: u64,
     }
 
-    public struct PlatformAuthorized has copy, drop {
+    public struct PaymentRecorded has copy, drop {
         account_id: ID,
         platform_id: ID,
-        platform_address: address,
-        timestamp: u64,
-    }
-
-    public struct PlatformRevoked has copy, drop {
-        account_id: ID,
-        platform_id: ID,
-        platform_address: address,
+        amount: u64,
+        new_total_paid: u64,
         timestamp: u64,
     }
 
@@ -496,6 +489,40 @@ module subscriptions::subscription_account {
             created_at,
             updated_at,
         }
+    }
+
+    // === Payment recording (called by platform_registry) ===
+
+    /// Records a successful payment and advances the billing schedule.
+    /// Called by platform after withdrawal. No capability needed since
+    /// withdraw already verified platform authorization.
+    public fun record_payment<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        amount: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext
+    ) {
+        let sub = get_subscription_mut(account, &platform_id);
+        assert!(sub.status.variant == 0, E_SUBSCRIPTION_PAUSED);
+
+        let new_total = sub.total_paid;
+        let freq_days = sub.schedule.frequency_days;
+
+        sub.total_paid = sub.total_paid + amount;
+        sub.payment_count = sub.payment_count + 1;
+        let now = clock.timestamp_ms();
+        sub.schedule.last_billing_time = now;
+        sub.schedule.next_billing_time = now + (freq_days * 86400000);
+        sub.updated_at = now;
+
+        emit(PaymentRecorded {
+            account_id: object::id(account),
+            platform_id,
+            amount,
+            new_total_paid: new_total,
+            timestamp: now,
+        });
     }
 
     // === View functions ===

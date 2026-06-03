@@ -34,13 +34,9 @@ module subscriptions::subscription_manager {
         subscription_payment_count,
         subscription_schedule,
         subscription_platform_id,
-        billing_schedule_frequency_days,
         billing_schedule_next_billing_time,
         subscription_set_tier_index,
         subscription_set_status,
-        subscription_inc_total_paid,
-        subscription_inc_payment_count,
-        subscription_update_schedule,
         subscription_set_updated_at,
     };
 
@@ -53,7 +49,6 @@ module subscriptions::subscription_manager {
         tier_is_active,
         tier_frequency_variant,
         tier_amount,
-        owner_cap_platform_id,
     };
 
     // === Error constants ===
@@ -97,14 +92,6 @@ module subscriptions::subscription_manager {
     public struct SubscriptionCancelled has copy, drop {
         account_id: ID,
         platform_id: ID,
-        timestamp: u64,
-    }
-
-    public struct PaymentRecorded has copy, drop {
-        account_id: ID,
-        platform_id: ID,
-        amount: u64,
-        new_total_paid: u64,
         timestamp: u64,
     }
 
@@ -260,37 +247,6 @@ module subscriptions::subscription_manager {
             account_id: object::id(account),
             platform_id,
             timestamp: clock.timestamp_ms(),
-        });
-    }
-
-    /// Records a successful payment (called by platform after withdraw).
-    public fun record_payment<T>(
-        account_cap: &AccountCap,
-        account: &mut SubscriptionAccount<T>,
-        platform_id: ID,
-        amount: u64,
-        clock: &Clock,
-        _ctx: &mut TxContext
-    ) {
-        assert!(object::id(account) == cap_account_id(account_cap), 0x10001);
-        let sub = get_subscription_mut(account, &platform_id);
-        assert!(subscription_status_is_active(subscription_status(sub)), E_SUBSCRIPTION_PAUSED);
-
-        let new_total = subscription_total_paid(sub);
-        let freq_days = billing_schedule_frequency_days(subscription_schedule(sub));
-
-        subscription_inc_total_paid(sub, amount);
-        subscription_inc_payment_count(sub);
-        let now = clock.timestamp_ms();
-        subscription_update_schedule(sub, now, now + (freq_days * 86400000));
-        subscription_set_updated_at(sub, now);
-
-        emit(PaymentRecorded {
-            account_id: object::id(account),
-            platform_id,
-            amount,
-            new_total_paid: new_total,
-            timestamp: now,
         });
     }
 
