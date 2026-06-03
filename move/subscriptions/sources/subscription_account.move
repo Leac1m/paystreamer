@@ -4,10 +4,11 @@
 /// SubscriptionAccount module: core account management, balance operations,
 /// and on-chain policy enforcement for stablecoin-denominated subscriptions.
 module subscriptions::subscription_account {
-    use sui::coin::{Self, Coin};
+    use sui::coin::Coin;
     use sui::balance::{Self, Balance};
     use sui::vec_set;
     use sui::clock::Clock;
+    use sui::tx_context::TxContext;
     use sui::event::emit;
 
     // === Error constants ===
@@ -127,7 +128,7 @@ module subscriptions::subscription_account {
     }
 
     public fun account_balance<T>(account: &SubscriptionAccount<T>): u64 {
-        balance::value(&account.balance)
+        account.balance.value()
     }
 
     public fun account_status<T>(account: &SubscriptionAccount<T>): &AccountStatus {
@@ -156,7 +157,7 @@ module subscriptions::subscription_account {
     ): (ID, AccountCap) {
         let id = object::new(ctx);
         let account_id = object::id_from_address(object::uid_to_address(&id));
-        let now = sui::tx_context::epoch_timestamp_ms(ctx);
+        let now = ctx.epoch_timestamp_ms();
 
         let account = SubscriptionAccount<T> {
             id,
@@ -205,18 +206,18 @@ module subscriptions::subscription_account {
         assert!(object::id(account) == cap.account_id, E_INVALID_CAP);
         assert!(account.status.variant == 0, E_ACCOUNT_PAUSED);
 
-        let amount = coin::value(&coin);
+        let amount = coin.value();
         assert!(amount > 0, E_ZERO_AMOUNT);
 
-        let deposit_balance = coin::into_balance(coin);
-        balance::join(&mut account.balance, deposit_balance);
+        let deposit_balance = coin.into_balance();
+        account.balance.join(deposit_balance);
 
         emit(Deposit {
             account_id: object::id(account),
             depositor: _ctx.sender(),
             amount,
-            new_balance: balance::value(&account.balance),
-            timestamp: sui::tx_context::epoch_timestamp_ms(_ctx),
+            new_balance: account.balance.value(),
+            timestamp: _ctx.epoch_timestamp_ms(),
         });
     }
 
@@ -248,7 +249,7 @@ module subscriptions::subscription_account {
         assert!(amount <= max_per_tx, E_POLICY_EXCEEDED_TRANSACTION);
 
         // Minimum balance check
-        assert!(balance::value(&account.balance) - amount >= min_balance, E_POLICY_MIN_BALANCE_VIOLATION);
+        assert!(account.balance.value() - amount >= min_balance, E_POLICY_MIN_BALANCE_VIOLATION);
 
         // Monthly limit check
         check_and_reset_month<T>(account, _clock);
@@ -256,15 +257,15 @@ module subscriptions::subscription_account {
 
         // Frequency check
         if (min_freq_days > 0) {
-            let now = sui::clock::timestamp_ms(_clock);
+            let now = _clock.timestamp_ms();
             let min_interval_ms = (min_freq_days as u64) * 86400000;
             assert!(now - account.policies.last_withdrawal_time >= min_interval_ms, E_POLICY_FREQUENCY_VIOLATION);
         };
 
         // All checks passed — split off the withdrawn balance
-        let withdrawn = balance::split(&mut account.balance, amount);
+        let withdrawn = account.balance.split(amount);
         account.monthly_withdrawn = account.monthly_withdrawn + amount;
-        account.policies.last_withdrawal_time = sui::clock::timestamp_ms(_clock);
+        account.policies.last_withdrawal_time = _clock.timestamp_ms();
 
         // Emit events
         let policy_passed = vector[
@@ -279,10 +280,10 @@ module subscriptions::subscription_account {
             platform_id: platform_cap.platform_id,
             platform_address: platform_cap.platform_address,
             amount,
-            remaining_balance: balance::value(&account.balance),
+            remaining_balance: account.balance.value(),
             monthly_total: account.monthly_withdrawn,
             policy_passed,
-            timestamp: sui::tx_context::epoch_timestamp_ms(_ctx),
+            timestamp: _ctx.epoch_timestamp_ms(),
         });
 
         withdrawn
@@ -306,7 +307,7 @@ module subscriptions::subscription_account {
         assert!(new_policies.min_frequency_days < 32, E_INVALID_POLICY);
 
         let old_policies = &account.policies;
-        let now = sui::tx_context::epoch_timestamp_ms(ctx);
+        let now = ctx.epoch_timestamp_ms();
 
         emit(PolicyUpdated {
             account_id: object::id(account),
@@ -338,7 +339,7 @@ module subscriptions::subscription_account {
             account_id: object::id(account),
             platform_id: object::id_from_address(platform_address),
             platform_address,
-            timestamp: sui::tx_context::epoch_timestamp_ms(ctx),
+            timestamp: ctx.epoch_timestamp_ms(),
         });
     }
 
@@ -359,7 +360,7 @@ module subscriptions::subscription_account {
             account_id: object::id(account),
             platform_id: object::id_from_address(platform_address),
             platform_address,
-            timestamp: sui::tx_context::epoch_timestamp_ms(ctx),
+            timestamp: ctx.epoch_timestamp_ms(),
         });
     }
 
@@ -373,7 +374,7 @@ module subscriptions::subscription_account {
     }
 
     fun check_and_reset_month<T>(account: &mut SubscriptionAccount<T>, _clock: &Clock) {
-        let now = sui::clock::timestamp_ms(_clock);
+        let now = _clock.timestamp_ms();
         let current_month = get_month_start(now);
         if (account.current_month_start < current_month) {
             account.monthly_withdrawn = 0;
@@ -384,7 +385,7 @@ module subscriptions::subscription_account {
     // === View functions ===
 
     public fun get_balance<T>(account: &SubscriptionAccount<T>): u64 {
-        balance::value(&account.balance)
+        account.balance.value()
     }
 
     public fun get_policies<T>(account: &SubscriptionAccount<T>): &PolicyConfig {
@@ -396,7 +397,7 @@ module subscriptions::subscription_account {
     }
 
     public fun get_account_info<T>(account: &SubscriptionAccount<T>): (u8, u64, u64) {
-        (account.status.variant, account.created_at, balance::value(&account.balance))
+        (account.status.variant, account.created_at, account.balance.value())
     }
 
     public fun check_withdrawal<T>(
@@ -407,7 +408,7 @@ module subscriptions::subscription_account {
         let policy = &account.policies;
 
         if (amount > policy.max_per_transaction) vector::push_back(&mut errors, E_POLICY_EXCEEDED_TRANSACTION);
-        if (balance::value(&account.balance) - amount < policy.min_balance) vector::push_back(&mut errors, E_POLICY_MIN_BALANCE_VIOLATION);
+        if (account.balance.value() - amount < policy.min_balance) vector::push_back(&mut errors, E_POLICY_MIN_BALANCE_VIOLATION);
         if (account.monthly_withdrawn + amount > policy.max_monthly_withdrawal) vector::push_back(&mut errors, E_POLICY_EXCEEDED_MONTHLY);
 
         let allowed = vector::length(&errors) == 0;
@@ -425,5 +426,19 @@ module subscriptions::subscription_account {
         account_id: ID,
         created_at: u64,
         permissions: u8,
+    }
+
+    // === PlatformCap accessors (for cross-module use) ===
+
+    public fun platform_cap_platform_id<T>(cap: &PlatformCap<T>): ID {
+        cap.platform_id
+    }
+
+    public fun platform_cap_platform_address<T>(cap: &PlatformCap<T>): address {
+        cap.platform_address
+    }
+
+    public fun platform_cap_account_id<T>(cap: &PlatformCap<T>): ID {
+        cap.account_id
     }
 }
