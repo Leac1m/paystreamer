@@ -8,7 +8,6 @@ module subscriptions::subscription_account {
     use sui::balance::{Self, Balance};
     use sui::vec_set;
     use sui::clock::Clock;
-    use sui::tx_context::TxContext;
     use sui::event::emit;
 
     // === Error constants ===

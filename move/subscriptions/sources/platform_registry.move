@@ -414,6 +414,26 @@ module subscriptions::platform_registry {
         vector::borrow(&platform.tiers, tier_index)
     }
 
+    public fun tier_name(tier: &SubscriptionTier): &std::string::String {
+        &tier.name
+    }
+
+    public fun tier_amount(tier: &SubscriptionTier): u64 {
+        tier.amount
+    }
+
+    public fun tier_frequency(tier: &SubscriptionTier): &BillingFrequency {
+        &tier.frequency
+    }
+
+    public fun tier_is_active(tier: &SubscriptionTier): bool {
+        tier.is_active
+    }
+
+    public fun tier_frequency_variant(tier: &SubscriptionTier): u8 {
+        tier.frequency.variant
+    }
+
     public fun get_subscriber_count(platform: &Platform): u64 {
         platform.subscriber_count
     }
