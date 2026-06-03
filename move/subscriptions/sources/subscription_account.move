@@ -106,6 +106,7 @@ module subscriptions::subscription_account {
 
     public struct AccountCreated has copy, drop {
         account_id: ID,
+        cap_id: ID,
         owner: address,
         timestamp: u64,
     }
@@ -179,7 +180,6 @@ module subscriptions::subscription_account {
     /// Creates a new subscription account for the caller.
     /// Returns the AccountCap to the transaction sender.
     public fun create_account<T: drop>(
-        _stablecoin_type: &T,
         ctx: &mut TxContext
     ): (ID, AccountCap) {
         let id = object::new(ctx);
@@ -211,8 +211,11 @@ module subscriptions::subscription_account {
             created_at: now,
         };
 
+        let cap_id = object::id_from_address(object::uid_to_address(&cap.id));
+
         emit(AccountCreated {
             account_id,
+            cap_id,
             owner: ctx.sender(),
             timestamp: now,
         });

@@ -25,7 +25,7 @@ function makeMvrOverrides(pkgIds: Record<string, string | undefined>) {
 export const dAppKit = createDAppKit({
   enableBurnerWallet: import.meta.env.DEV,
   networks: ["mainnet", "testnet", "devnet"],
-  defaultNetwork: "testnet",
+  defaultNetwork: "devnet",
   createClient(network) {
     const mvr = makeMvrOverrides({
       counter: GRPC_URLS[network] === GRPC_URLS.mainnet

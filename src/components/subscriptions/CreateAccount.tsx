@@ -12,8 +12,6 @@ import {
 } from "../ui/card";
 import { PlusCircle } from "lucide-react";
 
-const SUI_TYPE = "0x2::sui::SUI";
-
 export function CreateAccount({
   onCreated,
 }: {
@@ -38,8 +36,8 @@ export function CreateAccount({
         package: "@local-pkg/subscriptions",
         module: "subscription_account",
         function: "create_account",
-        arguments: [],
-        typeArguments: [SUI_TYPE],
+           arguments: [tx.pure.u64(0)],
+           typeArguments: ["u64"],
       }),
     );
 
@@ -56,21 +54,26 @@ export function CreateAccount({
         digest: result.Transaction.digest,
       });
 
-      // parse events to get account and cap IDs
-      const txData = await client.core.getTransaction({
-        digest: result.Transaction.digest,
-        include: { events: true },
-      });
-      const events: any[] = "events" in txData && Array.isArray((txData as any).events) ? (txData as any).events : [];
-      const accountCreated = events.find(
-        (e: any) => e.type?.includes("::subscription_account::AccountCreated"),
-      );
-      if (accountCreated) {
-        const [, accountId, capId] = accountCreated.parsed_json ?? [];
-        if (accountId && capId) {
-          onCreated(accountId, capId);
+        const txData = await client.core.getTransaction({
+          digest: result.Transaction.digest,
+          include: { objectTypes: true },
+        });
+        const objectChanges =
+          "objectChanges" in txData && Array.isArray((txData as any).objectChanges)
+            ? (txData as any).objectChanges
+            : [];
+        const createdAccount = objectChanges.find(
+          (change: any) =>
+            change.type === "created" &&
+            change.objectType?.includes("::subscription_account::SubscriptionAccount"),
+        );
+        const createdCap = objectChanges.find(
+          (change: any) =>
+            change.type === "created" && change.objectType?.includes("::subscription_account::AccountCap"),
+        );
+        if (createdAccount?.objectId && createdCap?.objectId) {
+          onCreated(createdAccount.objectId, createdCap.objectId);
         }
-      }
 
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
     } catch (err) {

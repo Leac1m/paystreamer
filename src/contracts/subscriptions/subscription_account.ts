@@ -9,7 +9,7 @@
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { bcs, type BcsType } from '@mysten/sui/bcs';
+import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 import * as vec_map from './deps/sui/vec_map.js';
@@ -61,6 +61,7 @@ export const AccountCap = new MoveStruct({ name: `${$moduleName}::AccountCap`, f
     } });
 export const AccountCreated = new MoveStruct({ name: `${$moduleName}::AccountCreated`, fields: {
         account_id: bcs.Address,
+        cap_id: bcs.Address,
         owner: bcs.Address,
         timestamp: bcs.u64()
     } });
@@ -438,13 +439,9 @@ export function capAccountId(options: CapAccountIdOptions) {
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
-export interface CreateAccountArguments<T extends BcsType<any>> {
-    StablecoinType: RawTransactionArgument<T>;
-}
-export interface CreateAccountOptions<T extends BcsType<any>> {
+export interface CreateAccountOptions {
     package?: string;
-    arguments: CreateAccountArguments<T> | [
-        StablecoinType: RawTransactionArgument<T>
+    arguments?: [
     ];
     typeArguments: [
         string
@@ -454,17 +451,12 @@ export interface CreateAccountOptions<T extends BcsType<any>> {
  * Creates a new subscription account for the caller. Returns the AccountCap to the
  * transaction sender.
  */
-export function createAccount<T extends BcsType<any>>(options: CreateAccountOptions<T>) {
+export function createAccount(options: CreateAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        `${options.typeArguments[0]}`
-    ] satisfies (string | null)[];
-    const parameterNames = ["StablecoinType"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'subscription_account',
         function: 'create_account',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
 }
