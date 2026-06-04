@@ -1,4 +1,4 @@
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants';
@@ -8,7 +8,7 @@ import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants';
 const SCHEDULER_SECRET = "suiprivkey1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"; // dummy
 
 // Define the network
-const client = new SuiClient({ url: getFullnodeUrl('devnet') });
+const client = new SuiGrpcClient({ network: "devnet", baseUrl: "https://fullnode.devnet.sui.io:443" });
 
 async function runScheduler() {
     console.log("Starting Subscriptions Scheduler...");
@@ -27,12 +27,10 @@ async function runScheduler() {
 
     // 1. Find SchedulerCap objects owned by the scheduler
     console.log("Finding SchedulerCaps...");
-    const { objects: caps } = await client.getOwnedObjects({
+    const { objects: caps } = await client.core.listOwnedObjects({
         owner: schedulerAddress,
-        filter: {
-            StructType: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::SchedulerCap`
-        },
-        options: { showContent: true }
+        type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::SchedulerCap`,
+        include: { json: true }
     });
 
     if (caps.length === 0) {
@@ -42,11 +40,11 @@ async function runScheduler() {
 
     // For each authorized platform, run the batch withdrawal
     for (const capObj of caps) {
-        const content = capObj.data?.content as any;
+        const content = capObj.json as any;
         if (!content) continue;
 
-        const platformId = content.fields.platform_id;
-        const schedulerCapId = capObj.data?.objectId;
+        const platformId = content.platform_id;
+        const schedulerCapId = capObj.objectId;
 
         if (!platformId || !schedulerCapId) continue;
 
@@ -59,19 +57,22 @@ async function runScheduler() {
         // Since we can't fetch all shared objects easily without an indexer, we query AccountCreated events.
         
         let hasNextPage = true;
-        let cursor = null;
+        let cursor: any = null;
         const accountIds: string[] = [];
 
         while (hasNextPage) {
-            const events = await client.queryEvents({
+            const events = await (client.core as any).queryEvents({
                 query: { MoveEventType: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::subscription_account::AccountCreated` },
                 cursor,
                 limit: 50,
             });
 
-            events.data.forEach(e => accountIds.push((e.parsedJson as any).account_id));
+            events.data.forEach((e: any) => {
+                const json = e.parsedJson || e.json;
+                if (json?.account_id) accountIds.push(json.account_id);
+            });
             hasNextPage = events.hasNextPage;
-            cursor = events.nextCursor as any;
+            cursor = events.nextCursor;
         }
 
         if (accountIds.length === 0) {
@@ -80,22 +81,23 @@ async function runScheduler() {
         }
 
         // 3. Fetch the account objects to check their status
-        const { data: accounts } = await client.multiGetObjects({
-            ids: accountIds,
-            options: { showContent: true }
+        const { objects: accountsResult } = await client.core.getObjects({
+            objectIds: accountIds,
+            include: { json: true }
         });
 
         const accountsToWithdraw: string[] = [];
         const withdrawalAmounts: number[] = [];
         const now = Date.now();
 
-        for (const acc of accounts) {
-            const accContent = acc.data?.content as any;
+        for (const acc of accountsResult) {
+            if (acc instanceof Error) continue;
+            const accContent = acc.json as any;
             if (!accContent) continue;
 
             // Check if account has an active subscription for this platform
             // Note: In Sui v2 GraphQL/JSON, VecMap is an array of { key, value }
-            const subscriptions = accContent.fields.subscriptions?.fields?.contents || accContent.fields.subscriptions || [];
+            const subscriptions = accContent.subscriptions?.fields?.contents || accContent.subscriptions || [];
             
             const subEntry = (Array.isArray(subscriptions) ? subscriptions : []).find(
                 (s: any) => s.key === platformId || s.fields?.key === platformId
@@ -113,12 +115,12 @@ async function runScheduler() {
             if (status === 0 && now >= nextBilling && amount > 0) {
                 // Subscription is active and due for billing
                 // Check if account has enough balance
-                const balance = Number(accContent.fields.balance || 0);
+                const balance = Number(accContent.balance || 0);
                 if (balance >= amount) {
-                    accountsToWithdraw.push(acc.data!.objectId);
+                    accountsToWithdraw.push(acc.objectId);
                     withdrawalAmounts.push(amount);
                 } else {
-                    console.log(`Account ${acc.data?.objectId} has insufficient balance for subscription.`);
+                    console.log(`Account ${acc.objectId} has insufficient balance for subscription.`);
                 }
             }
         }
@@ -130,11 +132,11 @@ async function runScheduler() {
             
             // Convert arrays to Move vectors
             const accountsVec = tx.makeMoveVec({ 
-                objects: accountsToWithdraw.map(id => tx.object(id)) 
+                elements: accountsToWithdraw.map(id => tx.object(id)) 
             });
             const amountsVec = tx.makeMoveVec({ 
                 type: 'u64', 
-                objects: withdrawalAmounts.map(amt => tx.pure.u64(amt)) 
+                elements: withdrawalAmounts.map(amt => tx.pure.u64(amt)) 
             });
 
             tx.moveCall({
@@ -150,10 +152,10 @@ async function runScheduler() {
             });
 
             try {
-                const result = await client.signAndExecuteTransaction({
+                // We just use transaction.build and sign with core if signAndExecute is not on core
+                const result = await (client as any).signAndExecuteTransaction({
                     transaction: tx,
                     signer: keypair,
-                    options: { showEffects: true }
                 });
                 console.log(`Batch withdrawal successful! Digest: ${result.digest}`);
             } catch (err) {
