@@ -32,9 +32,9 @@ export default function App() {
       const { objects } = await client.core.listOwnedObjects({
         owner: currentAccount.address,
         limit: 10,
+        include: { json: true },
       });
       // Filter to AccountCap type when package ID is available
-      //暂时返回所有对象，在上层过滤
       return objects;
     },
     enabled: !!currentAccount?.address,

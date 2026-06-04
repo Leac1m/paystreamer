@@ -4,6 +4,6 @@ export const TESTNET_COUNTER_PACKAGE_ID: string | undefined = "0xb36f813e3c9f2b3
 export const MAINNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 
 // Subscription package IDs (update after deploying move/subscriptions)
-export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0x5a47505744e6a97ae7a79c6663e79cc181871d24de7cd9fbd416a852c6814645";
+export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0x5a73196631a86aa5a41cdd9fcd22782c39bf5cbf64456b9df1e2e77cefb3d75a";
 export const TESTNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;

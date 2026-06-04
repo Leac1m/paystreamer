@@ -7,9 +7,9 @@ chain-id = "f91cee94"
 
 [[published]]
 source = { local = "/home/michael/projects/sui-next-demo/move/subscriptions" }
-published-at = "0x5a47505744e6a97ae7a79c6663e79cc181871d24de7cd9fbd416a852c6814645"
-original-id = "0x5a47505744e6a97ae7a79c6663e79cc181871d24de7cd9fbd416a852c6814645"
+published-at = "0x5a73196631a86aa5a41cdd9fcd22782c39bf5cbf64456b9df1e2e77cefb3d75a"
+original-id = "0x5a73196631a86aa5a41cdd9fcd22782c39bf5cbf64456b9df1e2e77cefb3d75a"
 version = 1
 toolchain-version = "1.72.2"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0x440c3ffca506f919b370750a6e60725c3de9d4673e39b4ad350bf9372588079b"
+upgrade-capability = "0x485a538867f5ab57978da2ba651ac9c8445cbadaee9e21df413a4b6a65fca259"

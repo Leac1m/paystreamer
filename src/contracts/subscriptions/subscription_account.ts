@@ -460,6 +460,24 @@ export function createAccount(options: CreateAccountOptions) {
         typeArguments: options.typeArguments
     });
 }
+export interface CreateAccountEntryOptions {
+    package?: string;
+    arguments?: [
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/** Entry function version that transfers AccountCap to sender immediately. */
+export function createAccountEntry(options: CreateAccountEntryOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'subscription_account',
+        function: 'create_account_entry',
+        typeArguments: options.typeArguments
+    });
+}
 export interface DepositArguments {
     cap: RawTransactionArgument<string>;
     account: RawTransactionArgument<string>;

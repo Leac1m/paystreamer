@@ -35,9 +35,8 @@ export function CreateAccount({
       tx.moveCall({
         package: "@local-pkg/subscriptions",
         module: "subscription_account",
-        function: "create_account",
-           arguments: [tx.pure.u64(0)],
-           typeArguments: ["u64"],
+        function: "create_account_entry",
+        typeArguments: ["0x2::sui::SUI"],
       }),
     );
 

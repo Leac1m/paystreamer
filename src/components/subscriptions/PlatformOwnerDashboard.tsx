@@ -45,9 +45,10 @@ export function PlatformOwnerDashboard() {
     return (
       <Card>
         <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">
-            You don't own any platforms. Use the CLI to register a platform first.
+          <p className="text-muted-foreground mb-4">
+            You don't own any platforms.
           </p>
+          <RegisterPlatformCard />
         </CardContent>
       </Card>
     );
@@ -55,6 +56,7 @@ export function PlatformOwnerDashboard() {
 
   return (
     <div className="space-y-6">
+      <RegisterPlatformCard />
       {ownerCaps.map((obj) => (
         <PlatformOwnerCard key={obj.objectId} ownerCapId={obj.objectId} />
       ))}
@@ -112,6 +114,106 @@ function PlatformOwnerCard({ ownerCapId }: { ownerCapId: string }) {
         </div>
 
         <TierManagement ownerCapId={ownerCapId} platformId={platformId} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function RegisterPlatformCard() {
+  const client = useCurrentClient();
+  const account = useCurrentAccount();
+  const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function registerPlatform() {
+    if (!account || !name || !description || !category) {
+      setError("Fill in all fields");
+      return;
+    }
+
+    setIsPending(true);
+    setError(null);
+
+    const tx = new Transaction();
+
+    // Call register_platform which returns PlatformOwnerCap
+    // We need to transfer it to the sender in the same PTB
+    const [ownerCap] = tx.add((tx) =>
+      tx.moveCall({
+        package: "@local-pkg/subscriptions",
+        module: "platform_registry",
+        function: "register_platform",
+        arguments: [
+          tx.pure.string(name),
+          tx.pure.string(description),
+          tx.pure.string(category),
+          tx.pure("option<string>", null), // None for webhook_url
+        ],
+      }),
+    );
+
+    // Transfer the PlatformOwnerCap to sender
+    tx.add((tx) =>
+      tx.transferObjects(
+        [ownerCap],
+        tx.pure.address(account.address),
+      ),
+    );
+
+    try {
+      const result = await dAppKit.signAndExecuteTransaction({
+        transaction: tx,
+      });
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      await queryClient.invalidateQueries({ queryKey: ["platform-owner-caps", account.address] });
+      setName("");
+      setDescription("");
+      setCategory("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Register New Platform</CardTitle>
+        <CardDescription>Create a new platform to start accepting subscriptions.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3">
+          <Input
+            placeholder="Platform name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <Input
+            placeholder="Category (e.g., Streaming, AI, Gaming)"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button size="sm" onClick={registerPlatform} disabled={!account || isPending} loading={isPending}>
+          Register Platform
+        </Button>
       </CardContent>
     </Card>
   );

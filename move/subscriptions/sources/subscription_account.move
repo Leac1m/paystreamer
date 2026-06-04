@@ -223,6 +223,14 @@ module subscriptions::subscription_account {
         (account_id, cap)
     }
 
+    /// Entry function version that transfers AccountCap to sender immediately.
+    public fun create_account_entry<T: drop>(
+        ctx: &mut TxContext
+    ) {
+        let (_account_id, cap) = create_account<T>(ctx);
+        transfer::transfer(cap, ctx.sender());
+    }
+
     /// Deposits stablecoins into the subscription account.
     /// Requires a valid AccountCap.
     public fun deposit<T>(
