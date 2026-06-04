@@ -70,7 +70,7 @@ pnpm dev
 
 The off-chain scheduler automatically processes subscriptions that are due for billing.
 
-1. Configure your dummy `SCHEDULER_SECRET` in `scripts/scheduler.ts` (For demo purposes, a mock key is provided).
+1. Put a real `SCHEDULER_SECRET` value in the project root `.env` file.
 2. Authorize the scheduler's wallet address in the Platform Owner Dashboard UI.
 3. Run the scheduler:
 

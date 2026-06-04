@@ -1,11 +1,14 @@
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants';
+import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants.ts';
 
-// This is a dummy keypair for the demo scheduler.
-// In a real environment, this would be loaded from a secure environment variable.
-const SCHEDULER_SECRET = "suiprivkey1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"; // dummy
+import { config } from 'dotenv';
+config();
+
+// This is the keypair for the demo scheduler.
+// It will be loaded from the secure .env file.
+const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET; 
 
 // Define the network
 const client = new SuiGrpcClient({ network: "devnet", baseUrl: "https://fullnode.devnet.sui.io:443" });
@@ -14,11 +17,16 @@ async function runScheduler() {
     console.log("Starting Subscriptions Scheduler...");
 
     // Setup keypair
+    if (!SCHEDULER_SECRET) {
+        console.error("SCHEDULER_SECRET is not set in the .env file. Please configure it.");
+        return;
+    }
+    
     let keypair: Ed25519Keypair;
     try {
         keypair = Ed25519Keypair.fromSecretKey(SCHEDULER_SECRET);
     } catch (e) {
-        console.warn("Invalid secret key. Please set a valid scheduler secret for the demo.");
+        console.warn("Invalid secret key. Please set a valid scheduler secret in .env for the demo.");
         return;
     }
     
