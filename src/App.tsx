@@ -14,6 +14,7 @@ import ForPlatforms from './components/ForPlatforms';
 import SecuritySection from './components/SecuritySection';
 import CTASection from './components/CTASection';
 import Footer from './components/Footer';
+import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "./constants";
 
 type Tab = "browse" | "my-account" | "owner";
 
@@ -31,10 +32,10 @@ export default function App() {
       if (!currentAccount?.address) return [];
       const { objects } = await client.core.listOwnedObjects({
         owner: currentAccount.address,
+        type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::subscription_account::AccountCap`,
         limit: 10,
         include: { json: true },
       });
-      // Filter to AccountCap type when package ID is available
       return objects;
     },
     enabled: !!currentAccount?.address,
