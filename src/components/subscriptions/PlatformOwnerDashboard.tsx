@@ -12,6 +12,7 @@ import {
 } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -23,9 +24,10 @@ export function PlatformOwnerDashboard() {
     queryKey: ["platform-owner-caps", account?.address],
     queryFn: async () => {
       if (!account?.address) return [];
-      // TODO: replace with actual PlatformOwnerCap struct type from codegen
       const { objects } = await client.core.listOwnedObjects({
         owner: account.address,
+        type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::PlatformOwnerCap`,
+        include: { json: true },
         limit: 50,
       });
       return objects;
@@ -58,18 +60,17 @@ export function PlatformOwnerDashboard() {
     <div className="space-y-6">
       <RegisterPlatformCard />
       {ownerCaps.map((obj) => (
-        <PlatformOwnerCard key={obj.objectId} ownerCapId={obj.objectId} />
+        <PlatformOwnerCard key={obj.objectId} ownerCap={obj} />
       ))}
     </div>
   );
 }
 
-function PlatformOwnerCard({ ownerCapId }: { ownerCapId: string }) {
+function PlatformOwnerCard({ ownerCap }: { ownerCap: any }) {
   const client = useCurrentClient();
 
-  // TODO: use the actual platform ID from the owner cap's parsed fields
-  // This placeholder queries the platform by object ID derived from owner cap
-  const platformId = ownerCapId; // replace with fields.platform_id once cap parsing is wired
+  const ownerCapId = ownerCap.objectId;
+  const platformId = ownerCap.json?.platform_id;
 
   const { data: platform } = useQuery({
     queryKey: ["platform", platformId],
