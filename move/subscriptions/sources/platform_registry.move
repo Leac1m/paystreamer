@@ -62,6 +62,7 @@ module subscriptions::platform_registry {
     public struct Platform has key, store {
         id: UID,
         owner: address,
+        treasury: address,
         name: std::string::String,
         description: std::string::String,
         category: std::string::String,
@@ -75,6 +76,13 @@ module subscriptions::platform_registry {
 
     /// Capability granting platform management authority.
     public struct PlatformOwnerCap has key, store {
+        id: UID,
+        platform_id: ID,
+        created_at: u64,
+    }
+
+    /// Capability granting delegated withdrawal authority.
+    public struct SchedulerCap has key, store {
         id: UID,
         platform_id: ID,
         created_at: u64,
@@ -144,6 +152,7 @@ module subscriptions::platform_registry {
         let platform = Platform {
             id,
             owner: ctx.sender(),
+            treasury: ctx.sender(),
             name,
             description,
             category,
@@ -215,6 +224,31 @@ module subscriptions::platform_registry {
     ) {
         assert!(object::id(platform) == owner_cap.platform_id, E_UNAUTHORIZED_OWNER);
         platform.is_verified = verified;
+    }
+
+    /// Updates platform treasury address (owner only).
+    public fun update_treasury(
+        owner_cap: &PlatformOwnerCap,
+        platform: &mut Platform,
+        new_treasury: address,
+        _ctx: &mut TxContext
+    ) {
+        assert!(object::id(platform) == owner_cap.platform_id, E_UNAUTHORIZED_OWNER);
+        platform.treasury = new_treasury;
+    }
+
+    /// Mints a new SchedulerCap for automated withdrawals.
+    public fun mint_scheduler_cap(
+        owner_cap: &PlatformOwnerCap,
+        platform: &Platform,
+        ctx: &mut TxContext
+    ): SchedulerCap {
+        assert!(object::id(platform) == owner_cap.platform_id, E_UNAUTHORIZED_OWNER);
+        SchedulerCap {
+            id: object::new(ctx),
+            platform_id: owner_cap.platform_id,
+            created_at: ctx.epoch_timestamp_ms(),
+        }
     }
 
     // === Tier management ===
@@ -324,13 +358,15 @@ module subscriptions::platform_registry {
     #[allow(lint(self_transfer))]
     public fun process_withdrawal<T>(
         owner_cap: &PlatformOwnerCap,
+        platform: &Platform,
         account: &mut SubscriptionAccount<T>,
         amount: u64,
         _clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let platform_id = owner_cap_platform_id(owner_cap);
-        let recipient = ctx.sender();
+        assert!(object::id(platform) == owner_cap.platform_id, E_UNAUTHORIZED_OWNER);
+        let platform_id = owner_cap.platform_id;
+        let recipient = platform.treasury;
 
         // Withdraw funds from account
         let withdrawn: Balance<T> = withdraw<T>(
@@ -342,7 +378,7 @@ module subscriptions::platform_registry {
             ctx,
         );
 
-        // Convert Balance to Coin and transfer to platform owner
+        // Convert Balance to Coin and transfer to platform treasury
         let coin: Coin<T> = sui::coin::from_balance(withdrawn, ctx);
         transfer::public_transfer(coin, recipient);
 
@@ -362,6 +398,7 @@ module subscriptions::platform_registry {
     /// Optimized for platform server efficiency.
     public fun batch_withdraw<T>(
         owner_cap: &PlatformOwnerCap,
+        platform: &Platform,
         accounts: &mut vector<SubscriptionAccount<T>>,
         amounts: &vector<u64>,
         clock: &sui::clock::Clock,
@@ -376,9 +413,66 @@ module subscriptions::platform_registry {
             let amount = *vector::borrow(amounts, i);
 
             // Process withdrawal for this account
-            // We use a simple loop; in production this could be optimized
-            process_withdrawal<T>(owner_cap, account, amount, clock, ctx);
+            process_withdrawal<T>(owner_cap, platform, account, amount, clock, ctx);
 
+            i = i + 1;
+        };
+    }
+
+    /// Processes a withdrawal using a SchedulerCap.
+    #[allow(lint(self_transfer))]
+    public fun process_withdrawal_scheduler<T>(
+        scheduler_cap: &SchedulerCap,
+        platform: &Platform,
+        account: &mut SubscriptionAccount<T>,
+        amount: u64,
+        _clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        assert!(object::id(platform) == scheduler_cap.platform_id, E_UNAUTHORIZED_OWNER);
+        let platform_id = scheduler_cap.platform_id;
+        let recipient = platform.treasury;
+
+        let withdrawn: Balance<T> = withdraw<T>(
+            platform_id,
+            account,
+            amount,
+            recipient,
+            _clock,
+            ctx,
+        );
+
+        let coin: Coin<T> = sui::coin::from_balance(withdrawn, ctx);
+        transfer::public_transfer(coin, recipient);
+
+        record_payment<T>(account, platform_id, amount, _clock, ctx);
+
+        emit(WithdrawalProcessed {
+            platform_id,
+            account_id: object::id(account),
+            amount,
+            success: true,
+            timestamp: ctx.epoch_timestamp_ms(),
+        });
+    }
+
+    /// Batch withdrawal processing using a SchedulerCap.
+    public fun batch_withdraw_scheduler<T>(
+        scheduler_cap: &SchedulerCap,
+        platform: &Platform,
+        accounts: &mut vector<SubscriptionAccount<T>>,
+        amounts: &vector<u64>,
+        clock: &sui::clock::Clock,
+        ctx: &mut TxContext
+    ) {
+        let num_accounts = vector::length(accounts);
+        assert!(vector::length(amounts) == num_accounts, E_BATCH_LENGTH_MISMATCH);
+
+        let mut i = 0;
+        while (i < num_accounts) {
+            let account = vector::borrow_mut(accounts, i);
+            let amount = *vector::borrow(amounts, i);
+            process_withdrawal_scheduler<T>(scheduler_cap, platform, account, amount, clock, ctx);
             i = i + 1;
         };
     }
@@ -448,5 +542,13 @@ module subscriptions::platform_registry {
 
     public fun owner_cap_platform_id(cap: &PlatformOwnerCap): ID {
         cap.platform_id
+    }
+
+    public fun scheduler_cap_platform_id(cap: &SchedulerCap): ID {
+        cap.platform_id
+    }
+    
+    public fun platform_treasury(platform: &Platform): address {
+        platform.treasury
     }
 }

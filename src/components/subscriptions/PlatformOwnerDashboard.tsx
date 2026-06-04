@@ -115,6 +115,9 @@ function PlatformOwnerCard({ ownerCap }: { ownerCap: any }) {
         </div>
 
         <TierManagement ownerCapId={ownerCapId} platformId={platformId} />
+        <div className="border-t pt-4">
+          <SchedulerManagement ownerCapId={ownerCapId} platformId={platformId} platform={platform} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -344,6 +347,139 @@ function TierManagement({
       <Button size="sm" onClick={addTier} disabled={!account || isPending} loading={isPending}>
         Add Tier
       </Button>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function SchedulerManagement({
+  ownerCapId,
+  platformId,
+  platform
+}: {
+  ownerCapId: string;
+  platformId: string;
+  platform: any;
+}) {
+  const client = useCurrentClient();
+  const account = useCurrentAccount();
+  const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
+  
+  const [treasuryAddress, setTreasuryAddress] = useState("");
+  const [schedulerAddress, setSchedulerAddress] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fields = platform?.json as Record<string, unknown> | null;
+  const currentTreasury = fields?.treasury as string | undefined;
+
+  async function updateTreasury() {
+    if (!account || !treasuryAddress) return;
+
+    setIsPending(true);
+    setError(null);
+
+    const tx = new Transaction();
+    tx.moveCall({
+      package: DEVNET_SUBSCRIPTIONS_PACKAGE_ID!,
+      module: "platform_registry",
+      function: "update_treasury",
+      arguments: [
+        tx.object(ownerCapId),
+        tx.object(platformId),
+        tx.pure.address(treasuryAddress),
+      ],
+    });
+
+    try {
+      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      await queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
+      setTreasuryAddress("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function authorizeScheduler() {
+    if (!account || !schedulerAddress) return;
+
+    setIsPending(true);
+    setError(null);
+
+    const tx = new Transaction();
+    
+    // Mint the SchedulerCap
+    const [schedulerCap] = tx.add((tx) => 
+      tx.moveCall({
+        package: DEVNET_SUBSCRIPTIONS_PACKAGE_ID!,
+        module: "platform_registry",
+        function: "mint_scheduler_cap",
+        arguments: [
+          tx.object(ownerCapId),
+          tx.object(platformId),
+        ],
+      })
+    );
+
+    // Transfer it to the specified scheduler address
+    tx.add((tx) => 
+      tx.transferObjects([schedulerCap], tx.pure.address(schedulerAddress))
+    );
+
+    try {
+      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setSchedulerAddress("");
+      alert("Scheduler authorized successfully!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm font-medium mb-1">Platform Treasury Address</p>
+        <p className="text-xs text-muted-foreground mb-2 break-all">Current: {currentTreasury || "Not set"}</p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="New Treasury Address (0x...)"
+            value={treasuryAddress}
+            onChange={(e) => setTreasuryAddress(e.target.value)}
+          />
+          <Button size="sm" onClick={updateTreasury} disabled={!account || !treasuryAddress || isPending} loading={isPending}>
+            Update
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-1">Authorize Off-Chain Scheduler</p>
+        <p className="text-xs text-muted-foreground mb-2">Allow an automated service to trigger withdrawals to your treasury.</p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Scheduler Wallet Address (0x...)"
+            value={schedulerAddress}
+            onChange={(e) => setSchedulerAddress(e.target.value)}
+          />
+          <Button size="sm" onClick={authorizeScheduler} disabled={!account || !schedulerAddress || isPending} loading={isPending}>
+            Authorize
+          </Button>
+        </div>
+      </div>
+      
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
