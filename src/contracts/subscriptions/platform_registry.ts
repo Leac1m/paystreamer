@@ -27,6 +27,7 @@ export const SubscriptionTier = new MoveStruct({ name: `${$moduleName}::Subscrip
 export const Platform = new MoveStruct({ name: `${$moduleName}::Platform`, fields: {
         id: bcs.Address,
         owner: bcs.Address,
+        treasury: bcs.Address,
         name: bcs.string(),
         description: bcs.string(),
         category: bcs.string(),
@@ -38,6 +39,11 @@ export const Platform = new MoveStruct({ name: `${$moduleName}::Platform`, field
         tiers: bcs.vector(SubscriptionTier)
     } });
 export const PlatformOwnerCap = new MoveStruct({ name: `${$moduleName}::PlatformOwnerCap`, fields: {
+        id: bcs.Address,
+        platform_id: bcs.Address,
+        created_at: bcs.u64()
+    } });
+export const SchedulerCap = new MoveStruct({ name: `${$moduleName}::SchedulerCap`, fields: {
         id: bcs.Address,
         platform_id: bcs.Address,
         created_at: bcs.u64()
@@ -314,6 +320,61 @@ export function setVerified(options: SetVerifiedOptions) {
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
+export interface UpdateTreasuryArguments {
+    ownerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
+    newTreasury: RawTransactionArgument<string>;
+}
+export interface UpdateTreasuryOptions {
+    package?: string;
+    arguments: UpdateTreasuryArguments | [
+        ownerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>,
+        newTreasury: RawTransactionArgument<string>
+    ];
+}
+/** Updates platform treasury address (owner only). */
+export function updateTreasury(options: UpdateTreasuryOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        'address'
+    ] satisfies (string | null)[];
+    const parameterNames = ["ownerCap", "platform", "newTreasury"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'update_treasury',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface MintSchedulerCapArguments {
+    ownerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
+}
+export interface MintSchedulerCapOptions {
+    package?: string;
+    arguments: MintSchedulerCapArguments | [
+        ownerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>
+    ];
+}
+/** Mints a new SchedulerCap for automated withdrawals. */
+export function mintSchedulerCap(options: MintSchedulerCapOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["ownerCap", "platform"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'mint_scheduler_cap',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
 export interface CreateTierArguments {
     ownerCap: RawTransactionArgument<string>;
     platform: RawTransactionArgument<string>;
@@ -417,6 +478,7 @@ export function removeTier(options: RemoveTierOptions) {
 }
 export interface ProcessWithdrawalArguments {
     ownerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
     account: RawTransactionArgument<string>;
     amount: RawTransactionArgument<number | bigint>;
 }
@@ -424,6 +486,7 @@ export interface ProcessWithdrawalOptions {
     package?: string;
     arguments: ProcessWithdrawalArguments | [
         ownerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>,
         account: RawTransactionArgument<string>,
         amount: RawTransactionArgument<number | bigint>
     ];
@@ -441,10 +504,11 @@ export function processWithdrawal(options: ProcessWithdrawalOptions) {
     const argumentsTypes = [
         null,
         null,
+        null,
         'u64',
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["ownerCap", "account", "amount"];
+    const parameterNames = ["ownerCap", "platform", "account", "amount"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'platform_registry',
@@ -455,6 +519,7 @@ export function processWithdrawal(options: ProcessWithdrawalOptions) {
 }
 export interface BatchWithdrawArguments {
     ownerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
     accounts: TransactionArgument;
     amounts: RawTransactionArgument<Array<number | bigint>>;
 }
@@ -462,6 +527,7 @@ export interface BatchWithdrawOptions {
     package?: string;
     arguments: BatchWithdrawArguments | [
         ownerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>,
         accounts: TransactionArgument,
         amounts: RawTransactionArgument<Array<number | bigint>>
     ];
@@ -477,15 +543,90 @@ export function batchWithdraw(options: BatchWithdrawOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
+        null,
         'vector<null>',
         'vector<u64>',
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["ownerCap", "accounts", "amounts"];
+    const parameterNames = ["ownerCap", "platform", "accounts", "amounts"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'platform_registry',
         function: 'batch_withdraw',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface ProcessWithdrawalSchedulerArguments {
+    schedulerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    amount: RawTransactionArgument<number | bigint>;
+}
+export interface ProcessWithdrawalSchedulerOptions {
+    package?: string;
+    arguments: ProcessWithdrawalSchedulerArguments | [
+        schedulerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        amount: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/** Processes a withdrawal using a SchedulerCap. */
+export function processWithdrawalScheduler(options: ProcessWithdrawalSchedulerOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        null,
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["schedulerCap", "platform", "account", "amount"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'process_withdrawal_scheduler',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface BatchWithdrawSchedulerArguments {
+    schedulerCap: RawTransactionArgument<string>;
+    platform: RawTransactionArgument<string>;
+    accounts: TransactionArgument;
+    amounts: RawTransactionArgument<Array<number | bigint>>;
+}
+export interface BatchWithdrawSchedulerOptions {
+    package?: string;
+    arguments: BatchWithdrawSchedulerArguments | [
+        schedulerCap: RawTransactionArgument<string>,
+        platform: RawTransactionArgument<string>,
+        accounts: TransactionArgument,
+        amounts: RawTransactionArgument<Array<number | bigint>>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/** Batch withdrawal processing using a SchedulerCap. */
+export function batchWithdrawScheduler(options: BatchWithdrawSchedulerOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        'vector<null>',
+        'vector<u64>',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["schedulerCap", "platform", "accounts", "amounts"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'batch_withdraw_scheduler',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
@@ -776,6 +917,50 @@ export function ownerCapPlatformId(options: OwnerCapPlatformIdOptions) {
         package: packageAddress,
         module: 'platform_registry',
         function: 'owner_cap_platform_id',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface SchedulerCapPlatformIdArguments {
+    cap: RawTransactionArgument<string>;
+}
+export interface SchedulerCapPlatformIdOptions {
+    package?: string;
+    arguments: SchedulerCapPlatformIdArguments | [
+        cap: RawTransactionArgument<string>
+    ];
+}
+export function schedulerCapPlatformId(options: SchedulerCapPlatformIdOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'scheduler_cap_platform_id',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface PlatformTreasuryArguments {
+    platform: RawTransactionArgument<string>;
+}
+export interface PlatformTreasuryOptions {
+    package?: string;
+    arguments: PlatformTreasuryArguments | [
+        platform: RawTransactionArgument<string>
+    ];
+}
+export function platformTreasury(options: PlatformTreasuryOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["platform"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'platform_treasury',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
