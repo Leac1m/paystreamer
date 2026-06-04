@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { CreateSubscription } from "./CreateSubscription";
+import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -18,10 +19,31 @@ export function PlatformBrowser() {
   const { data: platforms, isPending } = useQuery({
     queryKey: ["platforms"],
     queryFn: async () => {
-      // TODO: replace with actual platform registry address or query
-      const { objects } = await client.core.listOwnedObjects({
-        owner: "0x0000000000000000000000000000000000000000000000000000000000000000",
-        limit: 50,
+      // Platform is a shared object, so we query PlatformRegistered events to discover them
+      const res = await fetch("https://fullnode.devnet.sui.io:443", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "suix_queryEvents",
+          params: [
+            { MoveEventType: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::PlatformRegistered` },
+            null,
+            50,
+            true
+          ]
+        })
+      });
+      const data = await res.json();
+      const events = data.result?.data || [];
+      const platformIds = Array.from(new Set(events.map((e: any) => e.parsedJson.platform_id)));
+
+      if (platformIds.length === 0) return [];
+
+      const { objects } = await client.core.getObjects({
+        objectIds: platformIds as string[],
+        include: { json: true },
       });
       return objects;
     },
