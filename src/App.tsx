@@ -8,9 +8,9 @@ import { PlatformOwnerDashboard } from "./components/subscriptions/PlatformOwner
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import NavBar from './components/NavBar';
 import HeroSection from './components/HeroSection';
-import UserFlow from './components/UserFlow';
-import ForUsers from './components/ForUsers';
-import ForPlatforms from './components/ForPlatforms';
+import IntegrationFlow from './components/IntegrationFlow';
+import EndUserExperience from './components/EndUserExperience';
+import CoreFeatures from './components/CoreFeatures';
 import SecuritySection from './components/SecuritySection';
 import CTASection from './components/CTASection';
 import Footer from './components/Footer';
@@ -79,9 +79,9 @@ export default function App() {
         {/* Main Content */}
         <main>
           <HeroSection />
-          <UserFlow />
-          <ForUsers />
-          <ForPlatforms />
+          <IntegrationFlow />
+          <EndUserExperience />
+          <CoreFeatures />
           <SecuritySection />
           <CTASection />
         </main>

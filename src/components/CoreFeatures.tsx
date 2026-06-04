@@ -1,27 +1,27 @@
 import { motion } from 'framer-motion';
 import { Code2, DollarSign, Clock, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
 
-export default function ForPlatforms() {
+export default function CoreFeatures() {
   const benefits = [
     {
       icon: <DollarSign size={24} className="text-[#10b981]" />,
-      title: 'Guaranteed Revenue',
-      description: 'Smart contracts enforce payment policies. Get paid automatically without chasing invoices.'
+      title: 'Trustless Treasury Routing',
+      description: 'Funds withdrawn via your scheduler are hardcoded to arrive only in your designated treasury account.'
     },
     {
       icon: <Clock size={24} className="text-[#6c63ff]" />,
-      title: 'Automated Collections',
-      description: 'Set it and forget it. Our system tracks subscription schedules and retries failed payments.'
+      title: 'Off-chain Schedulers',
+      description: 'Delegate execution to simple cron jobs using the SchedulerCap without exposing private keys.'
     },
     {
       icon: <Code2 size={24} className="text-[#3b82f6]" />,
-      title: 'Simple Integration',
-      description: 'One API call to withdraw. We handle policy verification, scheduling, and retries.'
+      title: 'Flexible Custom Tiers',
+      description: 'Define pricing intervals precisely—from daily and monthly down to millisecond billing.'
     },
     {
       icon: <ShieldCheck size={24} className="text-[#f59e0b]" />,
-      title: 'Fraud Protection',
-      description: 'Users must pre-fund accounts and set policies. No chargebacks, no disputes.'
+      title: 'Reduced Liability',
+      description: 'Never hold user funds directly until the exact moment of billing, massively reducing regulatory risk.'
     },
     {
       icon: <Zap size={24} className="text-[#ec4899]" />,
@@ -51,13 +51,13 @@ export default function ForPlatforms() {
           className="text-center mb-16"
         >
           <span className="inline-block px-4 py-2 rounded-full bg-[#3b82f6]/10 text-[#3b82f6] text-sm font-medium mb-4">
-            For Platforms
+            Core Features
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Accept Subscriptions <span className="gradient-text">Effortlessly</span>
+            Built for <span className="gradient-text">Developers</span>
           </h2>
           <p className="text-[#94a3b8] text-lg max-w-2xl mx-auto">
-            Integrate once and accept recurring payments from any user on Sui. No billing infrastructure needed.
+            A secure, composable Move architecture designed for seamless automation and treasury management.
           </p>
         </motion.div>
 
@@ -103,36 +103,37 @@ export default function ForPlatforms() {
             {/* Code Content */}
             <div className="p-6 font-mono text-sm">
               <pre className="text-[#94a3b8] leading-relaxed overflow-x-auto">
-{`// 1. Register as a subscription platform
-await subscription.registerPlatform({
-  name: "Streaming+",
-  apiKey: "sk_live_xxx",
-  withdrawalSchedule: "monthly"
+{`// 1. Register your platform and define tiers on-chain
+tx.moveCall({
+  target: '0xPKG::platform_registry::create_tier',
+  arguments: [
+    tx.object(platformOwnerCapId),
+    tx.pure.u64(999), // $9.99
+    tx.moveCall({
+      target: '0xPKG::platform_registry::billing_frequency_monthly'
+    })
+  ]
 });
 
-// 2. User subscribes to your service
-const subscription = await userAccount.subscribe({
-  platformId: "Streaming+",
-  amount: 999, // $9.99 in USDC cents
-  frequency: "monthly"
+// 2. Delegate automation securely using SchedulerCap
+const { objects: caps } = await client.listOwnedObjects({
+  owner: botWalletAddress,
+  type: '0xPKG::platform_registry::SchedulerCap'
 });
 
-// 3. Automatically withdraw on schedule
-const result = await subscription.withdraw({
-  subscriptionId: subscription.id,
-  userAddress: "0x7a3f...9b2c"
+// 3. Your bot executes batch withdrawals automatically
+tx.moveCall({
+  target: '0xPKG::platform_registry::batch_withdraw_scheduler',
+  arguments: [
+    tx.object(schedulerCapId),
+    tx.object(platformId),
+    tx.makeMoveVec({ elements: dueAccounts }),
+    tx.makeMoveVec({ type: 'u64', elements: amounts }),
+    tx.object('0x6') // Clock
+  ]
 });
 
-// Result: { success: true, txHash: "0x...", amount: "9.99 USDC" }
-
-// 4. Handle failed withdrawals gracefully
-if (result.status === "insufficient_funds") {
-  await subscription.notifyUser({
-    user: "0x7a3f...9b2c",
-    message: "Please fund your subscription account",
-    daysUntilCancel: 7
-  });
-}`}
+// Funds are instantly routed directly to your platform treasury.`}
               </pre>
             </div>
           </div>

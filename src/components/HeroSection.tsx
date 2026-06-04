@@ -65,24 +65,23 @@ export default function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              <span className="text-white">Subscriptions on </span>
-              <span className="gradient-text">Your Terms</span>
+              <span className="text-white">The Ultimate Web3 </span>
+              <span className="gradient-text">Subscription Infrastructure</span>
             </h1>
 
             <p className="text-lg text-[#94a3b8] mb-8 max-w-xl leading-relaxed">
-              Take back control of your subscriptions. Fund a shared subscription account with stablecoins,
-              set withdrawal policies, and let platforms withdraw automatically within your defined limits.
+              Automate recurring billing, manage your treasury, and power your platform with decentralized smart contracts on Sui. The Stripe for Web3.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               {isConnected ? (
                 <button className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                  <span>Manage Subscriptions</span>
+                  <span>Open Platform Dashboard</span>
                   <ArrowRight size={20} />
                 </button>
               ) : (
                 <button className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                  <span>Get Started</span>
+                  <span>Start Accepting Payments</span>
                   <ArrowRight size={20} />
                 </button>
               )}
@@ -103,7 +102,7 @@ export default function HeroSection() {
                 <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
                   {formatNumber(stats.transactions)}
                 </div>
-                <div className="text-sm text-[#94a3b8]">Transactions</div>
+                <div className="text-sm text-[#94a3b8]">Transactions Processed</div>
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -114,7 +113,7 @@ export default function HeroSection() {
                 <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
                   ${formatNumber(stats.volume)}
                 </div>
-                <div className="text-sm text-[#94a3b8]">Volume</div>
+                <div className="text-sm text-[#94a3b8]">Treasury Volume</div>
               </motion.div>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -125,7 +124,7 @@ export default function HeroSection() {
                 <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
                   {formatNumber(stats.subscriptions)}
                 </div>
-                <div className="text-sm text-[#94a3b8]">Active Subscriptions</div>
+                <div className="text-sm text-[#94a3b8]">Active Platforms</div>
               </motion.div>
             </div>
           </motion.div>
@@ -145,19 +144,19 @@ export default function HeroSection() {
                     <Shield size={20} className="text-white" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-white">Your Subscription Account</div>
-                    <div className="text-xs text-[#94a3b8] font-mono">0x7a3f...9b2c</div>
+                    <div className="text-sm font-medium text-white">Your Platform Treasury</div>
+                    <div className="text-xs text-[#94a3b8] font-mono">0x4a9b...2f1c</div>
                   </div>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-[#10b981]/20 text-[#10b981] text-xs font-medium">
-                  Active
+                  Verified
                 </span>
               </div>
 
               {/* Balance */}
               <div className="bg-black/40 rounded-xl p-4 mb-6">
-                <div className="text-sm text-[#94a3b8] mb-2">Available Balance</div>
-                <div className="text-3xl font-bold text-white mb-1">$1,250.00</div>
+                <div className="text-sm text-[#94a3b8] mb-2">Total Revenue</div>
+                <div className="text-3xl font-bold text-white mb-1">$45,250.00</div>
                 <div className="text-sm text-[#94a3b8]">USDC on Sui</div>
               </div>
 
@@ -165,16 +164,16 @@ export default function HeroSection() {
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-[#94a3b8]">Max Monthly Withdrawal</span>
-                    <span className="text-white font-medium">$50.00</span>
+                    <span className="text-[#94a3b8]">Monthly Churn Rate</span>
+                    <span className="text-[#10b981] font-medium">-2.4%</span>
                   </div>
-                  <div className="policy-bar" style={{ '--withdraw-percent': '30%' } as React.CSSProperties} />
+                  <div className="policy-bar" style={{ '--withdraw-percent': '15%' } as React.CSSProperties} />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-[#94a3b8]">Next Withdrawal In</span>
-                    <span className="text-white font-medium">12 days</span>
+                    <span className="text-[#94a3b8]">Next Automated Batch</span>
+                    <span className="text-white font-medium">in 45 mins</span>
                   </div>
                   <div className="bg-black/40 rounded-lg p-3">
                     <div className="flex items-center justify-between">
@@ -183,11 +182,11 @@ export default function HeroSection() {
                           <Zap size={16} className="text-[#3b82f6]" />
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-white">Streaming+</div>
-                          <div className="text-xs text-[#94a3b8]">$9.99/month</div>
+                          <div className="text-sm font-medium text-white">Pro Tier Billing</div>
+                          <div className="text-xs text-[#94a3b8]">1,240 users</div>
                         </div>
                       </div>
-                      <span className="text-xs text-[#94a3b8]">Next: Dec 15</span>
+                      <span className="text-xs text-[#94a3b8] text-[#10b981]">+$12,400</span>
                     </div>
                   </div>
                 </div>
@@ -195,22 +194,25 @@ export default function HeroSection() {
 
               {/* Subscriptions List */}
               <div className="mt-6 pt-6 border-t border-white/10">
-                <div className="text-sm text-[#94a3b8] mb-3">Active Subscriptions</div>
+                <div className="text-sm text-[#94a3b8] mb-3">Recent Subscribers</div>
                 {[
-                  { name: 'Netflix', price: '$15.99/mo', color: '#E50914' },
-                  { name: 'Spotify', price: '$9.99/mo', color: '#1DB954' },
-                  { name: 'Cloud Storage', price: '$2.99/mo', color: '#6c63ff' },
+                  { name: '0x8f...3d', tier: 'Pro Tier', amount: '+$10.00', color: '#10b981' },
+                  { name: '0x1a...9c', tier: 'Basic Tier', amount: '+$5.00', color: '#10b981' },
+                  { name: '0x4c...2a', tier: 'Pro Tier', amount: '+$10.00', color: '#10b981' },
                 ].map((sub, i) => (
                   <div key={i} className="flex items-center justify-between py-2">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: sub.color + '20' }}>
-                        <div className="w-full h-full rounded-lg flex items-center justify-center" style={{ color: sub.color }}>
-                          {sub.name[0]}
+                      <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: '#ffffff10' }}>
+                        <div className="w-full h-full rounded-lg flex items-center justify-center text-white">
+                          <Users size={14} />
                         </div>
                       </div>
-                      <span className="text-sm text-white">{sub.name}</span>
+                      <div>
+                        <div className="text-sm font-mono text-white">{sub.name}</div>
+                        <div className="text-xs text-[#94a3b8]">{sub.tier}</div>
+                      </div>
                     </div>
-                    <span className="text-sm text-[#94a3b8]">{sub.price}</span>
+                    <span className="text-sm font-medium text-[#10b981]">{sub.amount}</span>
                   </div>
                 ))}
               </div>

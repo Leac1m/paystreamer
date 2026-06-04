@@ -17,15 +17,15 @@ export default function CTASection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to Take Control of Your <span className="gradient-text">Subscriptions?</span>
+            Ready to scale your recurring revenue on <span className="gradient-text">Web3?</span>
           </h2>
           <p className="text-[#94a3b8] text-lg mb-10 max-w-2xl mx-auto">
-            Join thousands of users who have switched to Sui Subscriptions for full control, instant cancellation, and gasless transactions.
+            Join the leading platforms powering their subscriptions with Sui's trustless infrastructure.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <button className="btn-primary flex items-center justify-center gap-2 text-lg px-10 py-4">
-              <span>Get Started Now</span>
+              <span>Launch Platform Dashboard</span>
               <ArrowRight size={20} />
             </button>
             <button className="btn-secondary flex items-center justify-center gap-2 text-lg px-10 py-4">
@@ -38,15 +38,15 @@ export default function CTASection() {
           <div className="flex flex-wrap justify-center gap-6 text-sm text-[#94a3b8]">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span>No gas fees for users</span>
+              <span>Zero setup fees</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span>Cancel anytime</span>
+              <span>No chargebacks</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span>300ms settlement</span>
+              <span>Automated routing</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
@@ -65,7 +65,7 @@ export default function CTASection() {
         >
           <h3 className="text-xl font-semibold text-white mb-3">Stay Updated</h3>
           <p className="text-[#94a3b8] text-sm mb-6">
-            Get the latest news on Sui Subscriptions, new features, and platform integrations.
+            Get the latest news on Web3 infrastructure, API updates, and platform integrations.
           </p>
           <div className="flex gap-3">
             <input

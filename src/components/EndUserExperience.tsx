@@ -1,37 +1,37 @@
 import { motion } from 'framer-motion';
 import { Shield, CreditCard, Ban, Zap, Eye, ArrowRight } from 'lucide-react';
 
-export default function ForUsers() {
+export default function EndUserExperience() {
   const features = [
     {
       icon: <Shield size={24} className="text-[#10b981]" />,
-      title: 'Full Control',
-      description: 'Your funds, your rules. Set withdrawal limits, define permissions, and cancel anytime without penalties.'
+      title: 'User Controlled Limits',
+      description: 'Users set their own max monthly withdrawal limits, eliminating the fear of being overcharged.'
     },
     {
       icon: <CreditCard size={24} className="text-[#6c63ff]" />,
-      title: 'Stablecoin Powered',
-      description: 'No volatile crypto exposure. Use USDC or other stablecoins for predictable subscription costs.'
+      title: 'Predictable Pricing',
+      description: 'Bill users in USDC or other stablecoins so they never have to worry about crypto market volatility.'
     },
     {
       icon: <Ban size={24} className="text-[#f59e0b]" />,
-      title: 'Cancel Anytime',
-      description: 'Remove subscriptions instantly with one click. No phone calls, no wait times, no hidden fees.'
+      title: 'One-Click Cancellations',
+      description: 'Users can instantly revoke platform access on-chain. Zero friction builds long-term brand trust.'
     },
     {
       icon: <Zap size={24} className="text-[#3b82f6]" />,
-      title: 'Gasless Transactions',
-      description: 'No gas fees for stablecoin transfers. Platforms pay gas costs, making it free for you.'
+      title: 'Gasless Onboarding',
+      description: 'Sponsor your users\' transactions via sponsored PTBs so they don\'t even need SUI tokens to subscribe.'
     },
     {
       icon: <Eye size={24} className="text-[#ec4899]" />,
-      title: 'Transparent Policies',
-      description: 'See exactly when and how much platforms can withdraw. Every transaction is verifiable on-chain.'
+      title: 'Verifiable Billing',
+      description: 'Users can see exactly when your platform is allowed to withdraw, ensuring complete transparency.'
     },
     {
       icon: <ArrowRight size={24} className="text-[#6c63ff]" />,
-      title: 'Instant Settlement',
-      description: 'Transactions settle in 300ms. No waiting for bank processing or payment confirmations.'
+      title: 'Instant Access',
+      description: 'Transactions settle in 300ms. Grant premium access instantly without waiting for confirmations.'
     }
   ];
 
@@ -50,13 +50,13 @@ export default function ForUsers() {
           className="text-center mb-16"
         >
           <span className="inline-block px-4 py-2 rounded-full bg-[#10b981]/10 text-[#10b981] text-sm font-medium mb-4">
-            For Users
+            End User Experience
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Subscription Freedom <span className="gradient-text">Reimagined</span>
+            A Seamless Experience For <span className="gradient-text">Your Users</span>
           </h2>
           <p className="text-[#94a3b8] text-lg max-w-2xl mx-auto">
-            Take control of your recurring payments with blockchain-powered subscriptions that put you in charge.
+            Give your subscribers peace of mind with non-custodial subscriptions. Higher trust equals higher conversion rates and lower churn.
           </p>
         </motion.div>
 
@@ -89,7 +89,7 @@ export default function ForUsers() {
           className="mt-16 max-w-4xl mx-auto"
         >
           <div className="glass-card p-8">
-            <h3 className="text-2xl font-semibold text-white text-center mb-8">How Funding Works</h3>
+            <h3 className="text-2xl font-semibold text-white text-center mb-8">The Subscriber Journey</h3>
 
             <div className="space-y-6">
               {/* Step 1 */}
@@ -98,9 +98,9 @@ export default function ForUsers() {
                   1
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-2">Create Subscription Account</h4>
+                  <h4 className="text-white font-medium mb-2">User Creates Account</h4>
                   <p className="text-[#94a3b8] text-sm mb-3">
-                    Your wallet becomes a subscription account with built-in policy controls. No separate registration needed.
+                    Their wallet is initialized as a SubscriptionAccount. You can sponsor the gas for this setup.
                   </p>
                   <div className="code-snippet text-xs">
                     <code className="text-[#10b981]">subscription_account::create(ctx)</code>
@@ -114,9 +114,9 @@ export default function ForUsers() {
                   2
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-2">Deposit Stablecoins</h4>
+                  <h4 className="text-white font-medium mb-2">User Deposits Funds</h4>
                   <p className="text-[#94a3b8] text-sm mb-3">
-                    Add funds in USDC or other supported stablecoins. Your deposit goes into a shared object controlled by your policies.
+                    They add USDC to their account and authorize your platform. The funds remain fully in their custody.
                   </p>
                   <div className="code-snippet text-xs">
                     <code className="text-[#10b981]">deposit(usdc, 500) // $500 balance</code>
@@ -130,12 +130,12 @@ export default function ForUsers() {
                   3
                 </div>
                 <div>
-                  <h4 className="text-white font-medium mb-2">Platform Withdraws Automatically</h4>
+                  <h4 className="text-white font-medium mb-2">You Withdraw On Schedule</h4>
                   <p className="text-[#94a3b8] text-sm mb-3">
-                    Platforms check your account and withdraw within your defined limits. Each withdrawal is signed by smart contracts.
+                    Your automated bot fetches due accounts and triggers withdrawals directly into your platform's treasury.
                   </p>
                   <div className="code-snippet text-xs">
-                    <code className="text-[#10b981]">// Policy: $50 max/month to this platform</code>
+                    <code className="text-[#10b981]">// Execute batch withdrawal to treasury</code>
                   </div>
                 </div>
               </div>

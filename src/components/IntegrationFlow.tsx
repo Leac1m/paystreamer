@@ -84,33 +84,33 @@ function FlowStep({ number, icon, title, description, code, delay }: StepProps) 
   );
 }
 
-export default function UserFlow() {
+export default function IntegrationFlow() {
   const [showTraditional, setShowTraditional] = useState(false);
 
   const steps = [
     {
-      icon: <Wallet size={28} className="text-[#6c63ff]" />,
-      title: 'Connect & Fund',
-      description: 'Connect your Sui wallet and deposit stablecoins into your subscription account (a shared object).',
-      code: 'deposit(usdc, 1000)'
+      icon: <Building2 size={28} className="text-[#6c63ff]" />,
+      title: 'Register Platform',
+      description: 'Create your platform registry on-chain. This acts as your secure master record for all subscriptions.',
+      code: 'register_platform("My App")'
     },
     {
       icon: <Settings size={28} className="text-[#6c63ff]" />,
-      title: 'Set Policies',
-      description: 'Define withdrawal limits, frequency, and which platforms can access your funds.',
-      code: 'set_policy(limit: 50/mo)'
+      title: 'Define Tiers',
+      description: 'Set your pricing and billing intervals (daily, weekly, monthly, or custom seconds).',
+      code: 'create_tier(amount, freq)'
     },
     {
-      icon: <Building2 size={28} className="text-[#6c63ff]" />,
-      title: 'Platform Withdraws',
-      description: 'Platforms automatically withdraw within your defined policies. You maintain full control.',
-      code: 'withdraw(platform, 9.99)'
+      icon: <Lock size={28} className="text-[#6c63ff]" />,
+      title: 'Authorize Scheduler',
+      description: 'Mint a SchedulerCap to safely delegate withdrawal execution to your off-chain automation bot.',
+      code: 'mint_scheduler_cap(bot)'
     },
     {
-      icon: <CheckCircle size={28} className="text-[#10b981]" />,
-      title: 'Instant Settlement',
-      description: 'Transactions settle in 300ms with sub-cent fees. Cancel anytime with one click.',
-      code: 'cancel(subscription_id)'
+      icon: <Zap size={28} className="text-[#10b981]" />,
+      title: 'Automated Cashflow',
+      description: 'Your bot runs cron jobs to execute batch withdrawals. Funds are hardcoded to route only to your treasury.',
+      code: 'batch_withdraw_scheduler()'
     }
   ];
 
@@ -130,13 +130,13 @@ export default function UserFlow() {
           className="text-center mb-16"
         >
           <span className="inline-block px-4 py-2 rounded-full bg-[#6c63ff]/10 text-[#6c63ff] text-sm font-medium mb-4">
-            How It Works
+            Integration Flow
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Subscription Flow on <span className="gradient-text">Sui</span>
+            Power Your Cashflow on <span className="gradient-text">Sui</span>
           </h2>
           <p className="text-[#94a3b8] text-lg max-w-2xl mx-auto">
-            A secure, user-controlled subscription system powered by Sui's shared objects and programmable policies.
+            A developer-friendly, trustless subscription protocol designed to scale with your platform's needs.
           </p>
         </motion.div>
 
@@ -155,7 +155,7 @@ export default function UserFlow() {
                 !showTraditional ? 'bg-gradient-to-r from-[#6c63ff] to-[#3b82f6] text-white' : 'text-[#94a3b8]'
               }`}
             >
-              Sui Subscriptions
+              Sui Infrastructure
             </button>
             <button
               onClick={() => setShowTraditional(true)}
@@ -163,7 +163,7 @@ export default function UserFlow() {
                 showTraditional ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-[#94a3b8]'
               }`}
             >
-              Traditional
+              Legacy Providers
             </button>
           </div>
         </motion.div>
@@ -182,15 +182,15 @@ export default function UserFlow() {
               <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
                 <XCircle size={20} className="text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white">Traditional Subscriptions</h3>
+              <h3 className="text-lg font-semibold text-white">Legacy Payment Gateways</h3>
             </div>
             <ul className="space-y-3">
               {[
-                'Credit card on file = risk',
-                'Cancel via phone/chat only',
-                'Recurring billing surprises',
-                'Platform controls withdrawals',
-                'Hidden cancellation fees'
+                'High processing fees (2.9% + 30¢)',
+                'Chargebacks and disputes',
+                'Holding user funds creates liability',
+                'Vendor lock-in and opaque data',
+                'Slow international payouts'
               ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-[#94a3b8]">
                   <X size={16} className="text-red-400 flex-shrink-0" />
@@ -206,15 +206,15 @@ export default function UserFlow() {
               <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 flex items-center justify-center">
                 <CheckCircle size={20} className="text-[#10b981]" />
               </div>
-              <h3 className="text-lg font-semibold text-white">Sui Subscriptions</h3>
+              <h3 className="text-lg font-semibold text-white">Sui Web3 Infrastructure</h3>
             </div>
             <ul className="space-y-3">
               {[
-                'You control the funds always',
-                'Cancel instantly on-chain',
-                'Transparent withdrawal policies',
-                'Smart contracts enforce rules',
-                'No middlemen, no surprises'
+                'Fractions of a cent per transaction',
+                'Cryptographic finality, zero chargebacks',
+                'Trustless execution limits liability',
+                'Fully composable and open-source',
+                'Global, instant treasury settlement'
               ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-[#94a3b8]">
                   <CheckCircle size={16} className="text-[#10b981] flex-shrink-0" />
@@ -251,13 +251,12 @@ export default function UserFlow() {
           <h3 className="text-xl font-semibold text-white text-center mb-8">The Complete Flow</h3>
           <div className="flex flex-wrap justify-center items-center gap-4">
             {[
-              { icon: <Wallet size={20} />, label: 'User Wallet', color: '#6c63ff' },
-              { icon: <Coins size={20} />, label: 'Deposit Stablecoins', color: '#3b82f6' },
-              { icon: <Lock size={20} />, label: 'Shared Object', color: '#10b981' },
-              { icon: <Settings size={20} />, label: 'Set Policies', color: '#f59e0b' },
-              { icon: <Building2 size={20} />, label: 'Platform', color: '#ec4899' },
-              { icon: <Zap size={20} />, label: 'Auto Withdraw', color: '#6c63ff' },
-              { icon: <RefreshCw size={20} />, label: 'Settle 300ms', color: '#10b981' },
+              { icon: <Building2 size={20} />, label: 'Register Platform', color: '#6c63ff' },
+              { icon: <Settings size={20} />, label: 'Setup Tiers', color: '#3b82f6' },
+              { icon: <Lock size={20} />, label: 'Delegate Bot', color: '#10b981' },
+              { icon: <Wallet size={20} />, label: 'User Subscribes', color: '#f59e0b' },
+              { icon: <Zap size={20} />, label: 'Batch Withdraw', color: '#ec4899' },
+              { icon: <Coins size={20} />, label: 'Treasury Settled', color: '#10b981' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div

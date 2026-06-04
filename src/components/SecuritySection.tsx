@@ -17,13 +17,13 @@ export default function SecuritySection() {
           className="text-center mb-16"
         >
           <span className="inline-block px-4 py-2 rounded-full bg-[#6c63ff]/10 text-[#6c63ff] text-sm font-medium mb-4">
-            Security & Trust
+            Security & Compliance
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Built on <span className="gradient-text">Sui's Security</span>
+            Reduce Your <span className="gradient-text">Liability</span>
           </h2>
           <p className="text-[#94a3b8] text-lg max-w-2xl mx-auto">
-            Every subscription is protected by Sui's object-capability model and Move's security guarantees.
+            Stop holding user funds on your servers. Leverage Sui's decentralized architecture to eliminate regulatory risk and hacking vectors.
           </p>
         </motion.div>
 
@@ -40,7 +40,7 @@ export default function SecuritySection() {
               <div className="w-10 h-10 rounded-xl bg-[#6c63ff]/20 flex items-center justify-center">
                 <Lock size={20} className="text-[#6c63ff]" />
               </div>
-              Subscription Account (Shared Object)
+              Trustless Architecture
             </h3>
 
             {/* Visual Diagram */}
@@ -110,35 +110,35 @@ export default function SecuritySection() {
               <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 flex items-center justify-center">
                 <Eye size={20} className="text-[#10b981]" />
               </div>
-              Security Guarantees
+              Platform Benefits
             </h3>
 
             <div className="space-y-6">
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Object-Capability Model</h4>
+                <h4 className="text-white font-medium mb-2">Non-Custodial Design</h4>
                 <p className="text-sm text-[#94a3b8]">
-                  Only authorized objects can interact with your subscription account. No unauthorized withdrawals possible.
+                  Users hold their own funds in shared objects. You never touch their money until the exact moment a subscription is billed.
                 </p>
               </div>
 
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Move Language Safety</h4>
+                <h4 className="text-white font-medium mb-2">Eliminated Chargebacks</h4>
                 <p className="text-sm text-[#94a3b8]">
-                  Sui's Move implementation prevents reentrancy attacks, integer overflows, and access control bugs.
+                  Blockchain finality means zero chargeback fraud. Once a withdrawal is executed, it's cryptographically guaranteed.
                 </p>
               </div>
 
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Verifiable Policies</h4>
+                <h4 className="text-white font-medium mb-2">Bot Delegation</h4>
                 <p className="text-sm text-[#94a3b8]">
-                  Every policy is stored on-chain and enforced by smart contracts. No hidden rules or surprises.
+                  The SchedulerCap safely allows automated server cron jobs to execute withdrawals without needing to hold sensitive admin keys.
                 </p>
               </div>
 
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Instant Cancellation</h4>
+                <h4 className="text-white font-medium mb-2">Immutable Treasury Routing</h4>
                 <p className="text-sm text-[#94a3b8]">
-                  Remove platform access instantly. Smart contracts prevent any further withdrawals immediately.
+                  Move smart contracts hardcode the flow of funds. Withdrawals can only ever arrive at your designated Platform Treasury address.
                 </p>
               </div>
             </div>
@@ -153,16 +153,16 @@ export default function SecuritySection() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-12 glass-card p-8 max-w-4xl mx-auto"
         >
-          <h3 className="text-xl font-semibold text-white text-center mb-8">How Policy Enforcement Works</h3>
+          <h3 className="text-xl font-semibold text-white text-center mb-8">How Automated Routing Works</h3>
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="w-16 h-16 rounded-2xl bg-[#6c63ff]/20 flex items-center justify-center mx-auto mb-4">
                 <RefreshCw size={24} className="text-[#6c63ff]" />
               </div>
-              <h4 className="text-white font-medium mb-2">Platform Requests</h4>
+              <h4 className="text-white font-medium mb-2">Scheduler Bot</h4>
               <p className="text-sm text-[#94a3b8]">
-                Platform calls withdraw() with amount and subscription ID
+                Your server automatically detects due subscriptions and executes a batch withdrawal.
               </p>
             </div>
 
@@ -170,9 +170,9 @@ export default function SecuritySection() {
               <div className="w-16 h-16 rounded-2xl bg-[#3b82f6]/20 flex items-center justify-center mx-auto mb-4">
                 <Eye size={24} className="text-[#3b82f6]" />
               </div>
-              <h4 className="text-white font-medium mb-2">Smart Contract Checks</h4>
+              <h4 className="text-white font-medium mb-2">Contract Validation</h4>
               <p className="text-sm text-[#94a3b8]">
-                Verifies: within limit? Within schedule? Authorized platform?
+                Sui validates the SchedulerCap and ensures the requested users are actually due for billing.
               </p>
             </div>
 
@@ -180,9 +180,9 @@ export default function SecuritySection() {
               <div className="w-16 h-16 rounded-2xl bg-[#10b981]/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 size={24} className="text-[#10b981]" />
               </div>
-              <h4 className="text-white font-medium mb-2">Execute or Reject</h4>
+              <h4 className="text-white font-medium mb-2">Direct Settlement</h4>
               <p className="text-sm text-[#94a3b8]">
-                Transfer if valid, revert if policy violated. No partial states.
+                Funds are routed directly into your platform's treasury. Your bot never touches the money.
               </p>
             </div>
           </div>
