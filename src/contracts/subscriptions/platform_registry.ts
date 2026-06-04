@@ -16,7 +16,8 @@ export const PlatformStatus = new MoveStruct({ name: `${$moduleName}::PlatformSt
         variant: bcs.u8()
     } });
 export const BillingFrequency = new MoveStruct({ name: `${$moduleName}::BillingFrequency`, fields: {
-        variant: bcs.u8()
+        variant: bcs.u8(),
+        custom_ms: bcs.u64()
     } });
 export const SubscriptionTier = new MoveStruct({ name: `${$moduleName}::SubscriptionTier`, fields: {
         name: bcs.string(),
@@ -199,6 +200,28 @@ export function billingFrequencyYearly(options: BillingFrequencyYearlyOptions = 
         function: 'billing_frequency_yearly',
     });
 }
+export interface BillingFrequencyCustomArguments {
+    customMs: RawTransactionArgument<number | bigint>;
+}
+export interface BillingFrequencyCustomOptions {
+    package?: string;
+    arguments: BillingFrequencyCustomArguments | [
+        customMs: RawTransactionArgument<number | bigint>
+    ];
+}
+export function billingFrequencyCustom(options: BillingFrequencyCustomOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        'u64'
+    ] satisfies (string | null)[];
+    const parameterNames = ["customMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'billing_frequency_custom',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
 export interface BillingFrequencyVariantArguments {
     f: TransactionArgument;
 }
@@ -218,6 +241,28 @@ export function billingFrequencyVariant(options: BillingFrequencyVariantOptions)
         package: packageAddress,
         module: 'platform_registry',
         function: 'billing_frequency_variant',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface BillingFrequencyCustomMsArguments {
+    f: TransactionArgument;
+}
+export interface BillingFrequencyCustomMsOptions {
+    package?: string;
+    arguments: BillingFrequencyCustomMsArguments | [
+        f: TransactionArgument
+    ];
+}
+export function billingFrequencyCustomMs(options: BillingFrequencyCustomMsOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["f"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'billing_frequency_custom_ms',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
@@ -807,6 +852,28 @@ export function tierFrequencyVariant(options: TierFrequencyVariantOptions) {
         package: packageAddress,
         module: 'platform_registry',
         function: 'tier_frequency_variant',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface TierFrequencyCustomMsArguments {
+    tier: TransactionArgument;
+}
+export interface TierFrequencyCustomMsOptions {
+    package?: string;
+    arguments: TierFrequencyCustomMsArguments | [
+        tier: TransactionArgument
+    ];
+}
+export function tierFrequencyCustomMs(options: TierFrequencyCustomMsOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["tier"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform_registry',
+        function: 'tier_frequency_custom_ms',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }

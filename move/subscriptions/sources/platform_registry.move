@@ -39,13 +39,16 @@ module subscriptions::platform_registry {
     /// Billing frequency options
     public struct BillingFrequency has store, drop {
         variant: u8,
+        custom_ms: u64,
     }
 
-    public fun billing_frequency_daily(): BillingFrequency { BillingFrequency { variant: 0 } }
-    public fun billing_frequency_weekly(): BillingFrequency { BillingFrequency { variant: 1 } }
-    public fun billing_frequency_monthly(): BillingFrequency { BillingFrequency { variant: 2 } }
-    public fun billing_frequency_yearly(): BillingFrequency { BillingFrequency { variant: 3 } }
+    public fun billing_frequency_daily(): BillingFrequency { BillingFrequency { variant: 0, custom_ms: 0 } }
+    public fun billing_frequency_weekly(): BillingFrequency { BillingFrequency { variant: 1, custom_ms: 0 } }
+    public fun billing_frequency_monthly(): BillingFrequency { BillingFrequency { variant: 2, custom_ms: 0 } }
+    public fun billing_frequency_yearly(): BillingFrequency { BillingFrequency { variant: 3, custom_ms: 0 } }
+    public fun billing_frequency_custom(custom_ms: u64): BillingFrequency { BillingFrequency { variant: 4, custom_ms } }
     public fun billing_frequency_variant(f: &BillingFrequency): u8 { f.variant }
+    public fun billing_frequency_custom_ms(f: &BillingFrequency): u64 { f.custom_ms }
 
     // === Data structures ===
 
@@ -522,6 +525,10 @@ module subscriptions::platform_registry {
 
     public fun tier_frequency_variant(tier: &SubscriptionTier): u8 {
         tier.frequency.variant
+    }
+
+    public fun tier_frequency_custom_ms(tier: &SubscriptionTier): u64 {
+        tier.frequency.custom_ms
     }
 
     public fun get_subscriber_count(platform: &Platform): u64 {

@@ -14,7 +14,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
 
-const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
+const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly", "Custom (Seconds)"];
 
 export function PlatformOwnerDashboard() {
   const client = useCurrentClient();
@@ -237,6 +237,7 @@ function TierManagement({
   const [tierName, setTierName] = useState("");
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState("2");
+  const [customSeconds, setCustomSeconds] = useState("30");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -274,6 +275,13 @@ function TierManagement({
             module: "platform_registry",
             function: "billing_frequency_yearly",
             arguments: [],
+          });
+        case 4:
+          return tx.moveCall({
+            package: "@local-pkg/subscriptions",
+            module: "platform_registry",
+            function: "billing_frequency_custom",
+            arguments: [tx.pure.u64(BigInt(parseInt(customSeconds) * 1000))],
           });
         default:
           return tx.moveCall({
@@ -342,7 +350,16 @@ function TierManagement({
           <option value="1">Weekly</option>
           <option value="2">Monthly</option>
           <option value="3">Yearly</option>
+          <option value="4">Custom (Seconds)</option>
         </select>
+        {frequency === "4" && (
+          <Input
+            type="number"
+            placeholder="Seconds (e.g. 30)"
+            value={customSeconds}
+            onChange={(e) => setCustomSeconds(e.target.value)}
+          />
+        )}
       </div>
       <Button size="sm" onClick={addTier} disabled={!account || isPending} loading={isPending}>
         Add Tier

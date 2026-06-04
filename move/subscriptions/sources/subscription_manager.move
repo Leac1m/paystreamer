@@ -48,6 +48,7 @@ module subscriptions::subscription_manager {
         get_platform_tiers,
         tier_is_active,
         tier_frequency_variant,
+        tier_frequency_custom_ms,
         tier_amount,
     };
 
@@ -133,16 +134,25 @@ module subscriptions::subscription_manager {
 
         let now = clock.timestamp_ms();
         let freq_variant = tier_frequency_variant(tier);
-        let freq_days = (freq_variant as u64 + 1) * 30;
-        let frequency_ms = freq_days * 86400000u64;
+        let frequency_ms = if (freq_variant == 0) {
+            86400000 // 1 day
+        } else if (freq_variant == 1) {
+            604800000 // 1 week
+        } else if (freq_variant == 2) {
+            2592000000 // 30 days
+        } else if (freq_variant == 3) {
+            31536000000 // 365 days
+        } else {
+            tier_frequency_custom_ms(tier)
+        };
 
-        let schedule = new_billing_schedule(freq_days, now + frequency_ms, 0);
+        let schedule = new_billing_schedule(frequency_ms, now + frequency_ms, 0);
 
         let subscription = new_subscription(
             platform_id,
             tier_index,
             tier_amount(tier),
-            freq_days,
+            frequency_ms,
             subscription_status_active(),
             schedule,
             0,

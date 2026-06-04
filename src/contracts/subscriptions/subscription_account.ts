@@ -28,7 +28,7 @@ export const PolicyConfig = new MoveStruct({ name: `${$moduleName}::PolicyConfig
         last_withdrawal_time: bcs.u64()
     } });
 export const BillingSchedule = new MoveStruct({ name: `${$moduleName}::BillingSchedule`, fields: {
-        frequency_days: bcs.u64(),
+        frequency_ms: bcs.u64(),
         next_billing_time: bcs.u64(),
         last_billing_time: bcs.u64()
     } });
@@ -36,7 +36,7 @@ export const Subscription = new MoveStruct({ name: `${$moduleName}::Subscription
         platform_id: bcs.Address,
         tier_index: bcs.u64(),
         tier_amount: bcs.u64(),
-        tier_frequency_days: bcs.u64(),
+        tier_frequency_ms: bcs.u64(),
         status: SubscriptionStatus,
         schedule: BillingSchedule,
         total_paid: bcs.u64(),
@@ -868,16 +868,16 @@ export function subscriptionSchedule(options: SubscriptionScheduleOptions) {
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
-export interface BillingScheduleFrequencyDaysArguments {
+export interface BillingScheduleFrequencyMsArguments {
     s: TransactionArgument;
 }
-export interface BillingScheduleFrequencyDaysOptions {
+export interface BillingScheduleFrequencyMsOptions {
     package?: string;
-    arguments: BillingScheduleFrequencyDaysArguments | [
+    arguments: BillingScheduleFrequencyMsArguments | [
         s: TransactionArgument
     ];
 }
-export function billingScheduleFrequencyDays(options: BillingScheduleFrequencyDaysOptions) {
+export function billingScheduleFrequencyMs(options: BillingScheduleFrequencyMsOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null
@@ -886,7 +886,7 @@ export function billingScheduleFrequencyDays(options: BillingScheduleFrequencyDa
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'subscription_account',
-        function: 'billing_schedule_frequency_days',
+        function: 'billing_schedule_frequency_ms',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
@@ -1063,14 +1063,14 @@ export function subscriptionSetUpdatedAt(options: SubscriptionSetUpdatedAtOption
     });
 }
 export interface NewBillingScheduleArguments {
-    frequencyDays: RawTransactionArgument<number | bigint>;
+    frequencyMs: RawTransactionArgument<number | bigint>;
     nextBillingTime: RawTransactionArgument<number | bigint>;
     lastBillingTime: RawTransactionArgument<number | bigint>;
 }
 export interface NewBillingScheduleOptions {
     package?: string;
     arguments: NewBillingScheduleArguments | [
-        frequencyDays: RawTransactionArgument<number | bigint>,
+        frequencyMs: RawTransactionArgument<number | bigint>,
         nextBillingTime: RawTransactionArgument<number | bigint>,
         lastBillingTime: RawTransactionArgument<number | bigint>
     ];
@@ -1082,7 +1082,7 @@ export function newBillingSchedule(options: NewBillingScheduleOptions) {
         'u64',
         'u64'
     ] satisfies (string | null)[];
-    const parameterNames = ["frequencyDays", "nextBillingTime", "lastBillingTime"];
+    const parameterNames = ["frequencyMs", "nextBillingTime", "lastBillingTime"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'subscription_account',
@@ -1094,7 +1094,7 @@ export interface NewSubscriptionArguments {
     platformId: RawTransactionArgument<string>;
     tierIndex: RawTransactionArgument<number | bigint>;
     tierAmount: RawTransactionArgument<number | bigint>;
-    tierFrequencyDays: RawTransactionArgument<number | bigint>;
+    tierFrequencyMs: RawTransactionArgument<number | bigint>;
     status: TransactionArgument;
     schedule: TransactionArgument;
     totalPaid: RawTransactionArgument<number | bigint>;
@@ -1108,7 +1108,7 @@ export interface NewSubscriptionOptions {
         platformId: RawTransactionArgument<string>,
         tierIndex: RawTransactionArgument<number | bigint>,
         tierAmount: RawTransactionArgument<number | bigint>,
-        tierFrequencyDays: RawTransactionArgument<number | bigint>,
+        tierFrequencyMs: RawTransactionArgument<number | bigint>,
         status: TransactionArgument,
         schedule: TransactionArgument,
         totalPaid: RawTransactionArgument<number | bigint>,
@@ -1131,7 +1131,7 @@ export function newSubscription(options: NewSubscriptionOptions) {
         'u64',
         'u64'
     ] satisfies (string | null)[];
-    const parameterNames = ["platformId", "tierIndex", "tierAmount", "tierFrequencyDays", "status", "schedule", "totalPaid", "paymentCount", "createdAt", "updatedAt"];
+    const parameterNames = ["platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "status", "schedule", "totalPaid", "paymentCount", "createdAt", "updatedAt"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'subscription_account',

@@ -61,7 +61,7 @@ module subscriptions::subscription_account {
 
     /// Billing schedule for a subscription
     public struct BillingSchedule has store, drop {
-        frequency_days: u64,
+        frequency_ms: u64,
         next_billing_time: u64,
         last_billing_time: u64,
     }
@@ -72,7 +72,7 @@ module subscriptions::subscription_account {
         platform_id: ID,
         tier_index: u64,
         tier_amount: u64,
-        tier_frequency_days: u64,
+        tier_frequency_ms: u64,
         status: SubscriptionStatus,
         schedule: BillingSchedule,
         total_paid: u64,
@@ -431,8 +431,8 @@ module subscriptions::subscription_account {
         &sub.schedule
     }
 
-    public fun billing_schedule_frequency_days(s: &BillingSchedule): u64 {
-        s.frequency_days
+    public fun billing_schedule_frequency_ms(s: &BillingSchedule): u64 {
+        s.frequency_ms
     }
 
     public fun billing_schedule_next_billing_time(s: &BillingSchedule): u64 {
@@ -468,9 +468,9 @@ module subscriptions::subscription_account {
 
     // === Subscription constructors (called by subscription_manager) ===
 
-    public fun new_billing_schedule(frequency_days: u64, next_billing_time: u64, last_billing_time: u64): BillingSchedule {
+    public fun new_billing_schedule(frequency_ms: u64, next_billing_time: u64, last_billing_time: u64): BillingSchedule {
         BillingSchedule {
-            frequency_days,
+            frequency_ms,
             next_billing_time,
             last_billing_time,
         }
@@ -480,7 +480,7 @@ module subscriptions::subscription_account {
         platform_id: ID,
         tier_index: u64,
         tier_amount: u64,
-        tier_frequency_days: u64,
+        tier_frequency_ms: u64,
         status: SubscriptionStatus,
         schedule: BillingSchedule,
         total_paid: u64,
@@ -492,7 +492,7 @@ module subscriptions::subscription_account {
             platform_id,
             tier_index,
             tier_amount,
-            tier_frequency_days,
+            tier_frequency_ms,
             status,
             schedule,
             total_paid,
@@ -535,13 +535,13 @@ module subscriptions::subscription_account {
         assert!(sub.status.variant == 0, E_SUBSCRIPTION_PAUSED);
 
         let new_total = sub.total_paid;
-        let freq_days = sub.schedule.frequency_days;
+        let freq_ms = sub.schedule.frequency_ms;
 
         sub.total_paid = sub.total_paid + amount;
         sub.payment_count = sub.payment_count + 1;
         let now = clock.timestamp_ms();
         sub.schedule.last_billing_time = now;
-        sub.schedule.next_billing_time = now + (freq_days * 86400000);
+        sub.schedule.next_billing_time = now + freq_ms;
         sub.updated_at = now;
 
         emit(PaymentRecorded {
