@@ -12,7 +12,7 @@ import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
-export function PlatformBrowser() {
+export function PlatformBrowser({ accountId, accountCapId }: { accountId: string; accountCapId: string }) {
   const client = useCurrentClient();
   const account = useCurrentAccount();
 
@@ -67,14 +67,16 @@ export function PlatformBrowser() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {platforms.map((obj) => (
-        <PlatformCard key={obj.objectId} object={obj} account={account} />
+      {platforms
+        .filter((obj) => !(obj instanceof Error))
+        .map((obj: any) => (
+          <PlatformCard key={obj.objectId} object={obj} account={account} accountId={accountId} accountCapId={accountCapId} />
       ))}
     </div>
   );
 }
 
-function PlatformCard({ object, account }: { object: any; account: any }) {
+function PlatformCard({ object, account, accountId, accountCapId }: { object: any; account: any; accountId: string; accountCapId: string }) {
   const fields = object.json;
 
   if (!fields) {
@@ -128,10 +130,10 @@ function PlatformCard({ object, account }: { object: any; account: any }) {
           {fields.subscriber_count || 0} subscribers
         </p>
 
-        {account && (
+        {account && accountId && accountCapId && (
           <CreateSubscription
-            accountId={""}
-            accountCapId={""}
+            accountId={accountId}
+            accountCapId={accountCapId}
             platformId={object.objectId}
             tierIndex={0}
             tierName={fields.tiers?.[0]?.name ?? ""}

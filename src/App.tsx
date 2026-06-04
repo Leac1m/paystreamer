@@ -133,7 +133,7 @@ export default function App() {
           </TabsList>
 
           <TabsContent value="browse">
-            <PlatformBrowser />
+            <PlatformBrowser accountId={accountId} accountCapId={accountCapId} />
           </TabsContent>
 
           <TabsContent value="my-account">

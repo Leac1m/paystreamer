@@ -91,7 +91,7 @@ export function MySubscriptionAccount({
               <p>Status: <Badge variant={(fields.status as any)?.variant === 0 ? "default" : "secondary"}>
                 {(fields.status as any)?.variant === 0 ? "Active" : (fields.status as any)?.variant === 1 ? "Paused" : "Closed"}
               </Badge></p>
-              <p className="mt-1">Subscribers: {Object.keys(fields.subscriptions || {}).length}</p>
+              <p className="mt-1">Subscribers: {Array.isArray(fields.subscriptions) ? fields.subscriptions.length : (fields.subscriptions as any)?.contents?.length || 0}</p>
             </div>
           </div>
         </CardContent>
@@ -139,13 +139,28 @@ export function MySubscriptionAccount({
       </Card>
 
       {/* Subscriptions List */}
-      {fields?.subscriptions && typeof fields.subscriptions === "object" && Object.keys(fields.subscriptions as Record<string, unknown>).length > 0 ? (
+      {fields?.subscriptions && Array.isArray(fields.subscriptions) && fields.subscriptions.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>My Subscriptions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {Object.entries(fields.subscriptions as Record<string, unknown>).map(([platformId, sub]) => (
+            {(fields.subscriptions as Array<{ key: string; value: any }>).map(({ key: platformId, value: sub }) => (
+              <SubscriptionItem
+                key={platformId}
+                platformId={platformId}
+                subscription={sub}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      ) : fields?.subscriptions && (fields.subscriptions as any).contents && (fields.subscriptions as any).contents.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>My Subscriptions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {((fields.subscriptions as any).contents as Array<{ key: string; value: any }>).map(({ key: platformId, value: sub }) => (
               <SubscriptionItem
                 key={platformId}
                 platformId={platformId}
