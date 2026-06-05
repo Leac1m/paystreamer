@@ -1,4 +1,4 @@
-import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants.ts';
@@ -11,7 +11,7 @@ config();
 const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET; 
 
 // Define the network
-const client = new SuiGrpcClient({ network: "devnet", baseUrl: "https://fullnode.devnet.sui.io:443" });
+const client = new SuiGraphQLClient({ url: "https://fullnode.devnet.sui.io:443/graphql" });
 
 async function runScheduler() {
     console.log("Starting Subscriptions Scheduler...");
@@ -70,11 +70,28 @@ async function runScheduler() {
             const accountIds: string[] = [];
 
             while (hasNextPage) {
-                const events = await (client.core as any).queryEvents({
-                    query: { MoveEventType: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::subscription_account::AccountCreated` },
-                    cursor,
-                    limit: 50,
+                const result = await client.query({
+                    query: `
+                        query GetEvents($cursor: String, $type: String!) {
+                            events(first: 50, after: $cursor, filter: { type: $type }) {
+                                nodes { contents { json } sender { address } }
+                                pageInfo { hasNextPage endCursor }
+                            }
+                        }
+                    `,
+                    variables: {
+                        type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::subscription_account::AccountCreated`,
+                    },
                 });
+
+                const events = {
+                    data: result.data.events.nodes.map((n: any) => ({
+                        parsedJson: n.contents.json,
+                        sender: n.sender,
+                    })),
+                    hasNextPage: result.data.events.pageInfo.hasNextPage,
+                    nextCursor: result.data.events.pageInfo.endCursor,
+                };
 
                 events.data.forEach((e: any) => {
                     const json = e.parsedJson || e.json;
