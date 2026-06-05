@@ -3,7 +3,7 @@ import { Lock, Eye, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react'
 
 export default function SecuritySection() {
   return (
-    <section id="security" className="relative py-24 overflow-hidden">
+    <section id="security" className="relative pt-32 pb-24 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f] via-[#12121a] to-[#0a0a0f]" />
 
@@ -151,7 +151,7 @@ export default function SecuritySection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 glass-card p-8 max-w-4xl mx-auto"
+          className="mt-24 glass-card p-8 max-w-4xl mx-auto"
         >
           <h3 className="text-xl font-semibold text-white text-center mb-8">How Automated Routing Works</h3>
 

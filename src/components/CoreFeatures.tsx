@@ -61,34 +61,35 @@ export default function CoreFeatures() {
           </p>
         </motion.div>
 
-        {/* Benefits Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {benefits.map((benefit, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="glass-card p-6"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-[#12121a] flex items-center justify-center mb-5">
-                {benefit.icon}
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-3">{benefit.title}</h3>
-              <p className="text-[#94a3b8] text-sm leading-relaxed">{benefit.description}</p>
-            </motion.div>
-          ))}
-        </div>
+        <div className="grid lg:grid-cols-2 gap-12 items-start mb-16">
+          {/* Left: Benefits Grid */}
+          <div className="grid sm:grid-cols-2 gap-6">
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="glass-card p-6"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#12121a] flex items-center justify-center mb-4">
+                  {benefit.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">{benefit.title}</h3>
+                <p className="text-[#94a3b8] text-xs leading-relaxed">{benefit.description}</p>
+              </motion.div>
+            ))}
+          </div>
 
-        {/* API Demo */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="max-w-4xl mx-auto"
-        >
+          {/* Right: API Demo */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="w-full sticky top-24"
+          >
           <div className="glass-card overflow-hidden">
             {/* Code Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-black/30 border-b border-white/10">
@@ -138,6 +139,7 @@ tx.moveCall({
             </div>
           </div>
         </motion.div>
+        </div>
 
         {/* Stats */}
         <motion.div

@@ -107,7 +107,7 @@ export default function IntegrationFlow() {
   ];
 
   return (
-    <section id="how-it-works" className="relative py-24 overflow-hidden">
+    <section id="how-it-works" className="relative pt-24 pb-40 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-[#0a0a0f]" />
       <div className="absolute inset-0 grid-pattern opacity-50" />

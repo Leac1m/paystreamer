@@ -44,14 +44,14 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-12">
       {/* Background Elements */}
       <div className="absolute inset-0 grid-pattern" />
       <div className="orb orb-1" />
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <motion.div
@@ -134,7 +134,7 @@ export default function HeroSection() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: mounted ? 1 : 0, x: mounted ? 0 : 50 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="relative"
+            className="relative lg:scale-95 origin-right"
           >
             <div className="glass-card p-6 relative">
               {/* Header */}
