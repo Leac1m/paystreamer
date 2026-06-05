@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Users, Zap, Shield } from 'lucide-react';
-import { useWallet } from '../hooks/useWallet';
+import { ConnectModal } from '@mysten/dapp-kit-react/ui';
 
 export default function HeroSection() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ transactions: 0, volume: 0, subscriptions: 0 });
-  const { wallet } = useWallet();
-  const isConnected = wallet.isConnected;
+  const modalRef = useRef<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -74,17 +73,14 @@ export default function HeroSection() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              {isConnected ? (
-                <button className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                  <span>Open Platform Dashboard</span>
-                  <ArrowRight size={20} />
-                </button>
-              ) : (
-                <button className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                  <span>Start for Free</span>
-                  <ArrowRight size={20} />
-                </button>
-              )}
+              <button 
+                onClick={() => modalRef.current?.show()}
+                className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4"
+              >
+                <span>Start for Free</span>
+                <ArrowRight size={20} />
+              </button>
+              <ConnectModal ref={modalRef} />
               <a href="#how-it-works" className="btn-secondary flex items-center justify-center gap-2 text-lg px-8 py-4">
                 <Play size={20} />
                 <span>Read the Docs</span>

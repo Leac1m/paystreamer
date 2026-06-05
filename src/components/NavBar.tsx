@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
-import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { Menu, X, LogOut } from 'lucide-react';
+import { ConnectModal } from '@mysten/dapp-kit-react/ui';
+import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
 
 export default function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const modalRef = useRef<any>(null);
+  const account = useCurrentAccount();
+  const dAppKit = useDAppKit();
+  const disconnect = () => dAppKit.disconnectWallet();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,7 +66,28 @@ export default function NavBar() {
 
             {/* Wallet Button */}
             <div className="hidden md:flex items-center gap-4">
-              <ConnectButton />
+              {account ? (
+                <button
+                  onClick={() => disconnect()}
+                  className="btn-secondary flex items-center gap-2 text-sm px-4 py-2"
+                  title="Disconnect"
+                >
+                  <span className="font-mono">
+                    {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                  </span>
+                  <LogOut size={16} />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => modalRef.current?.show()}
+                    className="btn-primary text-sm px-6 py-2"
+                  >
+                    Connect Wallet
+                  </button>
+                  <ConnectModal ref={modalRef} />
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -99,7 +125,27 @@ export default function NavBar() {
                   </a>
                 ))}
                 <div className="mt-4 flex justify-center">
-                  <ConnectButton />
+                  {account ? (
+                    <button
+                      onClick={() => disconnect()}
+                      className="btn-secondary flex items-center justify-center gap-2 text-sm px-6 py-3 w-full"
+                    >
+                      <span className="font-mono">
+                        {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                      </span>
+                      <LogOut size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        modalRef.current?.show();
+                      }}
+                      className="btn-primary text-sm px-6 py-3 w-full"
+                    >
+                      Connect Wallet
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

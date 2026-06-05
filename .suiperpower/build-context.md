@@ -166,4 +166,4 @@ Subscription (embedded struct, not a key object)
 4. ✅ Billing schedule advances after each withdrawal — `can_bill` returns `false` until next cycle
 5. ✅ Scheduler uses GraphQL for event queries (fixed from JSON-RPC deprecation)
 6. ✅ Individual withdrawals via `process_withdrawal_scheduler` — batch withdraw deferred
-7. ⏳ Frontend integration — Next.js + dapp-kit integration not yet started
+7. ✅ Frontend integration — Next.js/Vite + dapp-kit fully integrated with devnet contracts
