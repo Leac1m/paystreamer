@@ -384,7 +384,7 @@ function SchedulerManagement({
   const queryClient = useQueryClient();
   
   const [treasuryAddress, setTreasuryAddress] = useState("");
-  const [schedulerAddress, setSchedulerAddress] = useState("");
+  const [schedulerAddress, setSchedulerAddress] = useState("0x472083c45f28f6fed624f1f252966a753332111a931127f047a9759800672793");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

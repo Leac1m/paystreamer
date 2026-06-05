@@ -196,5 +196,5 @@ async function runScheduler() {
 }
 
 // Run every minute for the demo
-setInterval(runScheduler, 2000);
+setInterval(runScheduler, 5000);
 runScheduler(); // run immediately once
