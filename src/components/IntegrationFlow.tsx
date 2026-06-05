@@ -3,13 +3,11 @@ import { motion } from 'framer-motion';
 import {
   Wallet,
   Coins,
-  Settings,
   CheckCircle,
   Building2,
   XCircle,
   Zap,
   Lock,
-  RefreshCw,
   X
 } from 'lucide-react';
 
@@ -53,7 +51,7 @@ function FlowStep({ number, icon, title, description, code, delay }: StepProps) 
     >
       <div className="glass-card p-6 h-full relative">
         {/* Connector Line */}
-        {number < 4 && (
+        {number < 3 && (
           <div className="hidden lg:block absolute top-1/2 -right-[calc(50%-160px)] w-[calc(100%-320px)] h-0.5 bg-gradient-to-r from-[#6c63ff] to-[#3b82f6] opacity-30" />
         )}
 
@@ -90,26 +88,20 @@ export default function IntegrationFlow() {
   const steps = [
     {
       icon: <Building2 size={28} className="text-[#6c63ff]" />,
-      title: 'Register Platform',
-      description: 'Create your platform registry on-chain. This acts as your secure master record for all subscriptions.',
-      code: 'register_platform("My App")'
-    },
-    {
-      icon: <Settings size={28} className="text-[#6c63ff]" />,
-      title: 'Define Tiers',
-      description: 'Set your pricing and billing intervals (daily, weekly, monthly, or custom seconds).',
-      code: 'create_tier(amount, freq)'
+      title: 'Step 1: Connect',
+      description: 'Integrate our API or drop in our checkout widget to your existing platform.',
+      code: 'register_platform("My SaaS")'
     },
     {
       icon: <Lock size={28} className="text-[#6c63ff]" />,
-      title: 'Authorize Scheduler',
-      description: 'Mint a SchedulerCap to safely delegate withdrawal execution to your off-chain automation bot.',
-      code: 'mint_scheduler_cap(bot)'
+      title: 'Step 2: Subscribe',
+      description: 'Customers approve a spending limit with a single wallet signature.',
+      code: 'authorize_platform(wallet)'
     },
     {
       icon: <Zap size={28} className="text-[#10b981]" />,
-      title: 'Automated Cashflow',
-      description: 'Your bot runs cron jobs to execute batch withdrawals. Funds are hardcoded to route only to your treasury.',
+      title: 'Step 3: Collect',
+      description: 'Our smart contracts execute the payments automatically every billing cycle.',
       code: 'batch_withdraw_scheduler()'
     }
   ];
@@ -251,11 +243,10 @@ export default function IntegrationFlow() {
           <h3 className="text-xl font-semibold text-white text-center mb-8">The Complete Flow</h3>
           <div className="flex flex-wrap justify-center items-center gap-4">
             {[
-              { icon: <Building2 size={20} />, label: 'Register Platform', color: '#6c63ff' },
-              { icon: <Settings size={20} />, label: 'Setup Tiers', color: '#3b82f6' },
-              { icon: <Lock size={20} />, label: 'Delegate Bot', color: '#10b981' },
-              { icon: <Wallet size={20} />, label: 'User Subscribes', color: '#f59e0b' },
-              { icon: <Zap size={20} />, label: 'Batch Withdraw', color: '#ec4899' },
+              { icon: <Building2 size={20} />, label: 'API Integration', color: '#6c63ff' },
+              { icon: <Wallet size={20} />, label: 'Wallet Signature', color: '#3b82f6' },
+              { icon: <Lock size={20} />, label: 'Limits Approved', color: '#10b981' },
+              { icon: <Zap size={20} />, label: 'Automated Billing', color: '#f59e0b' },
               { icon: <Coins size={20} />, label: 'Treasury Settled', color: '#10b981' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -266,7 +257,7 @@ export default function IntegrationFlow() {
                   {item.icon}
                 </div>
                 <span className="text-sm text-[#94a3b8] hidden sm:inline">{item.label}</span>
-                {i < 6 && <span className="text-[#6c63ff] ml-2 hidden sm:inline">→</span>}
+                {i < 4 && <span className="text-[#6c63ff] ml-2 hidden sm:inline">→</span>}
               </div>
             ))}
           </div>

@@ -1,17 +1,25 @@
-# PayStreamer
+# PayStreamer | Accept Crypto Subscriptions on Autopilot
 
-PayStreamer is a decentralized subscription and payment streaming platform built on the [Sui](https://sui.io/) blockchain. It enables users to browse subscription platforms, manage active subscriptions, and empowers platform owners to register their services, define pricing tiers, and securely schedule automated withdrawals to their designated treasuries.
+Stop losing MRR to manual payments. Let your customers connect their wallet once and get billed automatically in stablecoins on the [Sui](https://sui.io/) blockchain. Integrate in an afternoon.
 
-## Features
+PayStreamer is a Web3 billing infrastructure that allows digital platforms to accept, manage, and automate recurring cryptocurrency subscriptions seamlessly.
 
-- **Platform Discovery**: Browse registered platforms on the Sui network using an event-based indexing approach.
-- **My Subscriptions Dashboard**: Track active subscriptions, next billing dates, and overall spending directly from your wallet context.
-- **Platform Owner Dashboard**: 
-  - Register new platforms and categorize them.
-  - Define custom subscription tiers (Daily, Weekly, Monthly, Yearly).
-  - Configure a platform treasury address for routing funds.
-  - Authorize third-party schedulers to trigger batch withdrawals automatically.
-- **Off-Chain Schedulers**: A robust Node.js script that polls the network, processes due subscriptions, and executes secure batch withdrawals via delegated `SchedulerCap` objects.
+## The Problem
+
+Web3 businesses run on MRR, but blockchains weren't built for recurring payments. Stop making your users manually sign a transaction every 30 days. Stop losing 3% to traditional credit card processors or suffering massive churn because users forget to pay.
+
+## How It Works
+
+- **Connect:** Integrate our API and smart contracts into your existing platform.
+- **Subscribe:** Customers approve a spending limit with a single wallet signature.
+- **Collect:** Our automated scheduler executes the payments automatically every billing cycle.
+
+## Key Benefits
+
+- **One-Time Wallet Approval:** Users sign a contract once; payments are pulled automatically thereafter. Secures predictable MRR by eliminating manual payment churn.
+- **Stablecoin Settlement:** Subscriptions are priced and settled in USDC/USDSui. Protects revenue from crypto volatility and simplifies accounting.
+- **Zero Chargebacks:** Transactions are final.
+- **Global Reach:** Accept payments from anyone with a wallet, bypassing regional banking restrictions.
 
 ## Architecture
 

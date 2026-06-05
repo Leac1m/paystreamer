@@ -1,7 +1,7 @@
 # Build plan, 2026-06-03T00:00:00Z
 
 ## Linked intent
-.suiperpower/intent.md, summary: Build a Sui-native subscriptions system that holds user-stored stablecoins and enforces withdrawal policies on-chain so platforms can collect recurring payments without exceeding user-defined limits.
+.suiperpower/intent.md, summary: Build a Web3 billing infrastructure on Sui that allows digital platforms to accept, manage, and automate recurring stablecoin subscriptions seamlessly, eliminating manual payment churn.
 
 ## Package layout
 - Package name: `subscriptions`

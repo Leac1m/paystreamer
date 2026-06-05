@@ -65,12 +65,12 @@ export default function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              <span className="text-white">The Ultimate Web3 </span>
-              <span className="gradient-text">Subscription Infrastructure</span>
+              <span className="text-white">Accept Crypto Subscriptions </span>
+              <span className="gradient-text">on Autopilot</span>
             </h1>
 
             <p className="text-lg text-[#94a3b8] mb-8 max-w-xl leading-relaxed">
-              Automate recurring billing, manage your treasury, and power your platform with decentralized smart contracts on Sui. The Stripe for Web3.
+              Stop losing MRR to manual payments. Let your customers connect their wallet once and get billed automatically in stablecoins. Integrate in an afternoon.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -81,13 +81,13 @@ export default function HeroSection() {
                 </button>
               ) : (
                 <button className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                  <span>Start Accepting Payments</span>
+                  <span>Start for Free</span>
                   <ArrowRight size={20} />
                 </button>
               )}
               <a href="#how-it-works" className="btn-secondary flex items-center justify-center gap-2 text-lg px-8 py-4">
                 <Play size={20} />
-                <span>Learn More</span>
+                <span>Read the Docs</span>
               </a>
             </div>
 

@@ -4,34 +4,34 @@ import { Code2, DollarSign, Clock, ShieldCheck, Zap, BarChart3 } from 'lucide-re
 export default function CoreFeatures() {
   const benefits = [
     {
-      icon: <DollarSign size={24} className="text-[#10b981]" />,
-      title: 'Trustless Treasury Routing',
-      description: 'Funds withdrawn via your scheduler are hardcoded to arrive only in your designated treasury account.'
+      icon: <Clock size={24} className="text-[#10b981]" />,
+      title: 'One-Time Wallet Approval',
+      description: 'Users sign a contract once; payments are pulled automatically thereafter. Secures predictable MRR by eliminating manual payment churn.'
     },
     {
-      icon: <Clock size={24} className="text-[#6c63ff]" />,
-      title: 'Off-chain Schedulers',
-      description: 'Delegate execution to simple cron jobs using the SchedulerCap without exposing private keys.'
+      icon: <DollarSign size={24} className="text-[#6c63ff]" />,
+      title: 'Stablecoin Settlement',
+      description: 'Subscriptions are priced and settled in USDC/USDT. Protects your revenue from crypto volatility and simplifies accounting.'
     },
     {
-      icon: <Code2 size={24} className="text-[#3b82f6]" />,
-      title: 'Flexible Custom Tiers',
-      description: 'Define pricing intervals precisely—from daily and monthly down to millisecond billing.'
+      icon: <ShieldCheck size={24} className="text-[#3b82f6]" />,
+      title: 'Zero Chargebacks',
+      description: 'Blockchain transactions are final. Say goodbye to dispute overhead and chargeback fraud permanently.'
     },
     {
-      icon: <ShieldCheck size={24} className="text-[#f59e0b]" />,
-      title: 'Reduced Liability',
-      description: 'Never hold user funds directly until the exact moment of billing, massively reducing regulatory risk.'
+      icon: <Zap size={24} className="text-[#f59e0b]" />,
+      title: 'Global Reach',
+      description: 'Accept payments from anyone with a wallet, bypassing regional banking restrictions and complex localized gateways.'
     },
     {
-      icon: <Zap size={24} className="text-[#ec4899]" />,
-      title: 'Instant Settlement',
-      description: 'Receive funds in 300ms. No waiting for bank transfers or payment processor delays.'
+      icon: <Code2 size={24} className="text-[#ec4899]" />,
+      title: 'Developer API & Webhooks',
+      description: 'Plug-and-play integration into your existing platform. Saves weeks of expensive, complex in-house engineering time.'
     },
     {
       icon: <BarChart3 size={24} className="text-[#6c63ff]" />,
       title: 'Real-time Analytics',
-      description: 'Track subscription metrics, churn, and revenue with built-in dashboards.'
+      description: 'Track subscription metrics, churn, and MRR directly from your integrated merchant dashboard.'
     }
   ];
 

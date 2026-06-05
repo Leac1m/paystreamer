@@ -2,13 +2,30 @@
 
 ## Project Status
 
-**Phase:** Frontend and scheduler integration testing
+**Phase:** B2B Landing Page Overhaul & Frontend Polish
 
-**Summary:** The scheduler has been fixed to use GraphQL instead of the deprecated JSON-RPC. The full subscription billing flow is now operational. Testing scripts have been created to verify the end-to-end flow.
+**Summary:** The landing page copy and React components (`HeroSection`, `EndUserExperience`, `IntegrationFlow`, `CoreFeatures`) have been successfully rewritten to align with the new B2B Product Messaging Framework, targeting Founders and CTOs. Build errors caused by unused imports have also been resolved. The scheduler billing flow remains verified and operational.
 
 ---
 
 ## What Changed (This Session)
+
+### Feature: B2B Messaging Overhaul
+- **Problem:** The original landing page copy was too consumer-focused, obscuring the primary value proposition for SaaS platforms and Web3 businesses.
+- **Solution:** Rewrote the key landing page components to emphasize the "Bleeding Neck" problem of manual crypto payments, and positioned PayStreamer as the "Autopilot" solution for stablecoin subscriptions with zero chargebacks.
+- **Files Modified:**
+  - `README.md`
+  - `src/components/HeroSection.tsx`
+  - `src/components/EndUserExperience.tsx`
+  - `src/components/IntegrationFlow.tsx`
+  - `src/components/CoreFeatures.tsx`
+
+### Fix: Unused Import Build Errors
+- **Problem:** `tsc && vite build` failed due to unused `Settings` and `RefreshCw` icons in `IntegrationFlow.tsx` after the layout was simplified.
+- **Solution:** Removed the unused Lucide React imports.
+- **Files Modified:** `src/components/IntegrationFlow.tsx`
+
+## Previous Changes
 
 ### Fix: Scheduler Now Uses GraphQL Instead of gRPC
 
@@ -19,6 +36,21 @@
 **Files Modified:**
 - `scripts/scheduler.ts` — Changed from `SuiGrpcClient` to `SuiGraphQLClient`
 - Updated event querying to use GraphQL query format with pagination
+
+### Fix: Individual Withdrawal Processing (Replaced Batch)
+
+**Problem:** `batch_withdraw_scheduler` uses `vector<SubscriptionAccount<T>>` which is invalid for shared objects in Move PTBs. Transaction simulation failed with "Unused result without the drop ability."
+
+**Solution:** Scheduler now processes withdrawals individually via `process_withdrawal_scheduler` in a loop. Each transaction is signed and executed separately.
+
+**Files Modified:**
+- `scripts/scheduler.ts` — Replaced batch logic with individual tx loop
+
+### Fix: Digest Logging
+
+**Problem:** `result.digest` returned `undefined` — response shape from `signAndExecuteTransaction` has digest at `result.Transaction.digest`.
+
+**Solution:** Changed logging to `result.Transaction?.digest || result.digest`.
 
 ### DNS Resolution Issue Resolved
 
@@ -120,7 +152,7 @@ Subscription (embedded struct, not a key object)
 
 ## Known Issues
 
-1. **batch_withdraw** — Uses `vector<SubscriptionAccount<T>>` which is invalid for shared objects. Needs redesign (use IDs + fetch pattern).
+1. **batch_withdraw** — Scheduler now uses individual `process_withdrawal_scheduler` calls instead of batch_withdraw. The batch function is non-functional due to Move type constraints.
 2. **subscriber_count not updated** — Platform's subscriber_count is never incremented on subscribe or decremented on cancel
 3. **tier_amount not enforced** — Withdrawal can be any amount up to policy limits, not just the tier amount
 
@@ -133,5 +165,5 @@ Subscription (embedded struct, not a key object)
 3. ✅ Platform with `PlatformOwnerCap` can withdraw via `process_withdrawal`, `WithdrawalProcessed` and `PaymentRecorded` events emitted
 4. ✅ Billing schedule advances after each withdrawal — `can_bill` returns `false` until next cycle
 5. ✅ Scheduler uses GraphQL for event queries (fixed from JSON-RPC deprecation)
-6. ⏳ Batch withdraw — deferred redesign needed
+6. ✅ Individual withdrawals via `process_withdrawal_scheduler` — batch withdraw deferred
 7. ⏳ Frontend integration — Next.js + dapp-kit integration not yet started

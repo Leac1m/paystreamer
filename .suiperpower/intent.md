@@ -1,12 +1,12 @@
 # Intent, 2026-06-03T00:00:00Z
 
 ## One-sentence summary
-Build a Sui-native subscriptions system that holds user-stored stablecoins and enforces withdrawal policies on-chain so platforms can collect recurring payments without exceeding user-defined limits.
+Build a Web3 billing infrastructure on Sui that allows digital platforms to accept, manage, and automate recurring stablecoin subscriptions seamlessly, eliminating manual payment churn.
 
 ## Problem and audience
-- Problem: Users currently must trust off-chain systems or custodial services for recurring payments; platforms may overcharge or retry payments beyond user consent. On-chain guarantees are missing for policy enforcement and auditable events.
-- Audience: Wallet-holding end users who want recurring payments (streaming services, SaaS), and platforms (service providers) that need reliable, auditable collection mechanics on Sui.
-- Core valuable shape: A type-gated, capability-secured subscription account that enforces per-transaction, monthly, minimum-balance, and frequency constraints on-chain and emits auditable events for off-chain indexers and webhooks.
+- Problem: Web3 businesses lose MRR because blockchains don't natively support automated "pull" payments, forcing users to manually sign transactions every month. This causes massive accidental churn or reliance on expensive traditional payment rails.
+- Audience: Web3 SaaS platforms, infrastructure providers, and founders who need a trustless, automated billing infrastructure to secure predictable MRR without the liability of holding user funds.
+- Core valuable shape: A type-gated, capability-secured subscription protocol that abstracts smart-contract complexity, allowing platforms to implement true "autopay" where users approve spending limits once and smart contracts execute scheduled withdrawals automatically.
 
 ## On-chain shape
 - User-held Objects: none (users hold `AccountCap` capability objects to manage accounts; `Subscription` child objects are effectively owned/controlled via `AccountCap` holders).

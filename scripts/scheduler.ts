@@ -178,7 +178,8 @@ async function runScheduler() {
                             transaction: tx,
                             signer: keypair,
                         });
-                        console.log(`Withdrawal for account ${accountId} successful! Digest: ${result.digest}`);
+                        const digest = result.Transaction?.digest || result.digest;
+                        console.log(`Withdrawal for account ${accountId} successful! Digest: ${digest}`);
                     } catch (err) {
                         console.error(`Failed to withdraw from account ${accountId}:`, err);
                     }
