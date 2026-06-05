@@ -24,6 +24,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("browse");
   const [accountId, setAccountId] = useState<string | null>(null);
   const [accountCapId, setAccountCapId] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const onLocationChange = () => setCurrentPath(window.location.pathname);
+    window.addEventListener("popstate", onLocationChange);
+    return () => window.removeEventListener("popstate", onLocationChange);
+  }, []);
 
   // Query for existing AccountCap on wallet connection
   const { data: accountCaps, isPending: capsPending } = useQuery({
@@ -67,16 +74,11 @@ export default function App() {
     setAccountCapId(null);
   }
 
-  if (!currentAccount) {
+  if (currentPath === "/") {
     return (
       <div className="min-h-screen bg-[#0a0a0f]">
-        {/* Noise texture overlay */}
         <div className="noise" />
-
-        {/* Navigation */}
         <NavBar />
-
-        {/* Main Content */}
         <main>
           <HeroSection />
           <IntegrationFlow />
@@ -85,9 +87,20 @@ export default function App() {
           <SecuritySection />
           <CTASection />
         </main>
-
-        {/* Footer */}
         <Footer />
+      </div>
+    );
+  }
+
+  if (!currentAccount) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <div className="noise" />
+        <NavBar />
+        <main className="container mx-auto px-4 pt-48 pb-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">Connect Wallet to Continue</h2>
+          <p className="text-[#94a3b8] mb-8">Please connect your wallet using the button in the top right to access the dashboard.</p>
+        </main>
       </div>
     );
   }
