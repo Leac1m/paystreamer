@@ -11,7 +11,7 @@ config();
 const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET; 
 
 // Define the network
-const client = new SuiGraphQLClient({ url: "https://fullnode.devnet.sui.io:443/graphql" });
+const client = new SuiGraphQLClient({ url: "https://fullnode.devnet.sui.io:443/graphql", network: "devnet" });
 
 async function runScheduler() {
     console.log("Starting Subscriptions Scheduler...");
@@ -122,21 +122,22 @@ async function runScheduler() {
                 if (!accContent) continue;
 
                 // Check if account has an active subscription for this platform
-                // Note: In Sui v2 GraphQL/JSON, VecMap is an array of { key, value }
-                const subscriptions = accContent.subscriptions?.fields?.contents || accContent.subscriptions || [];
-                
-                const subEntry = (Array.isArray(subscriptions) ? subscriptions : []).find(
-                    (s: any) => s.key === platformId || s.fields?.key === platformId
+                // Note: GraphQL returns subscriptions as { contents: [{ key, value }] }
+                const subscriptions = accContent.subscriptions?.contents || [];
+
+                const subEntry = subscriptions.find(
+                    (s: any) => s.key === platformId
                 );
 
                 if (!subEntry) continue; // Not subscribed to this platform
 
-                const sub = subEntry.value || subEntry.fields?.value;
+                // GraphQL returns subscription values directly (not wrapped in .fields)
+                const sub = subEntry.value;
                 if (!sub) continue;
 
-                const nextBilling = Number(sub.fields?.schedule?.fields?.next_billing_time || sub.schedule?.next_billing_time || 0);
-                const amount = Number(sub.fields?.tier_amount || sub.tier_amount || 0);
-                const status = sub.fields?.status?.fields?.variant ?? sub.status?.variant;
+                const nextBilling = Number(sub.schedule?.next_billing_time || 0);
+                const amount = Number(sub.tier_amount || 0);
+                const status = sub.status?.variant;
 
                 if (status === 0 && now >= nextBilling && amount > 0) {
                     // Subscription is active and due for billing
@@ -152,40 +153,35 @@ async function runScheduler() {
             }
 
             if (accountsToWithdraw.length > 0) {
-                console.log(`Found ${accountsToWithdraw.length} due subscriptions. Executing batch withdrawal...`);
-                
-                const tx = new Transaction();
-                
-                // Convert arrays to Move vectors
-                const accountsVec = tx.makeMoveVec({ 
-                    elements: accountsToWithdraw.map(id => tx.object(id)) 
-                });
-                const amountsVec = tx.makeMoveVec({ 
-                    type: 'u64', 
-                    elements: withdrawalAmounts.map(amt => tx.pure.u64(amt)) 
-                });
+                console.log(`Found ${accountsToWithdraw.length} due subscriptions. Processing individually...`);
 
-                tx.moveCall({
-                    target: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::batch_withdraw_scheduler`,
-                    typeArguments: ['0x2::sui::SUI'],
-                    arguments: [
-                        tx.object(schedulerCapId),
-                        tx.object(platformId),
-                        accountsVec,
-                        amountsVec,
-                        tx.object('0x6') // Clock object
-                    ]
-                });
+                for (let idx = 0; idx < accountsToWithdraw.length; idx++) {
+                    const accountId = accountsToWithdraw[idx];
+                    const amount = withdrawalAmounts[idx];
 
-                try {
-                    // We just use transaction.build and sign with core if signAndExecute is not on core
-                    const result = await (client as any).signAndExecuteTransaction({
-                        transaction: tx,
-                        signer: keypair,
+                    const tx = new Transaction();
+
+                    tx.moveCall({
+                        target: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::process_withdrawal_scheduler`,
+                        typeArguments: ['0x2::sui::SUI'],
+                        arguments: [
+                            tx.object(schedulerCapId),
+                            tx.object(platformId),
+                            tx.object(accountId),
+                            tx.pure.u64(amount),
+                            tx.object('0x6') // Clock object
+                        ]
                     });
-                    console.log(`Batch withdrawal successful! Digest: ${result.digest}`);
-                } catch (err) {
-                    console.error(`Failed to execute batch withdrawal:`, err);
+
+                    try {
+                        const result = await (client as any).signAndExecuteTransaction({
+                            transaction: tx,
+                            signer: keypair,
+                        });
+                        console.log(`Withdrawal for account ${accountId} successful! Digest: ${result.digest}`);
+                    } catch (err) {
+                        console.error(`Failed to withdraw from account ${accountId}:`, err);
+                    }
                 }
             } else {
                 console.log(`No subscriptions due for Platform: ${platformId}`);
