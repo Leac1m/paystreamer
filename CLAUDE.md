@@ -36,3 +36,6 @@ When unsure about Move patterns or Sui APIs, consult these sources. Do not guess
 - The subscription contract uses embedded `Subscription` structs in `SubscriptionAccount<VecMap<platform_id, Subscription>>` — not standalone objects
 - `PlatformOwnerCap` is the only platform capability — `PlatformCap` was removed
 - `record_payment` lives in `subscription_account` module and is called by `platform_registry::process_withdrawal`
+
+## Project Context
+check ./suiperpower/
