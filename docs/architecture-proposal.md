@@ -1385,6 +1385,55 @@ These questions require product/business decisions beyond the scope of this tech
    - Platform-level: platforms can define minimum policy requirements that accounts must meet
    - Both: account policies must be at least as restrictive as platform minimums
 
+5. **How should users discover and authorize operations on their SubscriptionAccount?**
+   Three options are on the table. This is a UX vs security tradeoff:
+
+   **Option A — Keep AccountCapV1 (user-owned, key + store, versioned)**
+   - `AccountCapV1` is a `key + store` object transferred to the user at account creation
+   - Shows up in their wallet — self-discoverable
+   - Versioned (`version: u8`, `permissions: u32` bitfield) for future upgrades
+   - Simple, proven UX pattern
+   - `create_account()` returns `(ID, AccountCapV1)` — user gets wallet object immediately
+   ```move
+   public struct AccountCapV1 has key, store {
+       id: UID,
+       account_id: ID,
+       version: u8,
+       created_at: u64,
+       permissions: u32,
+   }
+   ```
+
+   **Option B — Replace with AccountRef (non-transferable discovery handle)**
+   - `AccountRef` is `key` only — shows in wallet but cannot be transferred
+   - Authorization is via OZ AccessControl lookup at call time
+   - Cleaner separation: discovery object vs authorization registry
+   - Risk: OZ AccessControl per-account is heavier than the per-module singleton pattern
+   ```move
+   public struct AccountRef has key {
+       id: UID,
+       account_id: ID,
+       account_type: AccountType,
+       created_at: u64,
+   }
+   ```
+
+   **Option C — Hybrid: AccountCapV1 for auth + registry lookup for discovery**
+   - `AccountCapV1` stays as the authorization handle (presented in transactions)
+   - A global `AccountRegistry` shared object maps `address -> account_id` for off-chain discovery
+   - OZ AccessControl is NOT used for user accounts — only for platform admin/scheduler roles
+   - Complicates the model slightly but keeps both worlds happy
+   ```move
+   public struct AccountRegistry has key {
+       id: UID,
+       accounts: VecMap<address, ID>,
+   }
+   ```
+
+   **Current lean:** Option A (keep AccountCapV1). It works, it's upgradeable, and it preserves the proven wallet-object UX. OZ AccessControl is adopted for the platform side only — admin/scheduler roles with timelock and revocation.
+
+   **If Option A is chosen:** Section 4.1 `subscription_core` uses `AccountCapV1` instead of OZ `Auth<ACCOUNT_OWNER_ROLE>` for user account authorization. The platform side (`platform_registry`) still uses OZ AccessControl for admin/scheduler delegation.
+
 ---
 
 ## 11. References
