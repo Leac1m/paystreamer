@@ -740,10 +740,71 @@ module paystreamer_v2::account {
         platform_id: &ID,
     ): &SubscriptionV1 { vec_map::get(&account.subscriptions, platform_id) }
 
+    /// Mutable lookup of a single subscription by `platform_id`.
+    /// `public(package)` so only `billing.move` (same package) can mutate
+    /// per-subscription state. Foreign modules cannot reach in and tamper
+    /// with the schedule or counters.
+    public(package) fun get_subscription_mut<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform_id: &ID,
+    ): &mut SubscriptionV1 {
+        vec_map::get_mut(&mut account.subscriptions, platform_id)
+    }
+
     /// Number of embedded subscriptions.
     /// Role: any caller (read-only view).
     public fun subscription_count<T>(account: &SubscriptionAccount<T>): u64 {
         vec_map::length(&account.subscriptions)
+    }
+
+    // === SubscriptionV1 mutators (public(package) — billing.move only) ===
+    //
+    // `SubscriptionV1` fields are private to `account.move`. `billing.move`
+    // is the only module that should mutate per-platform subscription
+    // state, so we expose the necessary writes here as `public(package)`
+    // helpers rather than making the fields themselves package-visible.
+    // Each helper is a single, audit-friendly write so reviewers can see
+    // exactly which fields a given operation touches.
+
+    /// Set the subscription's `status` field. Used by `pause/resume/cancel`.
+    public(package) fun sub_set_status(s: &mut SubscriptionV1, status: u8) {
+        s.status = status;
+    }
+
+    /// Set the subscription's `updated_at` field (ms).
+    public(package) fun sub_set_updated_at(s: &mut SubscriptionV1, updated_at: u64) {
+        s.updated_at = updated_at;
+    }
+
+    /// Apply the post-payment state update on a successful billing. All
+    /// fields written here are part of the same logical step; bundling
+    /// them in a single function keeps the schedule and counter invariants
+    /// together. `now` is `clock.timestamp_ms()` from the caller.
+    public(package) fun sub_apply_payment(
+        s: &mut SubscriptionV1,
+        amount: u64,
+        now: u64,
+    ) {
+        s.total_paid = s.total_paid + amount;
+        s.payment_count = s.payment_count + 1;
+        s.last_billing_time = now;
+        s.next_billing_time = now + s.tier_frequency_ms;
+        s.last_attempt_time = now;
+        s.attempt_count = 0;
+        s.nonce = s.nonce + 1;
+        s.updated_at = now;
+    }
+
+    /// Apply the failed-attempt state update. Bumps `attempt_count`,
+    /// stamps `last_attempt_time` and `updated_at`. Does not touch the
+    /// billing schedule (a failed bill does not advance `next_billing_time`).
+    public(package) fun sub_apply_failed_attempt(
+        s: &mut SubscriptionV1,
+        now: u64,
+    ) {
+        s.attempt_count = s.attempt_count + 1;
+        s.last_attempt_time = now;
+        s.updated_at = now;
     }
 
     // === Helper ===
