@@ -187,6 +187,21 @@ module paystreamer_v2::access_control {
 
     // === Test-only helpers ===
 
+    /// Transfer a freshly-minted `AccountCap` to a recipient. Since
+    /// `AccountCap` is `key`-only (not `store`) per the design doc
+    /// (§5.2: "non-transferable by default"), the only way to relocate
+    /// it on chain is via this helper. This is intentionally narrow:
+    /// the cap is minted and then handed to the user exactly once.
+    /// Subsequent re-transfers are a future hardening pass (the
+    /// v1→v2 migration path will add a `transfer_account_cap_to`).
+    ///
+    /// Role: any caller. The cap is `key`-only, so the only entity
+    /// that can pass it to this function is the one that just minted
+    /// or currently holds it.
+    public fun transfer_account_cap(cap: AccountCap, recipient: address) {
+        sui::transfer::transfer(cap, recipient);
+    }
+
     /// Test-only constructor that pins `created_at` to `0`, mirroring the
     /// `clock`-free behavior expected by Move unit tests. Production code
     /// must use `new_account_cap` with a real `clock.timestamp_ms()`.
