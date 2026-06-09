@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useCurrentClient } from "@mysten/dapp-kit-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCurrentClient, useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { Transaction } from "@mysten/sui/transactions";
 import {
   Card,
   CardContent,
@@ -150,6 +151,8 @@ export function MySubscriptionAccount({
                 key={platformId}
                 platformId={platformId}
                 subscription={sub}
+                accountId={accountId}
+                accountCapId={accountCapId}
               />
             ))}
           </CardContent>
@@ -165,6 +168,8 @@ export function MySubscriptionAccount({
                 key={platformId}
                 platformId={platformId}
                 subscription={sub}
+                accountId={accountId}
+                accountCapId={accountCapId}
               />
             ))}
           </CardContent>
@@ -186,10 +191,21 @@ export function MySubscriptionAccount({
 function SubscriptionItem({
   platformId,
   subscription,
+  accountId,
+  accountCapId,
 }: {
   platformId: string;
   subscription: any;
+  accountId: string;
+  accountCapId: string;
 }) {
+  const client = useCurrentClient();
+  const account = useCurrentAccount();
+  const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const statusLabel =
     subscription.status?.variant === 0
       ? "Active"
@@ -202,6 +218,41 @@ function SubscriptionItem({
       : statusLabel === "Paused"
       ? "secondary"
       : "destructive";
+
+  async function cancelSubscription() {
+    if (!account) return;
+    setIsPending(true);
+    setError(null);
+
+    const tx = new Transaction();
+    tx.add((tx) =>
+      tx.moveCall({
+        package: "@local-pkg/subscriptions",
+        module: "subscription_manager",
+        function: "cancel_subscription",
+        arguments: [
+          tx.object(accountCapId),
+          tx.object(accountId),
+          tx.object(platformId),
+          tx.object("0x6"),
+        ],
+        typeArguments: ["0x2::sui::SUI"],
+      }),
+    );
+
+    try {
+      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  }
 
   return (
     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -217,6 +268,20 @@ function SubscriptionItem({
           </span>
         </div>
       </div>
+      {subscription.status?.variant !== 2 && (
+        <div className="flex items-center gap-2">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={cancelSubscription}
+            disabled={!account || isPending}
+            loading={isPending}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
