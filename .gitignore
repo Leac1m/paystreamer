@@ -9,3 +9,8 @@ coverage/
 .vscode/
 package_summaries/
 .claude/skills/
+.tmp/
+deploy/
+move/subscriptions_v2/Pub.*.toml
+scripts/v2/config.ts
+scripts/v2/e2e-result.json
