@@ -670,6 +670,19 @@ module paystreamer_v2::account {
         account.nonce = account.nonce + 1;
     }
 
+    /// Read the subscription's `tier_amount` by `platform_id`. Used by
+    /// `payment.move` to enforce BUG FIX #5: the amount billed is
+    /// exactly `sub.tier_amount`, never a caller-supplied value. Public
+    /// (read-only) view on the embedded subscription map; lookup uses
+    /// the public `subscriptions` accessor to avoid duplicating the
+    /// `vec_map::get` abort path.
+    public(package) fun tier_amount_via_sub<T>(
+        account: &SubscriptionAccount<T>,
+        _platform_id: ID,
+    ): u64 {
+        sub_tier_amount(vec_map::get(&account.subscriptions, &_platform_id))
+    }
+
     // === Accessors (view) ===
 
     /// `object::id` of the account.
