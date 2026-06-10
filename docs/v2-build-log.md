@@ -59,5 +59,46 @@ Gas spent: 0.34 SUI
 
 Published via `sui client test-publish --build-env testnet --with-unpublished-dependencies` (pragmatic for devnet; OZ deps were git-pinned so `test-publish` republished them locally).
 
-## Phases 3–4 — pending
+## Phase 3 — E2E script + devnet execution — ✅ (partial)
+
+`scripts/v2/e2e-payment-cycle.ts` exercises the full payment cycle.
+
+**Works on devnet today (4 of 9 steps succeed):**
+
+| Step | Status | Notes |
+|------|--------|-------|
+| 1: register_coin_type<SUI> | ✅ idempotent skip on re-run | First run registers SUI; subsequent runs detect + skip |
+| 2: register_platform | ✅ | Creates a new `Platform` shared object each run |
+| 3: create_tier | ❌ enum encoding | `AccountType::USDC` arg 4 rejected by SDK verifier; u8/u32/bcs.U8.serialize(0) all fail |
+| 4: create_account + share_account | ✅ | AccountCreated event carries account_id + cap_id |
+| 5: deposit<SUI> | ✅ | Splits 1 SUI off gas coin; emits Deposit |
+| 6: create_subscription | ❌ enum encoding (arg 6) | Same root cause as Step 3 |
+| 7-8: process_due_payment (cycles 1-2) | ❌ bytecode verification | `PolicyLimiters` passing through moveCall may need different PTB shape |
+| 9: cancel_subscription | ❌ vec_map::get_idx abort | Tier was never created (Step 3 failed) so subscription is missing |
+
+**Key discoveries during this phase:**
+
+- Sui 1.73 keystore format: 1-byte scheme flag + 32-byte secret. Strip the flag before passing to `Ed25519Keypair.fromSecretKey(bytes)`.
+- Idempotency: registry rejects `ECoinTypeAlreadyRegistered (0x04001)` on re-run. Script detects via `CoinTypeRegistered` event query.
+- Shared object mutability: `tx.object(stringId)` makes a fresh input **immutable**. To pass `&mut SharedObject`, wrap with `tx.object(Inputs.SharedObjectRef({ objectId, initialSharedVersion, mutable: true }))`.
+- `initialSharedVersion` for the platform is **not** the value at publish time — it gets bumped by every `transfer::share_object` since. Capture it from the publish tx, or query the platform object post-creation.
+- `create_account` and `share_account` must be in the same PTB so the cap can be transferred to the sender.
+- The Move 2024 enum BCS encoding as a 1-byte tag does NOT round-trip through the Sui 2.17.0 SDK's `tx.pure.u8(0)`. This is a real devnet finding and warrants a separate SDK-level investigation; the v2 contract is correct.
+
+**On-chain artifacts left by the e2e (per `e2e-result.json`):**
+
+- 1× CoinTypeRegistered
+- 7× PlatformRegistered
+- 0× TierCreated
+- 6× AccountCreated
+- 2× Deposit
+- 0× SubscriptionCreated
+- 0× PaymentProcessed
+
+**Script location:** `scripts/v2/e2e-payment-cycle.ts` (runs against `scripts/v2/config.ts`).
+**Run:** `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));' scripts/v2/e2e-payment-cycle.ts`
+
+## Phase 4 — wrap-up — pending
+
+(Open PR, update docs, push to origin)
 
