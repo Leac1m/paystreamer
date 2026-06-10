@@ -35,6 +35,7 @@ export interface CoinTypeRegistryObject {
 
 export interface PaymentSchedulerObject {
   id: string;
+  initialSharedVersion: number;
   is_paused: boolean;
   min_gas_budget: string;
 }
@@ -129,15 +130,19 @@ export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTyp
 }
 
 export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject> {
-  const data = await executeQuery<{ object: { contents: { json: PaymentSchedulerObject } } }>(
+  const data = await executeQuery<{ object: { contents: { json: PaymentSchedulerObject }, owner: { initialSharedVersion: number } } }>(
     `query GetScheduler($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
+        owner { ... on Shared { initialSharedVersion } }
       }
     }`,
     { id: schedulerId }
   );
-  return data.object.contents.json;
+  return {
+    ...data.object.contents.json,
+    initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
+  };
 }
 
 export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegisteredEvent[]> {
@@ -178,7 +183,7 @@ export async function queryPlatformRegisteredEvents(): Promise<PlatformRegistere
 
 export async function querySubscriptionCreatedEvents(accountId: string): Promise<SubscriptionCreatedEvent[]> {
   const data = await executeQuery<{ events: { nodes: { contents: { json: SubscriptionCreatedEvent } }[] } }>(
-    `query GetSubscriptionCreated($type: String!, $accountId: SuiAddress!) {
+    `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { contents { json } }
       }
@@ -188,6 +193,20 @@ export async function querySubscriptionCreatedEvents(accountId: string): Promise
   return data.events.nodes
     .map((n) => n.contents.json)
     .filter((e) => e.account_id === accountId);
+}
+
+export async function querySubscriptionCreatedEventsByPlatform(platformId: string): Promise<SubscriptionCreatedEvent[]> {
+  const data = await executeQuery<{ events: { nodes: { contents: { json: SubscriptionCreatedEvent } }[] } }>(
+    `query GetSubscriptionCreated($type: String!) {
+      events(first: 100, filter: { type: $type }) {
+        nodes { contents { json } }
+      }
+    }`,
+    { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated` }
+  );
+  return data.events.nodes
+    .map((n) => n.contents.json)
+    .filter((e) => e.platform_id === platformId);
 }
 
 export async function queryPaymentProcessedEvents(

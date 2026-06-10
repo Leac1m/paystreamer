@@ -88,13 +88,7 @@ export function SettingsPage() {
     }
   }
 
-  if (!account) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Connect your wallet to access settings</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6 max-w-2xl">

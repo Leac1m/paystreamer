@@ -13,11 +13,12 @@ import {
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { TierModal } from "./TierModal";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../../scripts/v2/config";
+import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierCardProps {
   platformId: string;
+  initialSharedVersion: number;
   tier: {
     name: string;
     amount: string;
@@ -44,7 +45,7 @@ function formatAmount(amount: string, denomination: string = "SUI"): string {
   return `$${(num / 1_000_000_000).toFixed(2)} ${denomination}`;
 }
 
-export function TierCard({ platformId, tier, tierIndex }: TierCardProps) {
+export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: TierCardProps) {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
@@ -65,7 +66,11 @@ export function TierCard({ platformId, tier, tierIndex }: TierCardProps) {
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::deactivate_tier`,
       arguments: [
-        tx.object(platformId),
+        tx.sharedObjectRef({
+          objectId: platformId,
+          initialSharedVersion,
+          mutable: true,
+        }),
         tx.pure.u64(tierIndex),
         tx.object(CLOCK_OBJECT_ID),
       ],
@@ -157,6 +162,7 @@ export function TierCard({ platformId, tier, tierIndex }: TierCardProps) {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         platformId={platformId}
+        initialSharedVersion={initialSharedVersion}
         tier={tier}
         tierIndex={tierIndex}
       />

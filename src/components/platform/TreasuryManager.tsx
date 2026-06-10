@@ -11,11 +11,12 @@ import {
 } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../../scripts/v2/config";
+import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TreasuryManagerProps {
   platformId: string;
+  initialSharedVersion: number;
   currentTreasury?: string;
   pendingTreasury?: string;
   pendingTreasuryChangeTime?: number;
@@ -53,6 +54,7 @@ function getTimeRemaining(changeTime: number): { hours: number; minutes: number;
 
 export function TreasuryManager({
   platformId,
+  initialSharedVersion,
   currentTreasury,
   pendingTreasury,
   pendingTreasuryChangeTime,
@@ -93,7 +95,11 @@ export function TreasuryManager({
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::propose_treasury_change`,
       arguments: [
-        tx.object(platformId),
+        tx.sharedObjectRef({
+          objectId: platformId,
+          initialSharedVersion,
+          mutable: true,
+        }),
         tx.pure.address(newTreasury),
         tx.object(CLOCK_OBJECT_ID),
       ],
@@ -124,7 +130,11 @@ export function TreasuryManager({
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::accept_treasury_change`,
       arguments: [
-        tx.object(platformId),
+        tx.sharedObjectRef({
+          objectId: platformId,
+          initialSharedVersion,
+          mutable: true,
+        }),
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
@@ -152,7 +162,13 @@ export function TreasuryManager({
     const tx = new Transaction();
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::cancel_treasury_change`,
-      arguments: [tx.object(platformId)],
+      arguments: [
+        tx.sharedObjectRef({
+          objectId: platformId,
+          initialSharedVersion,
+          mutable: true,
+        })
+      ],
     });
 
     try {

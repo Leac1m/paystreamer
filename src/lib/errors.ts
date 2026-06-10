@@ -17,9 +17,14 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     const match = error.message.match(/0x[0-9A-Fa-f]+/);
     if (match) {
-      const code = match[0].toLowerCase();
+      const code = match[0].toUpperCase();
+      // Check uppercase or lowercase
       if (ERROR_MESSAGES[code]) {
         return ERROR_MESSAGES[code];
+      }
+      const lowerCode = match[0].toLowerCase();
+      if (ERROR_MESSAGES[lowerCode]) {
+        return ERROR_MESSAGES[lowerCode];
       }
     }
     if (error.message.includes("Insufficient balance")) {
@@ -33,46 +38,25 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function parseMoveError(error: unknown): string {
-  const message = getErrorMessage(error);
-
-  const abortCodePatterns = [
-    { code: 0x9001, label: "ENotDue", detail: "Payment is not yet due" },
-    { code: 0x9002, label: "EInvalidPolicy", detail: "Invalid spending policy" },
-    { code: 0x9003, label: "EInsufficientBalance", detail: "Insufficient account balance" },
-    { code: 0x9004, label: "EMinBalanceExceeded", detail: "Would drop below minimum balance" },
-    { code: 0x9005, label: "EMaxWithdrawalExceeded", detail: "Would exceed maximum withdrawal limit" },
-    { code: 0x9006, label: "EFrequencyTooSoon", detail: "Too soon since last payment" },
-    { code: 0x9007, label: "EInvalidDenomination", detail: "Invalid coin denomination" },
-    { code: 0x9008, label: "EAccountNotFound", detail: "Account not found" },
-    { code: 0x9009, label: "ESubscriptionNotFound", detail: "Subscription not found" },
-    { code: 0x900A, label: "EPlatformNotFound", detail: "Platform not found" },
-    { code: 0x900B, label: "EUnauthorized", detail: "Unauthorized operation" },
-    { code: 0x900C, label: "EAccountPaused", detail: "Account is paused" },
-    { code: 0x900D, label: "EAccountClosed", detail: "Account is closed" },
-    { code: 0x900E, label: "ESubscriptionPaused", detail: "Subscription is paused" },
-    { code: 0x900F, label: "ESubscriptionCancelled", detail: "Subscription is cancelled" },
-    { code: 0x9010, label: "ETierNotFound", detail: "Tier not found" },
-    { code: 0x9011, label: "EInvalidTier", detail: "Invalid tier configuration" },
-    { code: 0x9012, label: "EAlreadyRegistered", detail: "Already registered" },
-    { code: 0x9013, label: "EInvalidAmount", detail: "Invalid amount" },
-    { code: 0x9014, label: "EGasCoinNotFound", detail: "Gas coin not found" },
-  ];
-
-  for (const { code, label, detail } of abortCodePatterns) {
-    if (message.includes(String(code))) {
-      return `${label}: ${detail}`;
+  if (error instanceof Error) {
+    const message = getErrorMessage(error);
+    if (message !== "Something went wrong. Please try again.") {
+      return message;
     }
-  }
 
-  if (message.includes("Insufficient coin balance")) {
-    return "InsufficientBalance: Not enough SUI for this transaction";
+    if (error.message.includes("Insufficient coin balance")) {
+      return "InsufficientBalance: Not enough SUI for this transaction";
+    }
+    if (error.message.includes("move_call")) {
+      return "Transaction failed: Invalid move call";
+    }
+    if (error.message.includes("type argument mismatch")) {
+      return "Transaction failed: Type argument mismatch";
+    }
+    
+    // Return original message for debugging if not mapped
+    return error.message;
   }
-  if (message.includes("move_call")) {
-    return "Transaction failed: Invalid move call";
-  }
-  if (message.includes("type argument mismatch")) {
-    return "Transaction failed: Type argument mismatch";
-  }
-
-  return message;
+  
+  return "Something went wrong. Please try again.";
 }

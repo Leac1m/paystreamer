@@ -1,6 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import NavBar from "./components/NavBar";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import { AccountsPage } from "./pages/dashboard/AccountsPage";
 import { SubscriptionsPage } from "./pages/dashboard/SubscriptionsPage";
@@ -14,43 +12,8 @@ import { PlatformSettingsPage } from "./pages/platforms/PlatformSettingsPage";
 import { SchedulerPage } from "./pages/platforms/SchedulerPage";
 import SubscribePage from "./pages/SubscribePage";
 
-function DashboardLayout() {
-  const account = useCurrentAccount();
-  const location = useLocation();
-
-  if (!account) {
-    return <Navigate to="/" state={{ from: location }} replace />;
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f]">
-      <div className="noise" />
-      <NavBar />
-      <main className="container mx-auto px-4 pt-32 pb-8">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-function PlatformPortalLayout() {
-  const account = useCurrentAccount();
-  const location = useLocation();
-
-  if (!account) {
-    return <Navigate to="/" state={{ from: location }} replace />;
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f]">
-      <div className="noise" />
-      <NavBar />
-      <main className="container mx-auto px-4 pt-32 pb-8">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
+import { DashboardLayout } from "./components/dashboard/DashboardLayout";
+import { PlatformPortalLayout } from "./components/platform/PlatformPortalLayout";
 
 export default function Router() {
   return (
@@ -58,12 +21,14 @@ export default function Router() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Navigate to="/dashboard/subscriptions" replace />} />
           <Route path="/dashboard/accounts" element={<AccountsPage />} />
           <Route path="/dashboard/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/dashboard/activity" element={<ActivityPage />} />
           <Route path="/dashboard/settings" element={<SettingsPage />} />
         </Route>
         <Route element={<PlatformPortalLayout />}>
+          <Route path="/platforms" element={<Navigate to="/platforms/overview" replace />} />
           <Route path="/platforms/overview" element={<PlatformOverviewPage />} />
           <Route path="/platforms/tiers" element={<TiersPage />} />
           <Route path="/platforms/subscribers" element={<SubscribersPage />} />
@@ -72,6 +37,9 @@ export default function Router() {
           <Route path="/platforms/scheduler" element={<SchedulerPage />} />
         </Route>
         <Route path="/subscribe/:platformId" element={<SubscribePage />} />
+
+        {/* Catch-all route for 404s */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

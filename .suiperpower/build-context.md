@@ -289,6 +289,17 @@ if (r.status === "failure" && r.error?.includes("Insufficient coin balance")) {
 **Root cause:** Cascade from Bug 3 — when Steps 6-8 failed due to bytecode error, no subscription
 existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 
+### Bug 6 — Flashing "Connect Wallet" on authenticated page reload (RESOLVED)
+
+**Symptom:** Refreshes on protected routes briefly flashed the unauthenticated "Connect Wallet" UI while the `dApp-kit` session restored from local storage.
+**Root cause:** `useCurrentAccount()` evaluated to `null` synchronously during the background connection restoration phase.
+**Fix:** Implemented `useWalletConnection()`'s `isConnecting` flag across layouts (`DashboardLayout`, `PlatformPortalLayout`) and standalone pages (`LandingPage`, `SubscribePage`). Now safely gates protected routes with a `<Loader2 />` spinner instead of forcing a premature unauthenticated state.
+
+### Bug 7 — Routing UX and 404s (RESOLVED)
+
+**Symptom:** Broken redirects causing wallet context loss, and 404 blank screens (e.g., `No routes matched location "/plaftform"`).
+**Fix:** Replaced hard page reloads (`window.location.href`) with React Router's `navigate()` to preserve `DAppKitProvider` wallet session context. Added a `*` catch-all route in `router.tsx` to gracefully redirect 404s to `/`. Updated the Landing page CTAs to allow authenticated navigation to both `/platforms` and `/dashboard`.
+
 ---
 
 ## Key design decisions

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
+import { Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { ArrowRight, Users, CheckCircle } from "lucide-react";
 import NavBar from "../components/NavBar";
@@ -25,6 +27,8 @@ interface PlatformInfo {
 
 export default function LandingPage() {
   const account = useCurrentAccount();
+  const { isConnecting } = useWalletConnection();
+  const navigate = useNavigate();
   const modalRef = useRef<any>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -203,12 +207,25 @@ export default function LandingPage() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
                 {account ? (
-                  <Button
-                    onClick={() => window.location.href = "/dashboard"}
-                    className="flex items-center justify-center gap-2 text-lg px-10 py-4"
-                  >
-                    <span>{hasAccounts ? "Go to Dashboard" : "Create Account"}</span>
-                    <ArrowRight size={20} />
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button
+                      onClick={() => navigate("/platforms")}
+                      className="flex items-center justify-center gap-2 text-lg px-8 py-4"
+                    >
+                      <span>Platform Portal</span>
+                      <ArrowRight size={20} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate("/dashboard")}
+                      className="flex items-center justify-center gap-2 text-lg px-8 py-4 bg-transparent border-white/20 hover:bg-white/10"
+                    >
+                      <span>Subscriber Dashboard</span>
+                    </Button>
+                  </div>
+                ) : isConnecting ? (
+                  <Button disabled className="flex items-center justify-center gap-2 text-lg px-10 py-4">
+                    <Loader2 className="animate-spin h-6 w-6" />
                   </Button>
                 ) : (
                   <Button

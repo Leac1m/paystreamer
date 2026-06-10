@@ -6,7 +6,7 @@ import { Card, CardContent } from "../../components/ui/card";
 import { AccountCard } from "../../components/subscriptions/AccountCard";
 import { CreateAccountModal } from "../../components/subscriptions/CreateAccountModal";
 import { PlusCircle } from "lucide-react";
-import { DEVNET_V2_PACKAGE_ID } from "../../constants";
+import { queryAccountCreatedEvents } from "../../lib/graphql";
 
 interface AccountInfo {
   accountId: string;
@@ -22,47 +22,23 @@ export function AccountsPage() {
     queryKey: ["account-created-events", account?.address],
     queryFn: async () => {
       if (!account?.address) return [];
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${DEVNET_V2_PACKAGE_ID}::account::AccountCreated`,
-              sender: account.address,
-            },
-            null,
-            50,
-            true,
-          ],
-        }),
-      });
-      const data = await res.json();
-      return data.result?.data || [];
+      return await queryAccountCreatedEvents(account.address);
     },
     enabled: !!account?.address,
   });
 
-  const accounts: AccountInfo[] = (accountCreatedEvents || []).map((e: any) => ({
-    accountId: e.parsedJson.account_id,
-    capId: e.parsedJson.cap_id,
-    denomination: e.parsedJson.denomination || "0x2::sui::SUI",
+  const accounts: AccountInfo[] = (accountCreatedEvents || []).map((e) => ({
+    accountId: e.account_id,
+    capId: e.cap_id,
+    // Note: denomination might not be in the v2 event, default to SUI type if missing
+    denomination: (e as any).denomination || "0x2::sui::SUI",
   }));
 
   const uniqueAccounts = accounts.filter(
     (acc, idx, arr) => arr.findIndex((a) => a.accountId === acc.accountId) === idx
   );
 
-  if (!account) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Connect your wallet to view accounts</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">

@@ -79,13 +79,7 @@ export function SubscriptionsPage() {
     return symbol === activeTab;
   });
 
-  if (!account) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Connect your wallet to view subscriptions</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">

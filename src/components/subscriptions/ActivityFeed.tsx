@@ -10,7 +10,12 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { DEVNET_V2_PACKAGE_ID } from "../../constants";
+import { 
+  queryAccountCreatedEvents,
+  queryPaymentProcessedEvents,
+  queryDepositEvents,
+  queryPaymentFailedEvents
+} from "../../lib/graphql";
 import {
   CheckCircle,
   XCircle,
@@ -46,115 +51,79 @@ export function ActivityFeed() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const { data: events, isPending } = useQuery({
-    queryKey: ["activity-events", account?.address],
+  // First, get the user's account IDs
+  const { data: accounts } = useQuery({
+    queryKey: ["account-created-events", account?.address],
     queryFn: async () => {
       if (!account?.address) return [];
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentProcessed`,
-              sender: account.address,
-            },
-            null,
-            100,
-            true,
-          ],
-        }),
-      });
-      const data = await res.json();
-      return data.result?.data || [];
+      return await queryAccountCreatedEvents(account.address);
     },
     enabled: !!account?.address,
   });
 
-  const { data: depositEvents } = useQuery({
-    queryKey: ["deposit-events", account?.address],
+  const accountIds = accounts?.map(a => a.account_id) || [];
+
+  const { data: events, isPending: eventsPending } = useQuery({
+    queryKey: ["activity-events", accountIds],
     queryFn: async () => {
-      if (!account?.address) return [];
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${DEVNET_V2_PACKAGE_ID}::account::Deposit`,
-              sender: account.address,
-            },
-            null,
-            100,
-            true,
-          ],
-        }),
-      });
-      const data = await res.json();
-      return data.result?.data || [];
+      if (accountIds.length === 0) return [];
+      // Query for all accounts and flatten
+      const promises = accountIds.map(id => queryPaymentProcessedEvents(id));
+      const results = await Promise.all(promises);
+      return results.flat();
     },
-    enabled: !!account?.address,
+    enabled: accountIds.length > 0,
   });
 
-  const { data: failedEvents } = useQuery({
-    queryKey: ["failed-events", account?.address],
+  const { data: depositEvents, isPending: depositsPending } = useQuery({
+    queryKey: ["deposit-events", accountIds],
     queryFn: async () => {
-      if (!account?.address) return [];
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentFailed`,
-              sender: account.address,
-            },
-            null,
-            100,
-            true,
-          ],
-        }),
-      });
-      const data = await res.json();
-      return data.result?.data || [];
+      if (accountIds.length === 0) return [];
+      const promises = accountIds.map(id => queryDepositEvents(id));
+      const results = await Promise.all(promises);
+      return results.flat();
     },
-    enabled: !!account?.address,
+    enabled: accountIds.length > 0,
   });
+
+  const { data: failedEvents, isPending: failedPending } = useQuery({
+    queryKey: ["failed-events", accountIds],
+    queryFn: async () => {
+      if (accountIds.length === 0) return [];
+      const promises = accountIds.map(id => queryPaymentFailedEvents(id));
+      const results = await Promise.all(promises);
+      return results.flat();
+    },
+    enabled: accountIds.length > 0,
+  });
+
+  const isPending = eventsPending || depositsPending || failedPending;
 
   const allRows: EventRow[] = [
-    ...(events || []).map((e: any) => ({
+    ...(events || []).map((e) => ({
       type: "payment" as const,
       timestamp: e.timestamp,
-      description: `Payment to ${e.parsedJson.platform_id?.slice(0, 8)}...`,
-      amount: Number(e.parsedJson.amount),
+      description: `Payment to ${e.platform_id?.slice(0, 8)}...`,
+      amount: Number(e.amount),
       status: "success" as const,
-      digest: e.txDigest,
+      digest: e.id, // Using id as digest
     })),
-    ...(depositEvents || []).map((e: any) => ({
+    ...(depositEvents || []).map((e) => ({
       type: "deposit" as const,
       timestamp: e.timestamp,
       description: "Account deposit",
-      amount: Number(e.parsedJson.amount),
+      amount: Number(e.amount),
       status: "success" as const,
-      digest: e.txDigest,
+      digest: e.id,
     })),
-    ...(failedEvents || []).map((e: any) => ({
+    ...(failedEvents || []).map((e) => ({
       type: "alert" as const,
       timestamp: e.timestamp,
-      description: `Payment failed to ${e.parsedJson.platform_id?.slice(0, 8)}...`,
-      amount: Number(e.parsedJson.amount),
+      description: `Payment failed to ${e.platform_id?.slice(0, 8)}...`,
+      amount: 0, // Failed events don't have amount in the new event structure
       status: "failed" as const,
-      reason: e.parsedJson.reason,
-      digest: e.txDigest,
+      reason: e.reason,
+      digest: e.id,
     })),
   ]
     .sort((a, b) => b.timestamp - a.timestamp)

@@ -9,8 +9,8 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { V2_PACKAGE_ID } from "../../../scripts/v2/config";
 import { PlatformObject } from "../../lib/platformDiscovery";
+import { queryPaymentProcessedEvents } from "../../lib/graphql";
 
 interface PlatformOwnerOverviewProps {
   platform: PlatformObject;
@@ -64,43 +64,24 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
   const { data: paymentEvents } = useQuery({
     queryKey: ["payment-events", platform.objectId],
     queryFn: async () => {
+      const events = await queryPaymentProcessedEvents(undefined, platform.objectId);
+      
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
 
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${V2_PACKAGE_ID}::payment::PaymentProcessed`,
-              sender: fields.owner,
-            },
-            null,
-            100,
-            true,
-          ],
-        }),
-      });
-
-      const data = await res.json();
-      const events = data.result?.data || [];
-
-      return events.filter((e: any) => {
-        const eventTime = e.timestamp ? new Date(e.timestamp).getTime() / 1000 : 0;
+      return events.filter((e) => {
+        const eventTime = e.timestamp ? Number(e.timestamp) / 1000 : 0;
         return eventTime >= startOfMonth;
       });
     },
+    enabled: !!platform.objectId,
   });
 
   const monthlyRevenue = useMemo(() => {
     if (!paymentEvents || paymentEvents.length === 0) return "$0.00";
 
     const total = paymentEvents.reduce((sum: number, event: any) => {
-      const amount = Number(event.parsedJson?.amount || 0);
+      const amount = Number(event.amount || 0);
       return sum + amount / 1_000_000_000;
     }, 0);
 

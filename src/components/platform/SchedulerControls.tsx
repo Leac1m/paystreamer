@@ -11,11 +11,12 @@ import {
 } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { V2_PACKAGE_ID, V2_PAYMENT_SCHEDULER_ID } from "../../../scripts/v2/config";
+import { V2_PACKAGE_ID, V2_PAYMENT_SCHEDULER_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface SchedulerControlsProps {
   isPaused: boolean;
+  initialSharedVersion: number;
   lastProcessedAt?: number;
 }
 
@@ -30,7 +31,7 @@ function formatTimestamp(timestamp?: number): string {
   });
 }
 
-export function SchedulerControls({ isPaused, lastProcessedAt }: SchedulerControlsProps) {
+export function SchedulerControls({ isPaused, initialSharedVersion, lastProcessedAt }: SchedulerControlsProps) {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const [isPending, setIsPending] = useState(false);
@@ -45,7 +46,13 @@ export function SchedulerControls({ isPaused, lastProcessedAt }: SchedulerContro
     const tx = new Transaction();
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::scheduler::pause`,
-      arguments: [tx.object(V2_PAYMENT_SCHEDULER_ID)],
+      arguments: [
+        tx.sharedObjectRef({
+          objectId: V2_PAYMENT_SCHEDULER_ID,
+          initialSharedVersion,
+          mutable: true,
+        }),
+      ],
     });
 
     try {
@@ -71,7 +78,13 @@ export function SchedulerControls({ isPaused, lastProcessedAt }: SchedulerContro
     const tx = new Transaction();
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::scheduler::unpause`,
-      arguments: [tx.object(V2_PAYMENT_SCHEDULER_ID)],
+      arguments: [
+        tx.sharedObjectRef({
+          objectId: V2_PAYMENT_SCHEDULER_ID,
+          initialSharedVersion,
+          mutable: true,
+        }),
+      ],
     });
 
     try {

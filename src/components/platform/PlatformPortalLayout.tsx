@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Clock } from "lucide-react";
+import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Clock, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { NetworkBanner } from "../dashboard/NetworkBanner";
 import { useOwnedPlatforms, PlatformObject } from "../../lib/platformDiscovery";
@@ -19,12 +19,21 @@ const NAV_ITEMS = [
 
 export function PlatformPortalLayout() {
   const account = useCurrentAccount();
+  const { isConnecting } = useWalletConnection();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformObject | null>(null);
 
   const { data: platforms } = useOwnedPlatforms(account?.address ?? null);
+
+  if (isConnecting) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#94a3b8]" />
+      </div>
+    );
+  }
 
   if (!account) {
     return (

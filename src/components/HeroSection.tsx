@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Users, Zap, Shield } from 'lucide-react';
 
 export default function HeroSection() {
+  const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ transactions: 0, volume: 0, subscriptions: 0 });
 
@@ -72,7 +74,7 @@ export default function HeroSection() {
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <button 
-                onClick={() => window.location.href = '/demo'}
+                onClick={() => navigate('/platforms')}
                 className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4"
               >
                 <span>Start for Free</span>

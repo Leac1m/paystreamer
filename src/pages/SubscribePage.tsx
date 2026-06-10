@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCurrentClient, useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount, useDAppKit, useWalletConnection } from "@mysten/dapp-kit-react";
+
 import { Transaction } from "@mysten/sui/transactions";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { useRef } from "react";
@@ -12,6 +13,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { TxStatusToast, TxStatus } from "../components/TxStatusToast";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
+import { queryAccountCreatedEvents } from "../lib/graphql";
 import { parseMoveError } from "../lib/errors";
 import {
   DEVNET_V2_PACKAGE_ID,
@@ -48,6 +50,7 @@ export default function SubscribePage() {
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const { isConnecting } = useWalletConnection();
   const modalRef = useRef<any>(null);
   const queryClient = useQueryClient();
 
@@ -72,38 +75,25 @@ export default function SubscribePage() {
     enabled: !!platformId && platformId.length >= 66,
   });
 
-  const { data: accountCaps } = useQuery({
-    queryKey: ["account-caps", account?.address],
+  const { data: accountCreatedEvents } = useQuery({
+    queryKey: ["account-created-events", account?.address],
     queryFn: async () => {
       if (!account?.address) return [];
-      const { objects } = await client.core.listOwnedObjects({
-        owner: account.address,
-        type: `${DEVNET_V2_PACKAGE_ID}::account::AccountCap`,
-        limit: 10,
-        include: { json: true },
-      });
-      return objects;
+      return await queryAccountCreatedEvents(account.address);
     },
     enabled: !!account?.address,
   });
 
-  const { data: accountObjects } = useQuery({
-    queryKey: ["subscription-accounts", account?.address],
-    queryFn: async () => {
-      if (!account?.address) return [];
-      const { objects } = await client.core.listOwnedObjects({
-        owner: account.address,
-        type: `${DEVNET_V2_PACKAGE_ID}::account::SubscriptionAccount<${SUI_TYPE_ARG}>`,
-        limit: 10,
-        include: { json: true },
-      });
-      return objects;
-    },
-    enabled: !!account?.address,
-  });
+  const uniqueAccounts = (accountCreatedEvents || [])
+    .filter((acc, idx, arr) => arr.findIndex((a) => a.account_id === acc.account_id) === idx)
+    .map((e) => ({
+      accountId: e.account_id,
+      capId: e.cap_id,
+      denomination: (e as any).denomination || "0x2::sui::SUI",
+    }));
 
-  const accountId = accountObjects?.[0]?.objectId;
-  const accountCapId = accountCaps?.[0]?.objectId;
+  const accountId = uniqueAccounts[0]?.accountId;
+  const accountCapId = uniqueAccounts[0]?.capId;
 
   const platformJson = platform?.json as PlatformJson | undefined;
   const activeTiers = platformJson?.tiers?.filter((t) => t.is_active) || [];
@@ -262,6 +252,11 @@ export default function SubscribePage() {
                   {account.address.slice(0, 6)}...{account.address.slice(-4)}
                 </span>
               </div>
+            ) : isConnecting ? (
+              <Button disabled>
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                Connecting...
+              </Button>
             ) : (
               <Button onClick={() => modalRef.current?.show()}>
                 <Wallet size={16} className="mr-2" />

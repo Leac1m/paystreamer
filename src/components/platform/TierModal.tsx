@@ -12,13 +12,14 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID } from "../../../scripts/v2/config";
+import { V2_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierModalProps {
   open: boolean;
   onClose: () => void;
   platformId: string;
+  initialSharedVersion: number;
   tier?: {
     name: string;
     amount: string;
@@ -47,7 +48,7 @@ const BILLING_CYCLE_SECONDS: Record<BillingCycle, number> = {
   custom: 0,
 };
 
-export function TierModal({ open, onClose, platformId, tier, tierIndex: _tierIndex }: TierModalProps) {
+export function TierModal({ open, onClose, platformId, initialSharedVersion, tier, tierIndex: _tierIndex }: TierModalProps) {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
@@ -93,7 +94,11 @@ export function TierModal({ open, onClose, platformId, tier, tierIndex: _tierInd
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::create_tier`,
       arguments: [
-        tx.object(platformId),
+        tx.sharedObjectRef({
+          objectId: platformId,
+          initialSharedVersion,
+          mutable: true,
+        }),
         tx.pure.string(name),
         tx.pure.u64(amountU64),
         tx.pure.u64(frequencySeconds),

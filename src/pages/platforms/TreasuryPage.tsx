@@ -35,6 +35,7 @@ export function TreasuryPage() {
 
       <TreasuryManager
         platformId={platform.objectId}
+        initialSharedVersion={platform.initialSharedVersion}
         currentTreasury={platform.json.treasury}
         pendingTreasury={platform.json.pending_treasury}
         pendingTreasuryChangeTime={platform.json.pending_treasury_change_time}

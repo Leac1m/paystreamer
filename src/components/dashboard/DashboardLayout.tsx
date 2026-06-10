@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { Button } from "../ui/button";
 import { NetworkBanner } from "./NetworkBanner";
-import { Menu, Wallet, CreditCard, Bell, Settings } from "lucide-react";
+import { Menu, Wallet, CreditCard, Bell, Settings, Loader2 } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/dashboard/accounts", label: "Accounts", icon: Wallet },
@@ -14,13 +14,34 @@ const NAV_ITEMS = [
 
 export function DashboardLayout() {
   const account = useCurrentAccount();
+  const { isConnecting } = useWalletConnection();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  if (isConnecting) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!account) {
-    navigate("/");
-    return null;
+    return (
+      <div className="min-h-screen bg-background">
+        <NetworkBanner />
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Connect Wallet</h2>
+            <p className="text-muted-foreground">Please connect your wallet to access the dashboard.</p>
+            <Button onClick={() => navigate("/")} className="mt-4">
+              Go to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

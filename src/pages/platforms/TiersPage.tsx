@@ -66,6 +66,7 @@ export function TiersPage() {
             <TierCard
               key={`${tier.name}-${index}`}
               platformId={platform.objectId}
+              initialSharedVersion={platform.initialSharedVersion}
               tier={tier}
               tierIndex={index}
             />
@@ -77,6 +78,7 @@ export function TiersPage() {
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         platformId={platform.objectId}
+        initialSharedVersion={platform.initialSharedVersion}
       />
     </div>
   );

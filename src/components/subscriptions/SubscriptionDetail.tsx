@@ -12,7 +12,6 @@ import {
 } from "../ui/card";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import { DEVNET_V2_PACKAGE_ID } from "../../constants";
 
 interface SubscriptionDetailProps {
   accountId: string;
@@ -78,29 +77,9 @@ export function SubscriptionDetail({
     queryKey: ["payment-events", accountId, platformId],
     queryFn: async () => {
       if (!account?.address) return [];
-      const res = await fetch("https://fullnode.devnet.sui.io:443", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "suix_queryEvents",
-          params: [
-            {
-              MoveEventType: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentProcessed`,
-              sender: account.address,
-            },
-            null,
-            50,
-            true,
-          ],
-        }),
-      });
-      const data = await res.json();
-      return (data.result?.data || []).filter((e: any) => {
-        const parsed = e.parsedJson;
-        return parsed?.account_id === accountId && parsed?.platform_id === platformId;
-      });
+      const { queryPaymentProcessedEvents } = await import("../../lib/graphql");
+      const events = await queryPaymentProcessedEvents(accountId, platformId);
+      return events;
     },
     enabled: !!account?.address,
   });
@@ -208,10 +187,10 @@ export function SubscriptionDetail({
                   <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
                     <div>
                       <p className="font-medium">
-                        {formatAmount(event.parsedJson.amount, denomination)}
+                        {formatAmount(event.amount, denomination)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(event.timestamp / 1_000_000).toLocaleString()}
+                        {new Date(Number(event.timestamp)).toLocaleString()}
                       </p>
                     </div>
                     <Badge variant="default">Paid</Badge>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { useOwnedPlatforms } from "../../lib/platformDiscovery";
-import { V2_PACKAGE_ID } from "../../../scripts/v2/config";
+import { V2_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 export function PlatformSettingsPage() {
@@ -56,7 +56,11 @@ export function PlatformSettingsPage() {
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::update_platform`,
       arguments: [
-        tx.object(platform.objectId),
+        tx.sharedObjectRef({
+          objectId: platform.objectId,
+          initialSharedVersion: platform.initialSharedVersion,
+          mutable: true,
+        }),
         tx.pure.option("string", name || null),
         tx.pure.option("string", description || null),
         tx.pure.option("string", webhookUrl || null),
