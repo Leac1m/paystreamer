@@ -236,6 +236,19 @@ module paystreamer_v2::registry {
         }
     }
 
+    /// Convert a `u8` discriminant directly to `AccountType`.
+    /// Aborts with `EInvalidDiscriminant` if the value is not 0 or 1.
+    /// Use this from SDK calls that cannot serialize `AccountType` directly.
+    public fun from_u8(discriminant: u8): AccountType {
+        if (discriminant == 0) {
+            AccountType::USDC
+        } else if (discriminant == 1) {
+            AccountType::USDSui
+        } else {
+            abort EInvalidDiscriminant
+        }
+    }
+
     // === Mutators (admin only) ===
 
     /// Register a new coin type. The caller must equal
