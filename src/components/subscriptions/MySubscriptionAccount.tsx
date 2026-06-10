@@ -14,6 +14,7 @@ import { Deposit } from "./Deposit";
 import { UpdatePolicy } from "./UpdatePolicy";
 import { SubscribeToPlatform } from "./SubscribeToPlatform";
 import { Badge } from "../ui/badge";
+import { AccountCardSkeleton } from "../ui/skeleton";
 
 export function MySubscriptionAccount({
   accountId,
@@ -41,11 +42,10 @@ export function MySubscriptionAccount({
 
   if (isPending) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading account...</div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <AccountCardSkeleton />
+        <AccountCardSkeleton />
+      </div>
     );
   }
 

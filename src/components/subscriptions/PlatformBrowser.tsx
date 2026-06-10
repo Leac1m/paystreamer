@@ -9,6 +9,8 @@ import {
 } from "../ui/card";
 import { CreateSubscription } from "./CreateSubscription";
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
+import { CardSkeleton } from "../ui/skeleton";
+import { NoPlatformsEmpty } from "../ui/empty-state";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -51,16 +53,18 @@ export function PlatformBrowser({ accountId, accountCapId }: { accountId: string
 
   if (isPending) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading platforms...
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <CardSkeleton key={i} />
+        ))}
       </div>
     );
   }
 
   if (!platforms || platforms.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No platforms registered yet.</p>
+      <div className="rounded-xl border bg-card p-6">
+        <NoPlatformsEmpty />
       </div>
     );
   }

@@ -13,6 +13,7 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "../../constants";
+import { CardSkeleton } from "../ui/skeleton";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly", "Custom (Seconds)"];
 
@@ -37,22 +38,25 @@ export function PlatformOwnerDashboard() {
 
   if (isPending) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading...
+      <div className="space-y-6">
+        <CardSkeleton />
+        <CardSkeleton />
       </div>
     );
   }
 
   if (!ownerCaps || ownerCaps.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">
-            You don't own any platforms.
-          </p>
-          <RegisterPlatformCard />
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <RegisterPlatformCard />
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground mb-4">
+              You don't own any platforms yet.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 

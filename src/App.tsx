@@ -6,14 +6,10 @@ import { MySubscriptionAccount } from "./components/subscriptions/MySubscription
 import { PlatformBrowser } from "./components/subscriptions/PlatformBrowser";
 import { PlatformOwnerDashboard } from "./components/subscriptions/PlatformOwnerDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import NavBar from './components/NavBar';
-import HeroSection from './components/HeroSection';
-import IntegrationFlow from './components/IntegrationFlow';
-import EndUserExperience from './components/EndUserExperience';
-import CoreFeatures from './components/CoreFeatures';
-import SecuritySection from './components/SecuritySection';
-import CTASection from './components/CTASection';
-import Footer from './components/Footer';
+import NavBar from "./components/NavBar";
+import LandingPage from "./pages/LandingPage";
+import SubscribePage from "./pages/SubscribePage";
+import { AccountCardSkeleton } from "./components/ui/skeleton";
 import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from "./constants";
 
 type Tab = "browse" | "my-account" | "owner";
@@ -75,21 +71,11 @@ export default function App() {
   }
 
   if (currentPath === "/") {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f]">
-        <div className="noise" />
-        <NavBar />
-        <main>
-          <HeroSection />
-          <IntegrationFlow />
-          <EndUserExperience />
-          <CoreFeatures />
-          <SecuritySection />
-          <CTASection />
-        </main>
-        <Footer />
-      </div>
-    );
+    return <LandingPage />;
+  }
+
+  if (currentPath.startsWith("/subscribe/")) {
+    return <SubscribePage />;
   }
 
   if (!currentAccount) {
@@ -111,7 +97,10 @@ export default function App() {
         <div className="noise" />
         <NavBar />
         <main className="container mx-auto px-4 pt-32 pb-8">
-          <div className="text-center py-12 text-white">Loading...</div>
+          <div className="space-y-6">
+            <AccountCardSkeleton />
+            <AccountCardSkeleton />
+          </div>
         </main>
       </div>
     );

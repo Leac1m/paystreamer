@@ -2,7 +2,7 @@
 
 ## What this is
 
-A snapshot of the v2 PayStreamer project. Updated after fixing the bytecode verification error (2026-06-10).
+A snapshot of the v2 PayStreamer project. Updated after the frontend rewrite (2026-06-10).
 Captures what's working, what's failing, and why.
 
 ---
@@ -20,7 +20,7 @@ The v2 rewrite lives on `feature/v2-core` (published devnet package `0x9df2b6a64
 - Main branch: `main`
 - Active address on devnet: `0x4926cbfcdc533c1de26fb8e0e076cbb6d5572d9ede0e5783b5d86485fd55b3b7`
 
-## Devnet RPC & GraphQL
+## Devnet RPC& GraphQL
 
 - RPC/GraphQL: `https://fullnode.devnet.sui.io:443/graphql`
 - Sui CLI: `/home/leac1m/.local/bin/sui` (not on default PATH)
@@ -87,6 +87,119 @@ SubscriptionUpdated:    1
 PaymentProcessed:       0  ← ENotDue means payment already happened; this is correct
 PaymentFailed:          0
 DuePaymentSubmitted:    0  ← scheduler emits DuePaymentSubmitted on process_due_payment
+```
+
+---
+
+## Frontend — v2 rewrite complete (2026-06-10)
+
+The demo frontend calling v1 contract APIs has been replaced with a full production-grade UI wired to the v2 contract.
+
+### Architecture
+
+- **Router:** React Router v6 (`src/router.tsx`) — all routes defined, wallet guards on protected routes
+- **Data layer:** `SuiGraphQLClient` (`src/lib/graphql.ts`) — replaced JSON-RPC event queries
+- **Constants:** `src/constants.ts` — v2 package ID, all shared object IDs, per-network config
+- **Error handling:** `src/lib/errors.ts` — v2 abort code → human-readable message mapping
+- **Toast system:** `src/components/TxStatusToast.tsx` — pending/confirmed/failed transaction notifications
+- **Network banner:** `src/components/NetworkBanner.tsx` — amber devnet / blue testnet / green mainnet
+
+### New file tree
+
+```
+src/
+  router.tsx                     # React Router v6, all routes
+  lib/
+    graphql.ts                   # SuiGraphQLClient +11 query helpers
+    errors.ts                    # Abort code → human-readable message
+    platformDiscovery.ts         # Owned platform discovery via events
+  components/
+    NetworkBanner.tsx            # Dismissible network indicator
+    TxStatusToast.tsx # Transaction status toasts
+    ErrorBoundary.tsx            # React error boundary
+    dashboard/
+      DashboardLayout.tsx        # Sidebar nav + mobile hamburger
+    platform/
+      PlatformOwnerOverview.tsx   # MRR dashboard, revenue chart
+      TierCard.tsx                # Tier display with edit/deactivate
+      TierModal.tsx               # Add/edit tier modal
+      SubscriberTable.tsx         # Subscriber list with expandable history
+      TreasuryManager.tsx         # 48h timelock treasury flow
+      SchedulerControls.tsx       # Global pause/resume controls
+      PlatformPortalLayout.tsx    # Sidebar nav + platform selector
+    subscriptions/
+      DenominationSelector.tsx    # USDC/USDSui/SUI cards
+      PolicyEditor.tsx           # Spending limits form
+      CreateAccountModal.tsx     # 4-step account creation modal
+      AccountCard.tsx            # Account display card
+      SubscriptionCard.tsx       # Subscription card with pause/resume/cancel
+      SubscriptionDetail.tsx     # Expanded subscription + payment history
+      ActivityFeed.tsx           # Filtered transaction history + CSV export
+    ui/
+      skeleton.tsx               # Skeleton loaders (Card, TableRow, Account, Subscription, Tier)
+      empty-state.tsx            # Pre-built empty states with CTAs
+      error-state.tsx            # Error state with retry
+      mobile-nav.tsx             # Bottom tab bar for mobile
+      modal.tsx                  # Modal dialog component
+  pages/
+    dashboard/
+      AccountsPage.tsx           # Account list + create
+      SubscriptionsPage.tsx      # All subscriptions tabbed by denomination
+      ActivityPage.tsx            # Activity feed page
+      SettingsPage.tsx            # Notifications + close account
+    platforms/
+      PlatformOverviewPage.tsx    # Overview + register prompt
+      TiersPage.tsx              # Tier management
+      SubscribersPage.tsx         # Subscriber list
+      TreasuryPage.tsx            # Treasury management
+      PlatformSettingsPage.tsx    # Platform settings form
+      SchedulerPage.tsx          # Scheduler controls
+    SubscribePage.tsx             # Public /subscribe/:platformId
+    LandingPage.tsx              # Landing page with social proof + pricing
+```
+
+### Frontend run commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start dev server
+pnpm dev
+
+# TypeScript check
+pnpm build
+```
+
+### Key frontend integration points
+
+All blockchain calls use v2 module names. Example patterns:
+
+```typescript
+// Create account (3-step PTB)
+tx.moveCall({ target: `${V2_PACKAGE_ID}::account::create_account`, typeArguments: [denomination] });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::account::share_account`, typeArguments: [denomination] });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::account::deposit`, typeArguments: [denomination] });
+
+// Create subscription
+tx.moveCall({ target: `${V2_PACKAGE_ID}::billing::create_subscription`, typeArguments: [denomination] });
+
+// Pause/resume/cancel subscription
+tx.moveCall({ target: `${V2_PACKAGE_ID}::billing::pause_subscription`, typeArguments: [denomination] });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::billing::resume_subscription`, typeArguments: [denomination] });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::billing::cancel_subscription`, typeArguments: [denomination] });
+
+// Treasury timelock
+tx.moveCall({ target: `${V2_PACKAGE_ID}::platform::propose_treasury_change` });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::platform::accept_treasury_change` });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::platform::cancel_treasury_change` });
+
+// Scheduler controls
+tx.moveCall({ target: `${V2_PACKAGE_ID}::scheduler::pause` });
+tx.moveCall({ target: `${V2_PACKAGE_ID}::scheduler::unpause` });
+
+// Registry helper (for AccountType enum)
+tx.moveCall({ target: `${V2_PACKAGE_ID}::registry::from_u8`, arguments: [tx.pure.u8(0)] });
 ```
 
 ---
@@ -198,6 +311,8 @@ existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 - `extensions/agent_pay` module — documented, not implemented
 - v1 → v2 migration shim package — documented, not built
 - Skills not installed — `npx skills https://github.com/MystenLabs/skills` not run
+- Mobile native app — web-first for v1; React Native wrappers are v2+
+- Fiat on/off ramp — out of scope per architecture doc
 
 ---
 
@@ -224,6 +339,11 @@ scripts/v2/
   register-sui.ts             # Manual SUI registration helper
   upgrade-package.ts          # Upgrade helper
 
+docs/
+  architecture-v2.md          # Full v2 architecture spec
+  ui-proposal.md              # Production frontend UI proposal
+  v2-build-log.md             # Build session log
+
 CLAUDE.md
 .suiperpower/
   build-context.md            # This file
@@ -239,6 +359,9 @@ cd move/subscriptions_v2 && PATH=/home/leac1m/.local/bin:$PATH sui move test --b
 
 # Run e2e script
 cd ../.. && npx tsx scripts/v2/e2e-payment-cycle.ts
+
+# Start frontend dev server
+pnpm install && pnpm dev
 ```
 
 ---
@@ -247,5 +370,7 @@ cd ../.. && npx tsx scripts/v2/e2e-payment-cycle.ts
 
 1. ✅ **E2E fully green** — all 9 steps pass end-to-end on devnet
 2. ✅ **Bytecode verification fix** — confirmed root cause and fix
-3. ⬜ **Open PR** — `feature/v2-core` → `main` (manual via web UI: `https://github.com/Leac1m/paystreamer/pull/new/feature/v2-core`)
-4. ⬜ **Install skills** — `npx skills https://github.com/MystenLabs/skills` per CLAUDE.md
+3. ✅ **Frontend rewrite** — full production UI wired to v2 contract
+4. ⬜ **Deploy frontend to devnet** — host the built frontend on a devnet-accessible URL
+5. ⬜ **Open PR** — `feature/v2-core` → `main` (manual via web UI: `https://github.com/Leac1m/paystreamer/pull/new/feature/v2-core`)
+6. ⬜ **Install skills** — `npx skills https://github.com/MystenLabs/skills` per CLAUDE.md
