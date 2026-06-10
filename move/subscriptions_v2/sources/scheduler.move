@@ -28,7 +28,7 @@
 ///
 /// The platform's role check is **deferred to a future hardening
 /// pass** (the role is declared in `access_control.move` but the
-/// per-Platform `AccessControl<ACCESS_CONTROL>` is not yet wired in;
+/// per-Platform `AccessControl<AC>` is not yet wired in;
 /// see `account.move` and `platform.move` for the bootstrap admin
 /// pattern). v2 ships the "permissionless but rate-limited" property
 /// (BUG FIX #2, BUG FIX #14); v2.1 will add the role-based check.

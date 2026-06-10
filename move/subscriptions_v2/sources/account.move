@@ -16,7 +16,7 @@
 /// ## Authority model (architecture §7.1)
 ///
 /// The v2 authority model is `AccountCap` (discovery) + `AccountCap.permissions`
-/// (bitfield authority). There is no embedded `AccessControl<ACCESS_CONTROL>`
+/// (bitfield authority). There is no embedded `AccessControl<AC>`
 /// per account: the OZ `AccessControl` consumes its OTW exactly once at
 /// `init`, so per-account ACs are infeasible (and unnecessary — see
 /// `access_control.move`). Role checks in this module therefore consult
@@ -50,7 +50,7 @@ module paystreamer_v2::account {
     use sui::event;
     use sui::transfer;
     use sui::tx_context::TxContext;
-    use paystreamer_v2::access_control::{
+    use paystreamer_v2::ac::{
         Self as ac,
         AccountCap,
         new_account_cap,
@@ -258,7 +258,7 @@ module paystreamer_v2::account {
     /// The user's subscription account. Shared object, phantom-typed by
     /// the denomination. The `AccountCap` minted alongside is the
     /// wallet-visible discovery handle; its `permissions` bitfield is
-    /// the authority. The protocol-wide `AccessControl<ACCESS_CONTROL>`
+    /// the authority. The protocol-wide `AccessControl<AC>`
     /// is not embedded here — per-account authority is the
     /// `ac::account_id(cap) == object::id(account)` check plus the
     /// `has_permission(cap, ...)` bitfield test.

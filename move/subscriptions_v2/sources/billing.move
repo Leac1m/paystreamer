@@ -41,7 +41,7 @@ module paystreamer_v2::billing {
     use sui::event;
     use sui::tx_context::TxContext;
     use paystreamer_v2::account::{Self, SubscriptionAccount};
-    use paystreamer_v2::access_control::{Self, AccountCap};
+    use paystreamer_v2::ac::{Self, AccountCap};
     use paystreamer_v2::registry::AccountType;
 
     // === Errors ===
@@ -168,7 +168,7 @@ module paystreamer_v2::billing {
             EInvalidCap,
         );
         assert!(
-            access_control::has_permission(cap, access_control::permission_owner()),
+            ac::has_permission(cap, ac::permission_owner()),
             EUnauthorized,
         );
         let status_ref = account::status(account);
@@ -239,7 +239,7 @@ module paystreamer_v2::billing {
             EInvalidCap,
         );
         assert!(
-            access_control::has_permission(cap, access_control::permission_owner()),
+            ac::has_permission(cap, ac::permission_owner()),
             EUnauthorized,
         );
         let sub = account::get_subscription_mut(account, &platform_id);
@@ -276,7 +276,7 @@ module paystreamer_v2::billing {
             EInvalidCap,
         );
         assert!(
-            access_control::has_permission(cap, access_control::permission_owner()),
+            ac::has_permission(cap, ac::permission_owner()),
             EUnauthorized,
         );
         let sub = account::get_subscription_mut(account, &platform_id);
@@ -314,7 +314,7 @@ module paystreamer_v2::billing {
             EInvalidCap,
         );
         assert!(
-            access_control::has_permission(cap, access_control::permission_owner()),
+            ac::has_permission(cap, ac::permission_owner()),
             EUnauthorized,
         );
         let sub = account::get_subscription_mut(account, &platform_id);
@@ -494,7 +494,7 @@ module paystreamer_v2::billing {
     // call sites read cleanly.
 
     fun access_control_account_id(cap: &AccountCap): ID {
-        paystreamer_v2::access_control::account_id(cap)
+        paystreamer_v2::ac::account_id(cap)
     }
 
     fun registry_account_type_eq(a: &AccountType, b: &AccountType): bool {

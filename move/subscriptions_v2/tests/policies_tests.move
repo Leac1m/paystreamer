@@ -4,7 +4,7 @@
 #[test_only]
 module paystreamer_v2::policies_tests {
     use paystreamer_v2::account::{Self, PolicySet};
-    use paystreamer_v2::access_control;
+    use paystreamer_v2::ac;
     use paystreamer_v2::policies::{Self, PolicyLimiters, PolicyFailure};
     use paystreamer_v2::registry;
     use std::string;
@@ -71,7 +71,7 @@ module paystreamer_v2::policies_tests {
         assert!(vector::length(&failures2) == 0, 3);
 
         // Cleanup.
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -121,7 +121,7 @@ module paystreamer_v2::policies_tests {
         assert!(allowed2, 5);
         assert!(vector::length(&failures2) == 0, 6);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -176,7 +176,7 @@ module paystreamer_v2::policies_tests {
         assert!(policies::failure_amount_required(f) == 1, 5);
         assert!(policies::failure_amount_available(f) == 0, 6);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -228,7 +228,7 @@ module paystreamer_v2::policies_tests {
         assert!(allowed2, 5);
         assert!(vector::length(&failures2) == 0, 6);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -292,7 +292,7 @@ module paystreamer_v2::policies_tests {
         assert!(allowed3, 7);
         assert!(vector::length(&failures3) == 0, 8);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -367,7 +367,7 @@ module paystreamer_v2::policies_tests {
         let f: &PolicyFailure = vector::borrow(&failures4, 0);
         assert!(policies::failure_code(f) == 0x07002, 8);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -444,7 +444,7 @@ module paystreamer_v2::policies_tests {
         assert!(allowed2, 11);
         assert!(vector::length(&failures2) == 0, 12);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);
@@ -492,7 +492,7 @@ module paystreamer_v2::policies_tests {
         // Saturating sub: 0, not an underflow abort.
         assert!(policies::failure_amount_available(f) == 0, 4);
 
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
         registry::destroy_for_testing(r);

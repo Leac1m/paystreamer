@@ -4,7 +4,7 @@
 #[test_only]
 module paystreamer_v2::account_tests {
     use paystreamer_v2::account::{Self, AccountStatus, PolicySet, SubscriptionV1};
-    use paystreamer_v2::access_control;
+    use paystreamer_v2::ac;
     use paystreamer_v2::registry;
     use std::string;
     use sui::object;
@@ -29,10 +29,10 @@ module paystreamer_v2::account_tests {
     }
 
     /// Build a fresh depositor-only `AccountCap` for `account_id`.
-    fun depositor_cap(account_id: object::ID, scenario: &mut ts::Scenario): access_control::AccountCap {
-        access_control::new_account_cap_for_testing(
+    fun depositor_cap(account_id: object::ID, scenario: &mut ts::Scenario): ac::AccountCap {
+        ac::new_account_cap_for_testing(
             account_id,
-            access_control::permission_depositor(),
+            ac::permission_depositor(),
             ts::ctx(scenario),
         )
     }
@@ -85,9 +85,9 @@ module paystreamer_v2::account_tests {
         );
 
         // Cap is bound to the account's id.
-        assert!(access_control::account_id(&cap) == object::id(&account), 0);
+        assert!(ac::account_id(&cap) == object::id(&account), 0);
         // Cap has OWNER permission.
-        assert!(access_control::permissions(&cap) == 1, 1);
+        assert!(ac::permissions(&cap) == 1, 1);
         // Account state.
         assert!(account::version(&account) == 2, 2);
         assert!(account::nonce(&account) == 0, 3);
@@ -100,7 +100,7 @@ module paystreamer_v2::account_tests {
         assert!(registry::account_type_to_u8(acct_type) == 0, 7);
 
         // Cleanup.
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -124,7 +124,7 @@ module paystreamer_v2::account_tests {
             ts::ctx(&mut sc),
         );
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -158,7 +158,7 @@ module paystreamer_v2::account_tests {
         account::deposit<TEST_USDC>(&cap, &mut account, coin2, &clock, ts::ctx(&mut sc));
         assert!(account::balance(&account, &clock) == 150, 1);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -208,7 +208,7 @@ module paystreamer_v2::account_tests {
         assert!(account::sub_is_paused(account::get_subscription(&account, &p_paused)), 2);
         assert!(account::sub_is_cancelled(account::get_subscription(&account, &p_cancelled)), 3);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -247,7 +247,7 @@ module paystreamer_v2::account_tests {
         // Sub is still paused — explicit resume required.
         assert!(account::sub_is_paused(account::get_subscription(&account, &p)), 3);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -295,7 +295,7 @@ module paystreamer_v2::account_tests {
         assert!(account::policy_min_balance(p) == 500, 6);
         assert!(account::policy_frequency_min_ms(p) == 60_000, 7);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -326,23 +326,23 @@ module paystreamer_v2::account_tests {
         let delegated = account::mint_delegated_cap<TEST_USDC>(
             &cap,
             &account,
-            access_control::permission_depositor(),
+            ac::permission_depositor(),
             &clock,
             ts::ctx(&mut sc),
         );
-        assert!(access_control::account_id(&delegated) == account_id, 0);
+        assert!(ac::account_id(&delegated) == account_id, 0);
         assert!(
-            access_control::permissions(&delegated) == access_control::permission_depositor(),
+            ac::permissions(&delegated) == ac::permission_depositor(),
             1,
         );
         // Delegated cap has OWNER stripped (just the depositor bit).
         assert!(
-            !access_control::has_permission(&delegated, access_control::permission_owner()),
+            !ac::has_permission(&delegated, ac::permission_owner()),
             2,
         );
 
-        access_control::destroy_account_cap_for_testing(delegated);
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(delegated);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -371,14 +371,14 @@ module paystreamer_v2::account_tests {
         let _bad = account::mint_delegated_cap<TEST_USDC>(
             &dep_cap,
             &account,
-            access_control::permission_depositor(),
+            ac::permission_depositor(),
             &clock,
             ts::ctx(&mut sc),
         );
 
-        access_control::destroy_account_cap_for_testing(_bad);
-        access_control::destroy_account_cap_for_testing(dep_cap);
-        access_control::destroy_account_cap_for_testing(_cap);
+        ac::destroy_account_cap_for_testing(_bad);
+        ac::destroy_account_cap_for_testing(dep_cap);
+        ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -408,7 +408,7 @@ module paystreamer_v2::account_tests {
         account::close_account<TEST_USDC>(&cap, &mut account, &clock);
         assert!(account::is_closed(account::status(&account)), 0);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -436,7 +436,7 @@ module paystreamer_v2::account_tests {
         let coin1 = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
         account::deposit<TEST_USDC>(&cap, &mut account, coin1, &clock, ts::ctx(&mut sc));
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -469,11 +469,11 @@ module paystreamer_v2::account_tests {
         let shared_account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
             &sc, account_id,
         );
-        let cap_in_inventory = ts::take_from_address<access_control::AccountCap>(&sc, @0xA);
-        let cap_account_id = access_control::account_id(&cap_in_inventory);
+        let cap_in_inventory = ts::take_from_address<ac::AccountCap>(&sc, @0xA);
+        let cap_account_id = ac::account_id(&cap_in_inventory);
         assert!(cap_account_id == account_id, 0);
 
-        access_control::destroy_account_cap_for_testing(cap_in_inventory);
+        ac::destroy_account_cap_for_testing(cap_in_inventory);
         account::destroy_account_for_testing(shared_account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);

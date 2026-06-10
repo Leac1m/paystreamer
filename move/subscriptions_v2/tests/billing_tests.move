@@ -4,7 +4,7 @@
 #[test_only]
 module paystreamer_v2::billing_tests {
     use paystreamer_v2::account;
-    use paystreamer_v2::access_control;
+    use paystreamer_v2::ac;
     use paystreamer_v2::billing;
     use paystreamer_v2::registry;
     use std::string;
@@ -88,7 +88,7 @@ module paystreamer_v2::billing_tests {
         // Map size is 1.
         assert!(account::subscription_count(&account) == 1, 8);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -140,7 +140,7 @@ module paystreamer_v2::billing_tests {
             ts::ctx(&mut sc),
         );
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -201,7 +201,7 @@ module paystreamer_v2::billing_tests {
         );
         assert!(billing::subscription_status(&account, platform_id) == 0, 2);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -249,7 +249,7 @@ module paystreamer_v2::billing_tests {
         );
         assert!(billing::subscription_status(&account, platform_id) == 2, 1);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -301,7 +301,7 @@ module paystreamer_v2::billing_tests {
         );
         assert!(billing::subscription_status(&account, platform_id) == 2, 0);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -366,7 +366,7 @@ module paystreamer_v2::billing_tests {
             7,
         );
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -411,7 +411,7 @@ module paystreamer_v2::billing_tests {
         // Must abort: paused subs cannot record payments.
         billing::record_payment<TEST_USDC>(&mut account, platform_id, 1_000_000, &clock);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -478,7 +478,7 @@ module paystreamer_v2::billing_tests {
         let other_platform = object::id_from_address(@0xDEADBEEF);
         assert!(!billing::can_bill(&account, other_platform, &clock), 4);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -515,7 +515,7 @@ module paystreamer_v2::billing_tests {
         );
         assert!(!billing::can_bill(&account, platform_id, &clock), 0);
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -568,7 +568,7 @@ module paystreamer_v2::billing_tests {
             ts::ctx(&mut sc),
         );
 
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
@@ -608,9 +608,9 @@ module paystreamer_v2::billing_tests {
         );
 
         // DEPOSITOR-only cap: must not be able to pause.
-        let dep_cap = access_control::new_account_cap_for_testing(
+        let dep_cap = ac::new_account_cap_for_testing(
             account_id,
-            access_control::permission_depositor(),
+            ac::permission_depositor(),
             ts::ctx(&mut sc),
         );
         billing::pause_subscription<TEST_USDC>(
@@ -621,8 +621,8 @@ module paystreamer_v2::billing_tests {
             ts::ctx(&mut sc),
         );
 
-        access_control::destroy_account_cap_for_testing(dep_cap);
-        access_control::destroy_account_cap_for_testing(cap);
+        ac::destroy_account_cap_for_testing(dep_cap);
+        ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);

@@ -16,7 +16,7 @@
 /// `init` time in production; the bootstrap path uses the multisig
 /// `register_coin_type<T>(info)` flow.
 ///
-/// `AccessControl<ACCESS_CONTROL>` (see `access_control.move`) is reserved
+/// `AccessControl<AC>` (see `access_control.move`) is reserved
 /// for a future hardening pass. The v2 bootstrap uses a simple
 /// `admin_address` field as the authority. The bootstrap admin must be
 /// rotated to the multisig in the same publish tx that calls
@@ -120,7 +120,7 @@ module paystreamer_v2::registry {
         /// future discriminants (>= 2) are added by multisig tx.
         discriminants: Table<u8, AccountTypeInfo>,
         /// The address authorized to add or remove coin types. Bootstrap
-        /// field; the protocol-wide `AccessControl<ACCESS_CONTROL>` is the
+        /// field; the protocol-wide `AccessControl<AC>` is the
         /// source of truth (`REGISTRY_ADMIN_ROLE`). We mirror the address
         /// for O(1) reads; the AC is the authority.
         admin_address: address,
@@ -190,7 +190,7 @@ module paystreamer_v2::registry {
     // === Accessors (view) ===
 
     /// Current bootstrap admin address. The protocol-wide
-    /// `AccessControl<ACCESS_CONTROL>` is the source of truth for the
+    /// `AccessControl<AC>` is the source of truth for the
     /// `REGISTRY_ADMIN_ROLE`; this is the O(1) mirror.
     public fun admin_address(r: &CoinTypeRegistry): address { r.admin_address }
 
@@ -240,7 +240,7 @@ module paystreamer_v2::registry {
 
     /// Register a new coin type. The caller must equal
     /// `CoinTypeRegistry.admin_address`. The protocol-wide
-    /// `AccessControl<ACCESS_CONTROL>` is the source of truth for the
+    /// `AccessControl<AC>` is the source of truth for the
     /// `REGISTRY_ADMIN_ROLE`; for v2 we use a simple `admin_address`
     /// check as a bootstrap mechanism (will be replaced by
     /// `Auth<REGISTRY_ADMIN_ROLE>` in a future hardening pass).

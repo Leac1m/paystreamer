@@ -20,7 +20,7 @@
 /// The platform is identified by `Platform.owner: address` (set at
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
 /// `ctx.sender() == platform.owner`. A future hardening pass will
-/// replace this with an embedded `AccessControl<ACCESS_CONTROL>` and
+/// replace this with an embedded `AccessControl<AC>` and
 /// OZ `Auth<PLATFORM_ADMIN_ROLE>` (one role per module, OZ invariant).
 ///
 /// ## Three rate limiters (architecture §6.7 step 7)
@@ -191,7 +191,7 @@ module paystreamer_v2::platform {
     ///
     /// `owner` is the bootstrap admin address. A future hardening
     /// pass will replace this with an embedded
-    /// `AccessControl<ACCESS_CONTROL>` and OZ `Auth<PLATFORM_ADMIN_ROLE>`
+    /// `AccessControl<AC>` and OZ `Auth<PLATFORM_ADMIN_ROLE>`
     /// (one role per module, OZ invariant). The same role is
     /// described in `access_control.move` (yet to be wired in).
     ///

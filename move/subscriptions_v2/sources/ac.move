@@ -4,34 +4,34 @@
 /// Protocol-wide access control primitives for PayStreamer v2.
 ///
 /// This module owns:
-/// 1. The protocol-wide `ACCESS_CONTROL` one-time witness (OTW) — the
+/// 1. The protocol-wide `AC` one-time witness (OTW) — the
 ///    VM-required upper-case of the module name `access_control`. The
 ///    OTW is consumed by `openzeppelin_access::access_control::new` to
-///    mint the protocol-wide `AccessControl<ACCESS_CONTROL>` singleton.
+///    mint the protocol-wide `AccessControl<AC>` singleton.
 /// 2. The eight role types consumed by every other core module.
 /// 3. The user-facing `AccountCap` carrying the delegated permission
 ///    bitfield (BUG FIX #1 from the v2 architecture doc, §2 and §5.2).
 ///
 /// Per the OpenZeppelin invariant, all role types live in the same
 /// module as the OTW. The `init` function mints and shares the
-/// protocol-wide `AccessControl<ACCESS_CONTROL>` for the global
+/// protocol-wide `AccessControl<AC>` for the global
 /// `CoinTypeRegistry` multisig; per-Platform and per-Account
-/// `AccessControl<ACCESS_CONTROL>` registries are minted in their own
+/// `AccessControl<AC>` registries are minted in their own
 /// modules.
 ///
 /// `Auth<Role>` is a self-validating typed witness. The phantom
-/// `ACCESS_CONTROL` tag (the OTW) is the type parameter on every
-/// `AccessControl<ACCESS_CONTROL>` instance in the protocol.
-module paystreamer_v2::access_control {
+/// `AC` tag (the OTW) is the type parameter on every
+/// `AccessControl<AC>` instance in the protocol.
+module paystreamer_v2::ac {
     use sui::object;
     use sui::tx_context::TxContext;
     use openzeppelin_access::access_control::{Self, AccessControl};
 
-    /// Protocol-wide one-time witness. Named `ACCESS_CONTROL` because the
+    /// Protocol-wide one-time witness. Named `AC` because the
     /// Sui VM requires the OTW type to be the upper-case of the module
     /// that declares it. Consumed exactly once at package publish to mint
-    /// the protocol-wide `AccessControl<ACCESS_CONTROL>` singleton.
-    public struct ACCESS_CONTROL has drop {}
+    /// the protocol-wide `AccessControl<AC>` singleton.
+    public struct AC has drop {}
 
     // === Role types ===
     //
@@ -75,7 +75,7 @@ module paystreamer_v2::access_control {
     /// User-facing capability for a `SubscriptionAccount<T>`. Non-transferable
     /// by default (`key` only, not `store`). The bitfield `permissions`
     /// encodes which fine-grained actions the holder is allowed to perform
-    /// (BUG FIX #1). Pair with the embedded `AccessControl<ACCESS_CONTROL>`
+    /// (BUG FIX #1). Pair with the embedded `AccessControl<AC>`
     /// on the account, which mints the corresponding `Auth<Role>` at call
     /// time.
     public struct AccountCap has key {
@@ -109,16 +109,16 @@ module paystreamer_v2::access_control {
 
     // === init ===
 
-    /// One-time initializer. The Sui VM injects the `ACCESS_CONTROL` OTW
+    /// One-time initializer. The Sui VM injects the `AC` OTW
     /// exactly once at first publish, so the resulting
-    /// `AccessControl<ACCESS_CONTROL>` is the protocol-wide singleton. The
+    /// `AccessControl<AC>` is the protocol-wide singleton. The
     /// deployer (`ctx.sender()`) becomes the initial default admin; the
     /// deployer is expected to immediately transfer that role to the
     /// multisig via the OZ delayed transfer flow.
     ///
     /// Role: protocol publish tx only; not callable by users.
-    fun init(otw: ACCESS_CONTROL, ctx: &mut TxContext) {
-        let ac = access_control::new<ACCESS_CONTROL>(otw, 48 * 60 * 60 * 1_000, ctx);
+    fun init(otw: AC, ctx: &mut TxContext) {
+        let ac = access_control::new<AC>(otw, 48 * 60 * 60 * 1_000, ctx);
         sui::transfer::public_share_object(ac);
     }
 
@@ -129,7 +129,7 @@ module paystreamer_v2::access_control {
     /// responsible for transferring it to the appropriate address.
     ///
     /// Role: caller must already hold `ACCOUNT_OWNER_ROLE` on the account's
-    /// embedded `AccessControl<ACCESS_CONTROL>` (checked at the call site
+    /// embedded `AccessControl<AC>` (checked at the call site
     /// in `account.move`).
     public fun new_account_cap(
         account_id: object::ID,
