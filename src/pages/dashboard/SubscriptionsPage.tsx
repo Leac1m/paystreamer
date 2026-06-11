@@ -26,6 +26,8 @@ interface SubscriptionInfo {
   denomination: string;
 }
 
+import { queryAccountCreatedEvents } from "../../lib/graphql";
+
 export function SubscriptionsPage() {
   const client = useCurrentClient();
   const account = useCurrentAccount();
@@ -36,13 +38,20 @@ export function SubscriptionsPage() {
     queryKey: ["subscription-accounts", account?.address],
     queryFn: async () => {
       if (!account?.address) return [];
-      const { objects } = await client.core.listOwnedObjects({
-        owner: account.address,
-        type: `${DEVNET_V2_PACKAGE_ID}::account::SubscriptionAccount`,
-        limit: 10,
-        include: { json: true },
-      });
-      return objects;
+      
+      const events = await queryAccountCreatedEvents(account.address);
+      const accountIds = Array.from(new Set(events.map(e => e.account_id)));
+      
+      if (accountIds.length === 0) return [];
+      
+      const results = await Promise.all(
+        accountIds.map(id => client.core.getObject({
+          objectId: id,
+          include: { json: true },
+        }))
+      );
+      
+      return results.map(r => r.object).filter(Boolean);
     },
     enabled: !!account?.address,
   });
@@ -55,12 +64,17 @@ export function SubscriptionsPage() {
       const fields = obj.json as Record<string, unknown>;
       const subs = fields?.subscriptions as Record<string, unknown> | undefined;
       if (subs && typeof subs === "object") {
-        const contents = (subs as any).contents || Object.entries(subs);
-        for (const [platformId, sub] of Object.entries(contents as Record<string, unknown>)) {
+        const contents = Array.isArray((subs as any).contents) 
+          ? (subs as any).contents 
+          : (Array.isArray(subs) ? subs : Object.entries(subs).map(([k, v]) => ({ key: k, value: v })));
+          
+        for (const item of contents) {
+          const platformId = item.key;
+          const sub = item.value?.fields || item.value;
           subscriptions.push({
             accountId: obj.objectId,
             capId: fields?.cap_id as string || "",
-            platformId: typeof platformId === "string" ? platformId : "",
+            platformId: String(platformId),
             subscription: sub as SubscriptionInfo["subscription"],
             denomination: fields?.denomination as string || "0x2::sui::SUI",
           });

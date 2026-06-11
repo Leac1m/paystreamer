@@ -32,7 +32,8 @@ interface SubscriptionDetailProps {
 
 function formatAmount(amount: string | number, denomination: string): string {
   const raw = typeof amount === "string" ? parseInt(amount) : amount;
-  const normalized = raw / 1_000_000_000;
+  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
+  const normalized = safeRaw / 1_000_000_000;
   const symbol = denomination.includes("usdc")
     ? "USDC"
     : denomination.includes("usdsui")
@@ -43,12 +44,13 @@ function formatAmount(amount: string | number, denomination: string): string {
 
 function getFrequencyLabel(ms: string | number): string {
   const raw = typeof ms === "string" ? parseInt(ms) : ms;
-  if (raw === 86400000) return "Daily";
-  if (raw === 604800000) return "Weekly";
-  if (raw === 2592000000) return "Monthly";
-  if (raw === 31536000000) return "Yearly";
-  if (raw < 86400000) return `${Math.round(raw / 86400000)} days`;
-  return `${Math.round(raw / 86400000)} days`;
+  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
+  if (safeRaw === 0) return "Unknown";
+  if (safeRaw === 86400000) return "Daily";
+  if (safeRaw === 604800000) return "Weekly";
+  if (safeRaw === 2592000000) return "Monthly";
+  if (safeRaw === 31536000000) return "Yearly";
+  return `${Math.round(safeRaw / 86400000)} days`;
 }
 
 export function SubscriptionDetail({
@@ -88,17 +90,22 @@ export function SubscriptionDetail({
   const platformName = String(platformFields?.name ?? "Unknown Platform");
   const platformDescription = String(platformFields?.description ?? "No description");
 
-  const statusVariant =
-    subscription.status.variant === 0
+  const statusRaw = subscription?.status as any;
+  const statusVariant = typeof statusRaw === 'number' 
+    ? statusRaw 
+    : (statusRaw?.variant ?? 0);
+
+  const statusType =
+    statusVariant === 0
       ? "default"
-      : subscription.status.variant === 1
+      : statusVariant === 1
       ? "secondary"
       : "destructive";
 
   const statusLabel =
-    subscription.status.variant === 0
+    statusVariant === 0
       ? "Active"
-      : subscription.status.variant === 1
+      : statusVariant === 1
       ? "Paused"
       : "Cancelled";
 
@@ -109,7 +116,7 @@ export function SubscriptionDetail({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <CardTitle>{platformName}</CardTitle>
-              <Badge variant={statusVariant}>{statusLabel}</Badge>
+              <Badge variant={statusType}>{statusLabel}</Badge>
             </div>
             <CardDescription>{platformDescription}</CardDescription>
           </div>
@@ -137,20 +144,20 @@ export function SubscriptionDetail({
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="font-medium">
-                {formatAmount(subscription.amount, denomination)}
+                {formatAmount((subscription as any).amount || (subscription as any).tier_amount, denomination)}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Frequency</p>
               <p className="font-medium">
-                {getFrequencyLabel(subscription.frequency_ms)}
+                {getFrequencyLabel((subscription as any).frequency_ms || (subscription as any).tier_frequency_ms || (subscription as any).schedule_frequency_ms)}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Next Billing</p>
               <p className="font-medium">
-                {subscription.next_billing_ts
-                  ? new Date(Number(subscription.next_billing_ts)).toLocaleDateString()
+                {((subscription as any).next_billing_ts || (subscription as any).next_billing_time)
+                  ? new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleDateString()
                   : "N/A"}
               </p>
             </div>

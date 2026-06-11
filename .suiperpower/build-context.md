@@ -300,6 +300,18 @@ existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 **Symptom:** Broken redirects causing wallet context loss, and 404 blank screens (e.g., `No routes matched location "/plaftform"`).
 **Fix:** Replaced hard page reloads (`window.location.href`) with React Router's `navigate()` to preserve `DAppKitProvider` wallet session context. Added a `*` catch-all route in `router.tsx` to gracefully redirect 404s to `/`. Updated the Landing page CTAs to allow authenticated navigation to both `/platforms` and `/dashboard`.
 
+### Bug 8 — VecMap Parsing crashing Dashboard (RESOLVED)
+
+**Symptom:** `TypeError: platformJson?.tiers?.filter is not a function` and `Cannot read properties of undefined (reading 'variant')`.
+**Root cause:** Move 2024 `VecMap` serializes its internal entries as an array of `{ key, value }` wrapped inside a `contents` field. The UI was trying to parse it as a standard map or direct object.
+**Fix:** Safely unwrapped `VecMap` using `(subs as any).contents` mapping in `SubscribePage.tsx` and `SubscriptionsPage.tsx` to correctly iterate over the internal entries.
+
+### Bug 9 — NaN and Unknown Subscriptions (RESOLVED)
+
+**Symptom:** `NaN SUI` amount and `Unknown` frequency displayed for user subscriptions on the dashboard.
+**Root cause:** The `SubscriptionV1` contract uses `tier_amount`, `tier_frequency_ms`, and `schedule_frequency_ms` inside the `value.fields` object, not the simpler `amount` and `frequency_ms` that the UI originally mapped out.
+**Fix:** Added fallback property access (`tier_amount`, `tier_frequency_ms`) in `SubscriptionCard.tsx` and `SubscriptionDetail.tsx`, with `Number.isNaN()` safe-guards to display 0 instead of NaN in extreme failure cases.
+
 ---
 
 ## Key design decisions
