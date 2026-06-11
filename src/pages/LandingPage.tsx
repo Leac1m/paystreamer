@@ -88,14 +88,6 @@ export default function LandingPage() {
     },
   });
 
-  const { data: hasAccounts } = useQuery({
-    queryKey: ["user-has-accounts", account?.address],
-    queryFn: async () => {
-      return false;
-    },
-    enabled: !account,
-  });
-
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <div className="noise" />

@@ -33,7 +33,7 @@ export function TiersPage() {
   }
 
   const platform = platforms[0];
-  const tiers = platform.json.tiers || [];
+  const tiers = Array.isArray(platform.json.tiers) ? platform.json.tiers : [];
 
   return (
     <div className="space-y-6">

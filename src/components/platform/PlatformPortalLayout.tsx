@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Clock, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { NetworkBanner } from "../dashboard/NetworkBanner";
@@ -24,6 +25,7 @@ export function PlatformPortalLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformObject | null>(null);
+  const modalRef = useRef<React.ElementRef<typeof ConnectModal>>(null);
 
   const { data: platforms } = useOwnedPlatforms(account?.address ?? null);
 
@@ -40,12 +42,21 @@ export function PlatformPortalLayout() {
       <div className="min-h-screen bg-[#0a0a0f]">
         <NetworkBanner />
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Connect Wallet</h2>
-            <p className="text-[#94a3b8]">Please connect your wallet to access the platform portal.</p>
-            <Button onClick={() => navigate("/")} className="mt-4">
-              Go to Home
-            </Button>
+          <div className="text-center flex flex-col items-center">
+            <h2 className="text-2xl font-bold text-white mb-4">Platform Portal Access</h2>
+            <p className="text-[#94a3b8] mb-6">Please connect your wallet to access the platform portal.</p>
+            <div className="flex gap-4">
+              <Button onClick={() => navigate("/")} variant="outline" className="text-white border-white/20 hover:bg-white/10">
+                Go to Home
+              </Button>
+              <button
+                onClick={() => modalRef.current?.show()}
+                className="btn-primary text-sm px-6 py-2"
+              >
+                Connect Wallet
+              </button>
+            </div>
+            <ConnectModal ref={modalRef} />
           </div>
         </div>
       </div>

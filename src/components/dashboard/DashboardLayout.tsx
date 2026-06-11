@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "../ui/button";
 import { NetworkBanner } from "./NetworkBanner";
 import { Menu, Wallet, CreditCard, Bell, Settings, Loader2 } from "lucide-react";
@@ -18,6 +19,7 @@ export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const modalRef = useRef<React.ElementRef<typeof ConnectModal>>(null);
 
   if (isConnecting) {
     return (
@@ -32,12 +34,21 @@ export function DashboardLayout() {
       <div className="min-h-screen bg-background">
         <NetworkBanner />
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Connect Wallet</h2>
-            <p className="text-muted-foreground">Please connect your wallet to access the dashboard.</p>
-            <Button onClick={() => navigate("/")} className="mt-4">
-              Go to Home
-            </Button>
+          <div className="text-center flex flex-col items-center">
+            <h2 className="text-2xl font-bold mb-4">Dashboard Access</h2>
+            <p className="text-muted-foreground mb-6">Please connect your wallet to access the dashboard.</p>
+            <div className="flex gap-4">
+              <Button onClick={() => navigate("/")} variant="outline">
+                Go to Home
+              </Button>
+              <button
+                onClick={() => modalRef.current?.show()}
+                className="btn-primary text-sm px-6 py-2"
+              >
+                Connect Wallet
+              </button>
+            </div>
+            <ConnectModal ref={modalRef} />
           </div>
         </div>
       </div>

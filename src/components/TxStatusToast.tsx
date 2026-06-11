@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-import { CheckCircle, XCircle, X } from "lucide-react";
+import { CheckCircle, XCircle, X, ExternalLink } from "lucide-react";
 import { cn } from "../lib/utils";
 import { getErrorMessage } from "../lib/errors";
 
@@ -165,9 +165,15 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
           {message}
         </p>
         {digest && (
-          <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+          <a
+            href={`https://explorer.sui.io/txblock/${digest}?network=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground mt-0.5 font-mono hover:text-[#10b981] transition-colors flex items-center gap-1 underline"
+          >
             {digest.slice(0, 8)}...{digest.slice(-4)}
-          </p>
+            <ExternalLink className="h-3 w-3" />
+          </a>
         )}
       </div>
       {onClose && (

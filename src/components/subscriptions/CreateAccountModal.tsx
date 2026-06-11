@@ -97,12 +97,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         arguments: [tx.object(DEVNET_COIN_TYPE_REGISTRY_ID), initialPolicies, tx.object(CLOCK_OBJECT_ID)],
       });
 
-      tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
-        typeArguments: [selectedDenomination],
-        arguments: [accountObj, cap],
-      });
-
       const depositNum = parseFloat(depositAmount);
       if (depositNum > 0) {
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * 1_000_000_000))]);
@@ -112,6 +106,12 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
           arguments: [cap, accountObj, coin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
+
+      tx.moveCall({
+        target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
+        typeArguments: [selectedDenomination],
+        arguments: [accountObj, cap],
+      });
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 

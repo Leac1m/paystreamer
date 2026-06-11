@@ -41,7 +41,7 @@ function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
 }
 
 function calculateMRR(tiers: PlatformObject["json"]["tiers"]): string {
-  if (!tiers || tiers.length === 0) return "$0.00";
+  if (!tiers || !Array.isArray(tiers) || tiers.length === 0) return "$0.00";
 
   const activeTiers = tiers.filter((t) => t.is_active);
   const totalMonthly = activeTiers.reduce((sum, tier) => {

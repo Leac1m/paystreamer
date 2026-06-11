@@ -19,8 +19,14 @@ interface AccountCardProps {
   onManage?: (accountId: string) => void;
 }
 
-function formatBalance(balance: number | string, denomination: string): string {
-  const raw = typeof balance === "string" ? parseInt(balance) : balance;
+function formatBalance(rawBalance: any, denomination: string): string {
+  let raw = 0;
+  if (typeof rawBalance === "object" && rawBalance !== null) {
+    raw = parseInt(rawBalance.public_balance ?? rawBalance.balance ?? rawBalance.value ?? "0", 10);
+  } else if (typeof rawBalance === "string" || typeof rawBalance === "number") {
+    raw = parseInt(String(rawBalance), 10);
+  }
+
   const normalized = raw / 1_000_000_000;
   const symbol = denomination.includes("usdc")
     ? "USDC"

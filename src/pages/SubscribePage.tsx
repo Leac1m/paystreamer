@@ -32,8 +32,38 @@ function formatAmount(amount: bigint, decimals: number = 9): string {
 interface TierInfo {
   name: string;
   amount: string;
-  frequency: { variant: number };
+  frequency_ms?: string;
+  frequency?: string | { variant: number };
   is_active: boolean;
+}
+
+function formatFrequency(tier: TierInfo): string {
+  const freq = tier.frequency_ms || tier.frequency;
+  if (typeof freq === "object" && freq !== null && "variant" in freq) {
+    return FREQUENCY_LABELS[freq.variant] || "Unknown";
+  }
+  const fStr = String(freq);
+  if (fStr === "86400000") return "Daily";
+  if (fStr === "604800000") return "Weekly";
+  if (fStr === "2592000000") return "Monthly";
+  if (fStr === "31536000000") return "Yearly";
+  if (fStr === "daily" || fStr === "weekly" || fStr === "monthly" || fStr === "yearly") {
+    return fStr.charAt(0).toUpperCase() + fStr.slice(1);
+  }
+  return "Unknown";
+}
+
+function getFrequencyMs(tier: TierInfo): bigint {
+  const freq = tier.frequency_ms || tier.frequency;
+  if (typeof freq === "object" && freq !== null && "variant" in freq) {
+    return BigInt(freq.variant === 0 ? 86400000 : freq.variant === 1 ? 604800000 : 2592000000);
+  }
+  const fStr = String(freq);
+  if (fStr === "daily") return BigInt(86400000);
+  if (fStr === "weekly") return BigInt(604800000);
+  if (fStr === "monthly") return BigInt(2592000000);
+  if (fStr === "yearly") return BigInt(31536000000);
+  return BigInt(fStr || "2592000000");
 }
 
 interface PlatformJson {
@@ -96,7 +126,14 @@ export default function SubscribePage() {
   const accountCapId = uniqueAccounts[0]?.capId;
 
   const platformJson = platform?.json as PlatformJson | undefined;
-  const activeTiers = platformJson?.tiers?.filter((t) => t.is_active) || [];
+  const tiersJson = platformJson?.tiers as any;
+  const tiersList = Array.isArray(tiersJson) 
+    ? tiersJson 
+    : (Array.isArray(tiersJson?.contents) 
+        ? tiersJson.contents 
+        : []);
+  const mappedTiers = tiersList.map((t: any) => t.value || t);
+  const activeTiers = mappedTiers.filter((t: any) => t.is_active !== false);
 
   const handleSubscribe = async (tierIndex: number, tierName: string, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
@@ -187,7 +224,7 @@ export default function SubscribePage() {
       target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
     });
 
-    tx.moveCall({
+    const [accountObj, cap] = tx.moveCall({
       target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
       typeArguments: [SUI_TYPE_ARG],
       arguments: [
@@ -195,6 +232,12 @@ export default function SubscribePage() {
         initialPolicies,
         tx.object(CLOCK_OBJECT_ID),
       ],
+    });
+
+    tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
+      typeArguments: [SUI_TYPE_ARG],
+      arguments: [accountObj, cap],
     });
 
     try {
@@ -351,7 +394,7 @@ export default function SubscribePage() {
                         <div className="text-2xl font-bold text-white">
                           ${formatAmount(BigInt(tier.amount))}
                           <span className="text-sm font-normal text-[#94a3b8]">
-                            {" "}/ {FREQUENCY_LABELS[tier.frequency?.variant] || "Unknown"}
+                            {" "}/ {formatFrequency(tier)}
                           </span>
                         </div>
 
@@ -369,13 +412,12 @@ export default function SubscribePage() {
                         ) : !accountId ? (
                           <Button
                             onClick={() => {
-                              const frequencyMs = tier.frequency?.variant === 0 ? 86400000 :
-                                tier.frequency?.variant === 1 ? 604800000 : 2592000000;
+                              const frequencyMs = getFrequencyMs(tier);
                               setPendingTier({
                                 index,
                                 name: tier.name,
                                 amount: BigInt(tier.amount),
-                                frequency: BigInt(frequencyMs),
+                                frequency: frequencyMs,
                               });
                               setShowCreateAccountModal(true);
                             }}
@@ -386,9 +428,8 @@ export default function SubscribePage() {
                         ) : (
                           <Button
                             onClick={() => {
-                              const frequencyMs = tier.frequency?.variant === 0 ? 86400000 :
-                                tier.frequency?.variant === 1 ? 604800000 : 2592000000;
-                              handleSubscribe(index, tier.name, BigInt(tier.amount), BigInt(frequencyMs));
+                              const frequencyMs = getFrequencyMs(tier);
+                              handleSubscribe(index, tier.name, BigInt(tier.amount), frequencyMs);
                             }}
                             disabled={isPending}
                             loading={isPending}

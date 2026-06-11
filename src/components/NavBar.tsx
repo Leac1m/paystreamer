@@ -22,10 +22,11 @@ export default function NavBar() {
   }, []);
 
   const navLinks = [
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'For Users', href: '#for-users' },
-    { label: 'For Platforms', href: '#for-platforms' },
-    { label: 'Security', href: '#security' },
+    { label: 'Explore Platforms', href: '/explore' },
+    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'For Users', href: '/#for-users' },
+    { label: 'For Platforms', href: '/#for-platforms' },
+    { label: 'Security', href: '/#security' },
   ];
 
   return (
@@ -41,7 +42,7 @@ export default function NavBar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <a href="#" className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white" fillOpacity="0.9" />

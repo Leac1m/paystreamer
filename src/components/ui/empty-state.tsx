@@ -39,13 +39,16 @@ export function NoAccountsEmpty() {
   );
 }
 
+import { useNavigate } from "react-router-dom";
+
 export function NoSubscriptionsEmpty() {
+  const navigate = useNavigate();
   return (
     <EmptyState
       icon={<SubscriptionsIcon />}
       title="No subscriptions yet"
       description="Browse platforms and subscribe to start streaming payments."
-      action={{ label: "Browse Platforms", onClick: () => {} }}
+      action={{ label: "Browse Platforms", onClick: () => navigate("/explore") }}
     />
   );
 }

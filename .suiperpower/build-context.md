@@ -312,6 +312,12 @@ existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 **Root cause:** The `SubscriptionV1` contract uses `tier_amount`, `tier_frequency_ms`, and `schedule_frequency_ms` inside the `value.fields` object, not the simpler `amount` and `frequency_ms` that the UI originally mapped out.
 **Fix:** Added fallback property access (`tier_amount`, `tier_frequency_ms`) in `SubscriptionCard.tsx` and `SubscriptionDetail.tsx`, with `Number.isNaN()` safe-guards to display 0 instead of NaN in extreme failure cases.
 
+### Bug 10 — Scheduler script incompatible with v2 Schema (RESOLVED)
+
+**Symptom:** The background scheduler script failed to fetch subscriptions and process them.
+**Root cause:** The `scripts/scheduler.ts` was written for v1 contracts, requiring a `SchedulerCap`, using outdated constant variable references, and performing legacy queries.
+**Fix:** Refactored `scheduler.ts` to reflect the permissionless structure of `process_due_payment` in v2. Switched from finding `SchedulerCap` to parsing all `AccountCreated` events globally on Devnet using `SuiGraphQLClient`, dynamically unpacking the new `VecMap` schema, checking due payments, and building a composite transaction using `@mysten/sui/transactions` and executing it securely with `SuiGraphQLClient.signAndExecuteTransaction()`.
+
 ---
 
 ## Key design decisions
