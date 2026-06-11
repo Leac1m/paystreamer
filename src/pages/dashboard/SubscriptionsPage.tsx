@@ -44,7 +44,9 @@ export function SubscriptionsPage() {
       if (!account?.address) return [];
       
       const events = await queryAccountCreatedEvents(account.address);
-      const accountIds = Array.from(new Set(events.map(e => e.account_id)));
+      const capMap = new Map<string, string>();
+      events.forEach(e => capMap.set(e.account_id, e.cap_id));
+      const accountIds = Array.from(capMap.keys());
       
       if (accountIds.length === 0) return [];
       
@@ -55,7 +57,10 @@ export function SubscriptionsPage() {
         }))
       );
       
-      return results.map(r => r.object).filter(Boolean);
+      return results.map(r => r.object ? {
+        obj: r.object,
+        capId: capMap.get(r.object.objectId) || ""
+      } : null).filter(Boolean);
     },
     enabled: !!account?.address,
   });
@@ -63,7 +68,8 @@ export function SubscriptionsPage() {
   const subscriptions: SubscriptionInfo[] = [];
 
   if (accountObjects) {
-    for (const obj of accountObjects) {
+    for (const item of accountObjects as any[]) {
+      const { obj, capId } = item;
       if (obj instanceof Error) continue;
       const fields = obj.json as Record<string, unknown>;
       const subs = fields?.subscriptions as Record<string, unknown> | undefined;
@@ -72,12 +78,12 @@ export function SubscriptionsPage() {
           ? (subs as any).contents 
           : (Array.isArray(subs) ? subs : Object.entries(subs).map(([k, v]) => ({ key: k, value: v })));
           
-        for (const item of contents) {
-          const platformId = item.key;
-          const sub = item.value?.fields || item.value;
+        for (const contentItem of contents) {
+          const platformId = contentItem.key;
+          const sub = contentItem.value?.fields || contentItem.value;
           subscriptions.push({
             accountId: obj.objectId,
-            capId: fields?.cap_id as string || "",
+            capId: capId,
             platformId: String(platformId),
             subscription: sub as SubscriptionInfo["subscription"],
             denomination: fields?.denomination as string || "0x2::sui::SUI",

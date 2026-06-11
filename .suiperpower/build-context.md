@@ -324,6 +324,35 @@ existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 **Root cause:** The `create_subscription` Move function enforces a 1-subscription-per-platform limit on the user's `SubscriptionAccount` (`VecMap<ID, SubscriptionV1>`). However, the frontend UI allowed clicking the subscribe button because it was using an outdated v1 validation (`platformJson.subscribers.some(...)`) to check for an existing subscription, which failed silently and passed the transaction to the contract.
 **Fix:** Refactored `SubscribePage.tsx` to correctly validate existing subscriptions by fetching the user's active `SubscriptionAccount` via `SuiGraphQLClient` and checking if the target `platformId` exists as a key inside the account's internal `subscriptions` map. If found, all tier buttons on the platform page accurately display "Already Subscribed" and disable the form.
 
+### Bug 13 — scheduler.js `ensure_initialized` missing arguments (RESOLVED 2026-06-11)
+
+**Symptom:** `process_due_payment` PTB failed at execution with argument count mismatch.
+
+**Root cause:** `policies::ensure_initialized<T>(account: &SubscriptionAccount<T>, limiters: &mut PolicyLimiters, clock: &Clock)` requires 3 arguments. The scheduler was calling it with only `clock`:
+
+```javascript
+// WRONG — only 1 argument passed
+tx.moveCall({
+    target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
+    typeArguments: [SUI_TYPE_ARG],
+    arguments: [tx.object(CLOCK_OBJECT_ID)],
+});
+```
+
+**Fix:** Pass all three arguments — `account`, `limiters`, `clock`:
+
+```javascript
+tx.moveCall({
+    target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
+    typeArguments: [SUI_TYPE_ARG],
+    arguments: [
+        tx.object(payment.accountId),
+        limiters,
+        tx.object(CLOCK_OBJECT_ID)
+    ],
+});
+```
+
 ### Bug 12 — GraphQL Type Safety and Pagination Limits (RESOLVED)
 
 **Symptom:** Queries failed with `GRAPHQL_VALIDATION_FAILED: Page size is too large: 100 > 50`, and the TypeScript compiler returned multiple typing errors after SDK updates.
