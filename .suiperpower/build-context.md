@@ -318,6 +318,18 @@ existed and cancel failed with key-not-found. Fixed by fixing Bug 3.
 **Root cause:** The `scripts/scheduler.ts` was written for v1 contracts, requiring a `SchedulerCap`, using outdated constant variable references, and performing legacy queries.
 **Fix:** Refactored `scheduler.ts` to reflect the permissionless structure of `process_due_payment` in v2. Switched from finding `SchedulerCap` to parsing all `AccountCreated` events globally on Devnet using `SuiGraphQLClient`, dynamically unpacking the new `VecMap` schema, checking due payments, and building a composite transaction using `@mysten/sui/transactions` and executing it securely with `SuiGraphQLClient.signAndExecuteTransaction()`.
 
+### Bug 11 — MoveAbort(24579) on SubscribePage (RESOLVED)
+
+**Symptom:** Subscribing to an additional tier on the same platform resulted in `MoveAbort 24579` (`ESubscriptionAlreadyExists`).
+**Root cause:** The `create_subscription` Move function enforces a 1-subscription-per-platform limit on the user's `SubscriptionAccount` (`VecMap<ID, SubscriptionV1>`). However, the frontend UI allowed clicking the subscribe button because it was using an outdated v1 validation (`platformJson.subscribers.some(...)`) to check for an existing subscription, which failed silently and passed the transaction to the contract.
+**Fix:** Refactored `SubscribePage.tsx` to correctly validate existing subscriptions by fetching the user's active `SubscriptionAccount` via `SuiGraphQLClient` and checking if the target `platformId` exists as a key inside the account's internal `subscriptions` map. If found, all tier buttons on the platform page accurately display "Already Subscribed" and disable the form.
+
+### Bug 12 — GraphQL Type Safety and Pagination Limits (RESOLVED)
+
+**Symptom:** Queries failed with `GRAPHQL_VALIDATION_FAILED: Page size is too large: 100 > 50`, and the TypeScript compiler returned multiple typing errors after SDK updates.
+**Root cause:** Default pagination requests exceeded the hard 50-item limit set by the Sui GraphQL infrastructure. Additionally, `client.query` calls lacked the required `variables` property, causing `GraphQLQueryOptions` TS failures.
+**Fix:** Hardcoded `first: 50` across all `src/lib/graphql.ts` queries. Fixed implicit `any` parameter typings and explicitly provided `variables: {}` to GraphQL queries. Verified project stability with `npx tsc --noEmit`.
+
 ---
 
 ## Key design decisions

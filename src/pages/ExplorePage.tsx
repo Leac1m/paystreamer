@@ -60,7 +60,7 @@ export function ExplorePage() {
                       {platform.json.category || "Service"}
                     </Badge>
                     {platform.json.subscriber_count > 0 && (
-                      <Badge variant="outline" className="flex items-center gap-1 border-primary/20 text-foreground">
+                      <Badge className="flex items-center gap-1 border-primary/20 text-foreground bg-transparent border">
                         <Users className="w-3 h-3" />
                         {platform.json.subscriber_count}
                       </Badge>

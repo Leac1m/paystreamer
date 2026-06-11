@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
+import { Button } from "../../components/ui/button";
+import { Plus } from "lucide-react";
 import { Card, CardContent } from "../../components/ui/card";
 import { SubscriptionCard } from "../../components/subscriptions/SubscriptionCard";
 import { SubscriptionDetail } from "../../components/subscriptions/SubscriptionDetail";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { SubscriptionCardSkeleton } from "../../components/ui/skeleton";
 import { NoSubscriptionsEmpty } from "../../components/ui/empty-state";
-import { DEVNET_V2_PACKAGE_ID } from "../../constants";
+
 
 interface SubscriptionInfo {
   accountId: string;
@@ -29,6 +32,7 @@ interface SubscriptionInfo {
 import { queryAccountCreatedEvents } from "../../lib/graphql";
 
 export function SubscriptionsPage() {
+  const navigate = useNavigate();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -97,9 +101,15 @@ export function SubscriptionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Subscriptions</h1>
-        <p className="text-muted-foreground">Manage your active subscriptions</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Subscriptions</h1>
+          <p className="text-muted-foreground">Manage your active subscriptions</p>
+        </div>
+        <Button onClick={() => navigate("/explore")} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Explore Platforms
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

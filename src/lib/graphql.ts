@@ -93,7 +93,7 @@ async function executeQuery<T>(query: string, variables?: Record<string, unknown
 }
 
 export async function queryPlatform(platformId: string): Promise<PlatformObject> {
-  const data = await executeQuery<{ object: { contents: { json: PlatformObject } } }>(
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PlatformObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetPlatform($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -102,11 +102,11 @@ export async function queryPlatform(platformId: string): Promise<PlatformObject>
     }`,
     { id: platformId }
   );
-  return data.object.contents.json;
+  return data.object.asMoveObject.contents.json;
 }
 
 export async function queryAccount(accountId: string): Promise<SubscriptionAccountObject> {
-  const data = await executeQuery<{ object: { contents: { json: SubscriptionAccountObject } } }>(
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: SubscriptionAccountObject } } } }>(
     `query GetAccount($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -114,11 +114,11 @@ export async function queryAccount(accountId: string): Promise<SubscriptionAccou
     }`,
     { id: accountId }
   );
-  return data.object.contents.json;
+  return data.object.asMoveObject.contents.json;
 }
 
 export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTypeRegistryObject> {
-  const data = await executeQuery<{ object: { contents: { json: CoinTypeRegistryObject } } }>(
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: CoinTypeRegistryObject } } } }>(
     `query GetRegistry($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -126,11 +126,11 @@ export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTyp
     }`,
     { id: registryId }
   );
-  return data.object.contents.json;
+  return data.object.asMoveObject.contents.json;
 }
 
 export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject> {
-  const data = await executeQuery<{ object: { contents: { json: PaymentSchedulerObject }, owner: { initialSharedVersion: number } } }>(
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PaymentSchedulerObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetScheduler($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -140,72 +140,72 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
     { id: schedulerId }
   );
   return {
-    ...data.object.contents.json,
+    ...data.object.asMoveObject.contents.json,
     initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
   };
 }
 
 export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegisteredEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: PlatformRegisteredEvent } }[] } }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $owner }) {
-        nodes { contents { json } }
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered`, owner }
   );
-  return data.events.nodes.map((n) => n.contents.json);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
 
 export async function queryAccountCreatedEvents(sender: string): Promise<AccountCreatedEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: AccountCreatedEvent } }[] } }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $sender }) {
-        nodes { contents { json } }
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::account::AccountCreated`, sender }
   );
-  return data.events.nodes.map((n) => n.contents.json);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as AccountCreatedEvent);
 }
 
 export async function queryPlatformRegisteredEvents(): Promise<PlatformRegisteredEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: PlatformRegisteredEvent } }[] } }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformRegistered($type: String!) {
       events(first: 50, filter: { type: $type }) {
-        nodes { contents { json } }
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered` }
   );
-  return data.events.nodes.map((n) => n.contents.json);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
 
 export async function querySubscriptionCreatedEvents(accountId: string): Promise<SubscriptionCreatedEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: SubscriptionCreatedEvent } }[] } }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
-        nodes { contents { json } }
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated` }
   );
   return data.events.nodes
-    .map((n) => n.contents.json)
+    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
     .filter((e) => e.account_id === accountId);
 }
 
 export async function querySubscriptionCreatedEventsByPlatform(platformId: string): Promise<SubscriptionCreatedEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: SubscriptionCreatedEvent } }[] } }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
-      events(first: 100, filter: { type: $type }) {
-        nodes { contents { json } }
+      events(first: 50, filter: { type: $type }) {
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated` }
   );
   return data.events.nodes
-    .map((n) => n.contents.json)
+    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
     .filter((e) => e.platform_id === platformId);
 }
 
@@ -213,15 +213,15 @@ export async function queryPaymentProcessedEvents(
   accountId?: string,
   platformId?: string
 ): Promise<PaymentProcessedEvent[]> {
-  const allEvents = await executeQuery<{ events: { nodes: { contents: { json: PaymentProcessedEvent } }[] } }>(
+  const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
     `query GetPaymentProcessed($type: String!) {
-      events(first: 100, filter: { type: $type }) {
-        nodes { contents { json } }
+      events(first: 50, filter: { type: $type }) {
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentProcessed` }
   );
-  let events = allEvents.events.nodes.map((n) => n.contents.json);
+  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentProcessedEvent);
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
   }
@@ -232,15 +232,15 @@ export async function queryPaymentProcessedEvents(
 }
 
 export async function queryPaymentFailedEvents(accountId?: string): Promise<PaymentFailedEvent[]> {
-  const allEvents = await executeQuery<{ events: { nodes: { contents: { json: PaymentFailedEvent } }[] } }>(
+  const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
     `query GetPaymentFailed($type: String!) {
-      events(first: 100, filter: { type: $type }) {
-        nodes { contents { json } }
+      events(first: 50, filter: { type: $type }) {
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentFailed` }
   );
-  let events = allEvents.events.nodes.map((n) => n.contents.json);
+  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentFailedEvent);
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
   }
@@ -248,15 +248,15 @@ export async function queryPaymentFailedEvents(accountId?: string): Promise<Paym
 }
 
 export async function queryDepositEvents(accountId: string): Promise<DepositEvent[]> {
-  const data = await executeQuery<{ events: { nodes: { contents: { json: DepositEvent } }[] } }>(
-    `query GetDeposits($type: String!, $accountId: SuiAddress!) {
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
+    `query GetDeposits($type: String!) {
       events(first: 50, filter: { type: $type }) {
-        nodes { contents { json } }
+        nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${DEVNET_V2_PACKAGE_ID}::account::Deposit` }
   );
   return data.events.nodes
-    .map((n) => n.contents.json)
+    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as DepositEvent)
     .filter((e) => e.account_id === accountId);
 }

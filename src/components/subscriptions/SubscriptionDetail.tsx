@@ -50,6 +50,8 @@ function getFrequencyLabel(ms: string | number): string {
   if (safeRaw === 604800000) return "Weekly";
   if (safeRaw === 2592000000) return "Monthly";
   if (safeRaw === 31536000000) return "Yearly";
+  if (safeRaw < 3600000) return `${Math.round(safeRaw / 60000)} mins`;
+  if (safeRaw < 86400000) return `${Math.round(safeRaw / 3600000)} hours`;
   return `${Math.round(safeRaw / 86400000)} days`;
 }
 

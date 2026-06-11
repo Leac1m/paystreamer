@@ -13,7 +13,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { TxStatusToast, TxStatus } from "../components/TxStatusToast";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
-import { queryAccountCreatedEvents } from "../lib/graphql";
+import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
 import { parseMoveError } from "../lib/errors";
 import {
   DEVNET_V2_PACKAGE_ID,
@@ -49,6 +49,13 @@ function formatFrequency(tier: TierInfo): string {
   if (fStr === "31536000000") return "Yearly";
   if (fStr === "daily" || fStr === "weekly" || fStr === "monthly" || fStr === "yearly") {
     return fStr.charAt(0).toUpperCase() + fStr.slice(1);
+  }
+  
+  const ms = parseInt(fStr);
+  if (!Number.isNaN(ms) && ms > 0) {
+    if (ms < 3600000) return `${Math.round(ms / 60000)} mins`;
+    if (ms < 86400000) return `${Math.round(ms / 3600000)} hours`;
+    return `${Math.round(ms / 86400000)} days`;
   }
   return "Unknown";
 }
@@ -135,6 +142,25 @@ export default function SubscribePage() {
   const mappedTiers = tiersList.map((t: any) => t.value || t);
   const activeTiers = mappedTiers.filter((t: any) => t.is_active !== false);
 
+  const { data: accountObj } = useQuery({
+    queryKey: ["subscription-account-details", accountId],
+    queryFn: async () => {
+      if (!accountId) return null;
+      return await queryAccount(accountId);
+    },
+    enabled: !!accountId,
+  });
+
+  const accountJson = accountObj as any;
+  const accountSubscriptions = Array.isArray(accountJson?.subscriptions) 
+    ? accountJson.subscriptions 
+    : (Array.isArray(accountJson?.subscriptions?.contents) ? accountJson.subscriptions.contents : []);
+
+  const isSubscribed = accountSubscriptions.some((s: any) => {
+    const key = s.key || s.platform_id || (s.value && s.value.platform_id);
+    return key === platformId;
+  });
+
   const handleSubscribe = async (tierIndex: number, tierName: string, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
       modalRef.current?.show();
@@ -147,9 +173,6 @@ export default function SubscribePage() {
       return;
     }
 
-    const isSubscribed = platformJson?.subscribers?.some(
-      (s) => accountId && s.account_id === accountId
-    );
     if (isSubscribed) {
       return;
     }
@@ -375,10 +398,8 @@ export default function SubscribePage() {
               </Card>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {activeTiers.map((tier, index) => {
-                  const isSubscribed = platformJson.subscribers?.some(
-                    (s) => accountId && s.account_id === accountId
-                  );
+                {activeTiers.map((tier: any, index: number) => {
+
 
                   return (
                     <Card key={index} className="relative overflow-hidden">

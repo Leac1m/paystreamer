@@ -57,7 +57,7 @@ export async function discoverOwnedPlatforms(
     }
   `;
 
-  const res = await client.query({ query });
+  const res = await client.query({ query, variables: {} });
   const objects = Object.values(res.data || {}).filter(Boolean) as any[];
 
   return objects.map((obj: any) => {
@@ -138,7 +138,7 @@ export async function discoverAllPlatforms(): Promise<PlatformObject[]> {
     }
   `;
 
-  const res = await client.query({ query });
+  const res = await client.query({ query, variables: {} });
   const objects = Object.values(res.data || {}).filter(Boolean) as any[];
 
   return objects.map((obj: any) => {
