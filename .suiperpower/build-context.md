@@ -477,6 +477,87 @@ pnpm install && pnpm dev
 1. ✅ **E2E fully green** — all 9 steps pass end-to-end on devnet
 2. ✅ **Bytecode verification fix** — confirmed root cause and fix
 3. ✅ **Frontend rewrite** — full production UI wired to v2 contract
-4. ⬜ **Deploy frontend to devnet** — host the built frontend on a devnet-accessible URL
-5. ⬜ **Open PR** — `feature/v2-core` → `main` (manual via web UI: `https://github.com/Leac1m/paystreamer/pull/new/feature/v2-core`)
-6. ⬜ **Install skills** — `npx skills https://github.com/MystenLabs/skills` per CLAUDE.md
+4. ✅ **UX audit REC-001–REC-010** — all 10 recommendations implemented
+5. ✅ **A/B test backlog** — all 10 A/B tests implemented
+6. ⬜ **Deploy frontend to devnet** — host the built frontend on a devnet-accessible URL
+7. ⬜ **Open PR** — `feature/v2-core` → `main` (manual via web UI: `https://github.com/Leac1m/paystreamer/pull/new/feature/v2-core`)
+
+---
+
+## UX Audit Implementation (2026-06-12)
+
+All 10 recommendations from `UX_AUDIT_REPORT.md` have been implemented.
+
+### REC-001: Brand Standardization ✅
+- `NavBar.tsx`, `Footer.tsx`: "Sui Subscriptions" → "PayStreamer"
+- Verified no remaining instances via grep
+
+### REC-002: Hero CTA Fix ✅
+- `HeroSection.tsx`: navigate('/platforms') → navigate('/explore')
+- Button text: "Start for Free" → "Explore Platforms"
+
+### REC-003: Social Proof ✅
+- Created `src/components/SocialProof.tsx` with:
+  - Press mentions (TechCrunch, CoinDesk, The Block)
+  - Featured platforms section
+  - Testimonials with 5-star ratings
+  - Security audit badge
+
+### REC-004: Subscription Flow Simplification (PTB) ✅
+- New `createAccountAndSubscribe()` function combines 3 Move calls in 1 PTB:
+  1. `account::create_account` → returns `[account, cap]`
+  2. `account::share_account` → chains results
+  3. `billing::create_subscription` → uses chained cap + account
+- "Subscribe Now" button creates account + subscribes atomically
+- "Set Up Billing First" preserves staged flow option
+- No contract changes required — pure frontend PTB composition
+
+### REC-005: Pricing Page ✅
+- Created `src/pages/PricingPage.tsx`
+- Added `/pricing` route to `router.tsx`
+- Added "Pricing" link to NavBar
+- FAQ, comparison table, trust badges
+
+### REC-006: Empty States ✅
+- `ExplorePage.tsx`: opportunity framing
+- `PlatformOverviewPage.tsx`: "what is a platform" explanation
+- `TiersPage.tsx`: tier naming guidance
+- `AccountsPage.tsx`: account explanation
+- `empty-state.tsx`: updated component
+
+### REC-007: Tier Comparison ✅
+- `SubscribePage.tsx`: "Compare Plans" table for 2+ tiers
+- Shows Price, Billing, Automatic renewals
+
+### REC-008: Button Standardization ✅
+- Added `variant="gradient"` to `Button` component
+- `HeroSection.tsx`: replaced `.btn-primary` with `<Button variant="gradient">`
+- `CTASection.tsx`: replaced `.btn-primary` with `<Button variant="gradient">`
+- `.btn-primary` and `.btn-secondary` CSS classes remain for backward compat
+
+### REC-009: Error Recovery ✅
+- `lib/errors.ts`: expanded error codes, added `isRetryableError()` helper
+- `TxStatusToast.tsx`: errors persist until dismissed, "Need help?" Discord link
+- User-friendly messages for: insufficient gas, transaction timeout, object not found
+
+### REC-010: Onboarding Checklist ✅
+- `PlatformOverviewPage.tsx`: "Getting Started" checklist with 4 steps
+  - Step 1: Register platform (✓ completed)
+  - Step 2: Create first tier (link to /platforms/tiers)
+  - Step 3: Configure scheduler (link to /platforms/scheduler)
+  - Step 4: Share platform (link to subscribe page)
+
+### A/B Test Backlog — All Implemented ✅
+
+| Test | Change | File |
+|------|--------|------|
+| AB-001 | Hero headline: pain-point framing | `HeroSection.tsx` |
+| AB-002 | CTA: "Explore Platforms" | `HeroSection.tsx` |
+| AB-003 | Brand: "PayStreamer" | NavBar, Footer |
+| AB-004 | Empty state: opportunity framing | `ExplorePage.tsx` |
+| AB-005 | "Set Up Billing Account" | `SubscribePage.tsx` |
+| AB-006 | "Most integrations are live same-day" | `HeroSection.tsx` |
+| AB-007 | Newsletter CTA copy | `CTASection.tsx` |
+| AB-008 | Tier comparison table | `SubscribePage.tsx` |
+| AB-009 | Onboarding checklist | `PlatformOverviewPage.tsx` |
+| AB-010 | User-friendly errors | `lib/errors.ts`, `TxStatusToast.tsx` |

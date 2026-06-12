@@ -54,6 +54,7 @@ export function TiersPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">No tiers created yet.</p>
+            <p className="text-sm text-muted-foreground mb-4">Create your first tier to start monetizing. Example: $9.99/month Basic tier</p>
             <Button onClick={() => setAddModalOpen(true)}>
               <Plus className="h-4 w-4 mr-1" />
               Create Your First Tier

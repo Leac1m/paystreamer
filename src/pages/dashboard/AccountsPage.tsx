@@ -59,6 +59,7 @@ export function AccountsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">No accounts yet. Create one to get started.</p>
+            <p className="text-sm text-muted-foreground mb-4">A subscription account stores your payment preferences on-chain. Create one to subscribe to platforms.</p>
             <Button onClick={() => setModalOpen(true)}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Create Account

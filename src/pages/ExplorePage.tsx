@@ -42,7 +42,7 @@ export function ExplorePage() {
             <Layers className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-2xl font-semibold mb-2">No platforms found</h3>
             <p className="text-muted-foreground">
-              There are currently no registered platforms on the network.
+              Be the first platform to accept crypto subscriptions! Register your platform to start collecting.
             </p>
           </div>
         ) : (

@@ -14,6 +14,7 @@ import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import CTASection from "../components/CTASection";
+import { SocialProof } from "../components/SocialProof";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { Button } from "../components/ui/button";
 import { GRAPHQL_URL, DEVNET_V2_PACKAGE_ID } from "../constants";
@@ -176,6 +177,7 @@ export default function LandingPage() {
 
         <EndUserExperience />
         <CoreFeatures />
+        <SocialProof />
         <SecuritySection />
 
         <section className="relative py-24 overflow-hidden">

@@ -26,6 +26,7 @@ export default function NavBar() {
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'For Users', href: '/#for-users' },
     { label: 'For Platforms', href: '/#for-platforms' },
+    { label: 'Pricing', href: '/pricing' },
     { label: 'Security', href: '/#security' },
   ];
 
@@ -50,7 +51,7 @@ export default function NavBar() {
                   <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-white">Sui Subscriptions</span>
+              <span className="text-xl font-bold text-white">PayStreamer</span>
             </a>
 
             {/* Desktop Navigation */}

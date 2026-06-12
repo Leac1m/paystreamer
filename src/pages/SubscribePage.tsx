@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentClient, useCurrentAccount, useDAppKit, useWalletConnection } from "@mysten/dapp-kit-react";
@@ -95,7 +95,6 @@ export default function SubscribePage() {
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
   const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
-  const [pendingTier, setPendingTier] = useState<{ index: number; name: string; amount: bigint; frequency: bigint } | null>(null);
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
   const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
 
@@ -161,15 +160,13 @@ export default function SubscribePage() {
     return key === platformId;
   });
 
-  const handleSubscribe = async (tierIndex: number, tierName: string, tierAmount: bigint, tierFrequency: bigint) => {
+  const handleSubscribe = async (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
       modalRef.current?.show();
       return;
     }
 
     if (!accountId || !accountCapId) {
-      setPendingTier({ index: tierIndex, name: tierName, amount: tierAmount, frequency: tierFrequency });
-      setShowCreateAccountModal(true);
       return;
     }
 
@@ -200,6 +197,83 @@ export default function SubscribePage() {
       arguments: [
         tx.object(accountCapId),
         tx.object(accountId),
+        tx.pure.id(platformId!),
+        tx.pure.u64(BigInt(tierIndex)),
+        tx.pure.u64(tierAmount),
+        tx.pure.u64(tierFrequency),
+        accountType,
+        tx.object(CLOCK_OBJECT_ID),
+      ],
+    });
+
+    try {
+      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setTxDigest(result.Transaction.digest);
+      setTxStatus("success");
+      setTxMessage("You're subscribed!");
+      setSubscriptionSuccess(true);
+
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 30);
+      setNextBillingDate(nextDate.toLocaleDateString());
+
+      await queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
+    } catch (err) {
+      setTxStatus("error");
+      setTxMessage(parseMoveError(err));
+    }
+  };
+
+  const createAccountAndSubscribe = async (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
+    if (!account) {
+      modalRef.current?.show();
+      return;
+    }
+
+    setTxStatus("pending");
+    setTxMessage("Setting up account and subscribing...");
+
+    const tx = new Transaction();
+    tx.setGasBudget(100_000_000);
+
+    const initialPolicies = tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
+    });
+
+    const [newAccountObj, newCap] = tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
+      typeArguments: [SUI_TYPE_ARG],
+      arguments: [
+        tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
+        initialPolicies,
+        tx.object(CLOCK_OBJECT_ID),
+      ],
+    });
+
+    tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
+      typeArguments: [SUI_TYPE_ARG],
+      arguments: [newAccountObj, newCap],
+    });
+
+    const accountType = tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
+      arguments: [tx.pure.u8(0)],
+    });
+
+    tx.moveCall({
+      target: `${DEVNET_V2_PACKAGE_ID}::billing::create_subscription`,
+      typeArguments: [SUI_TYPE_ARG],
+      arguments: [
+        newCap,
+        newAccountObj,
         tx.pure.id(platformId!),
         tx.pure.u64(BigInt(tierIndex)),
         tx.pure.u64(tierAmount),
@@ -283,14 +357,6 @@ export default function SubscribePage() {
     }
   };
 
-  useEffect(() => {
-    if (accountId && accountCapId && pendingTier) {
-      setShowCreateAccountModal(false);
-      executeSubscription(pendingTier.index, pendingTier.amount, pendingTier.frequency);
-      setPendingTier(null);
-    }
-  }, [accountId, accountCapId, pendingTier, executeSubscription]);
-
   const isPending = txStatus === "pending";
 
   return (
@@ -366,6 +432,37 @@ export default function SubscribePage() {
               )}
             </div>
 
+            {!subscriptionSuccess && activeTiers.length > 0 && (
+              <div className="mb-8">
+                <p className="text-sm text-[#94a3b8] mb-4 text-center">How subscription works:</p>
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <div className={`flex items-center gap-2 ${account ? "text-[#10b981]" : "text-white"}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${account ? "bg-[#10b981]" : "bg-[#6c63ff]"}`}>
+                      {account ? <CheckCircle className="w-4 h-4 text-white" /> : "1"}
+                    </div>
+                    <span>Connect Wallet</span>
+                  </div>
+                  <div className="w-8 h-px bg-white/20" />
+                  <div className={`flex items-center gap-2 ${accountId ? "text-[#10b981]" : "text-white"}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${accountId ? "bg-[#10b981]" : "bg-[#6c63ff]"}`}>
+                      {accountId ? <CheckCircle className="w-4 h-4 text-white" /> : "2"}
+                    </div>
+                    <span>Set Up Billing</span>
+                  </div>
+                  <div className="w-8 h-px bg-white/20" />
+                  <div className="flex items-center gap-2 text-white">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-[#6c63ff]">3</div>
+                    <span>Subscribe</span>
+                  </div>
+                </div>
+                {!accountId && (
+                  <p className="text-xs text-[#94a3b8] mt-3 text-center">
+                    Your billing account stores your payment preferences on-chain.
+                  </p>
+                )}
+              </div>
+            )}
+
             {subscriptionSuccess ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -397,72 +494,124 @@ export default function SubscribePage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {activeTiers.map((tier: any, index: number) => {
+              <div>
+                {activeTiers.length > 1 && (
+                  <div className="mb-8 overflow-x-auto">
+                    <h3 className="text-lg font-semibold text-white mb-4 text-center">Compare Plans</h3>
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-3 px-4 text-[#94a3b8] font-medium text-sm">Feature</th>
+                          {activeTiers.map((tier: any, index: number) => (
+                            <th key={index} className="text-center py-3 px-4 text-white font-semibold text-sm">
+                              {tier.name}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-white/10">
+                          <td className="py-3 px-4 text-[#94a3b8] text-sm">Price</td>
+                          {activeTiers.map((tier: any, index: number) => (
+                            <td key={index} className="py-3 px-4 text-center text-white font-medium">
+                              ${formatAmount(BigInt(tier.amount))}/{formatFrequency(tier)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-b border-white/10">
+                          <td className="py-3 px-4 text-[#94a3b8] text-sm">Billing</td>
+                          {activeTiers.map((tier: any, index: number) => (
+                            <td key={index} className="py-3 px-4 text-center text-white text-sm capitalize">
+                              {formatFrequency(tier)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="py-3 px-4 text-[#94a3b8] text-sm">Automatic renewals</td>
+                          {activeTiers.map((_: any, index: number) => (
+                            <td key={index} className="py-3 px-4 text-center">
+                              <CheckCircle className="h-5 w-5 text-[#10b981] mx-auto" />
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {activeTiers.map((tier: any, index: number) => {
 
 
-                  return (
-                    <Card key={index} className="relative overflow-hidden">
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>{tier.name}</span>
-                          {isSubscribed && (
-                            <Badge variant="secondary" className="text-[#10b981]">Subscribed</Badge>
+                    return (
+                      <Card key={index} className="relative overflow-hidden">
+                        <CardHeader>
+                          <CardTitle className="flex items-center justify-between">
+                            <span>{tier.name}</span>
+                            {isSubscribed && (
+                              <Badge variant="secondary" className="text-[#10b981]">Subscribed</Badge>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="text-2xl font-bold text-white">
+                            ${formatAmount(BigInt(tier.amount))}
+                            <span className="text-sm font-normal text-[#94a3b8]">
+                              {" "}/ {formatFrequency(tier)}
+                            </span>
+                          </div>
+
+                          {isSubscribed ? (
+                            <Button disabled className="w-full" variant="secondary">
+                              Already Subscribed
+                            </Button>
+                          ) : !account ? (
+                            <Button
+                              onClick={() => modalRef.current?.show()}
+                              className="w-full"
+                            >
+                              Connect to Subscribe
+                            </Button>
+                          ) : !accountId ? (
+                            <div className="space-y-2">
+                              <Button
+                                onClick={() => {
+                                  const frequencyMs = getFrequencyMs(tier);
+                                  createAccountAndSubscribe(index, BigInt(tier.amount), frequencyMs);
+                                }}
+                                disabled={isPending}
+                                loading={isPending}
+                                className="w-full"
+                                variant="gradient"
+                              >
+                                Subscribe Now
+                              </Button>
+                              <Button
+                                onClick={() => setShowCreateAccountModal(true)}
+                                disabled={isPending}
+                                variant="secondary"
+                                className="w-full"
+                              >
+                                Set Up Billing First
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => {
+                                const frequencyMs = getFrequencyMs(tier);
+                                handleSubscribe(index, BigInt(tier.amount), frequencyMs);
+                              }}
+                              disabled={isPending}
+                              loading={isPending}
+                              className="w-full"
+                            >
+                              Subscribe
+                            </Button>
                           )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="text-2xl font-bold text-white">
-                          ${formatAmount(BigInt(tier.amount))}
-                          <span className="text-sm font-normal text-[#94a3b8]">
-                            {" "}/ {formatFrequency(tier)}
-                          </span>
-                        </div>
-
-                        {isSubscribed ? (
-                          <Button disabled className="w-full" variant="secondary">
-                            Already Subscribed
-                          </Button>
-                        ) : !account ? (
-                          <Button
-                            onClick={() => modalRef.current?.show()}
-                            className="w-full"
-                          >
-                            Connect to Subscribe
-                          </Button>
-                        ) : !accountId ? (
-                          <Button
-                            onClick={() => {
-                              const frequencyMs = getFrequencyMs(tier);
-                              setPendingTier({
-                                index,
-                                name: tier.name,
-                                amount: BigInt(tier.amount),
-                                frequency: frequencyMs,
-                              });
-                              setShowCreateAccountModal(true);
-                            }}
-                            className="w-full"
-                          >
-                            Create Account First
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => {
-                              const frequencyMs = getFrequencyMs(tier);
-                              handleSubscribe(index, tier.name, BigInt(tier.amount), frequencyMs);
-                            }}
-                            disabled={isPending}
-                            loading={isPending}
-                            className="w-full"
-                          >
-                            Subscribe
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </>
@@ -516,9 +665,9 @@ export default function SubscribePage() {
                 <X size={20} />
               </button>
 
-              <h3 className="text-xl font-bold text-white mb-4">Create Account</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Set Up Billing Account</h3>
               <p className="text-[#94a3b8] mb-6">
-                You need to create a subscription account before you can subscribe to this platform.
+                Your billing account stores your payment preferences on-chain. Create one to subscribe to this platform and enable automatic payments.
               </p>
 
               {txStatus === "error" && (
@@ -533,7 +682,7 @@ export default function SubscribePage() {
                 loading={isPending}
                 className="w-full"
               >
-                {isPending ? "Creating..." : "Create Account"}
+                {isPending ? "Creating..." : "Create Billing Account"}
               </Button>
             </motion.div>
           </motion.div>

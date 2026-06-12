@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Play, Users, Zap, Shield } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function HeroSection() {
   const navigate = useNavigate();
@@ -64,25 +65,29 @@ export default function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              <span className="text-white">Accept Crypto Subscriptions </span>
-              <span className="gradient-text">on Autopilot</span>
+              <span className="text-white">Accept Crypto Subscriptions Automatically — </span>
+              <span className="gradient-text">No More Chasing Payments</span>
             </h1>
 
             <p className="text-lg text-[#94a3b8] mb-8 max-w-xl leading-relaxed">
-              Stop losing MRR to manual payments. Let your customers connect their wallet once and get billed automatically in stablecoins. Integrate in an afternoon.
+              Stop losing MRR to manual payments. Your customers connect their wallet once, approve a spending limit, and never worry about billing again. Most integrations are live same-day.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <button 
-                onClick={() => navigate('/platforms')}
-                className="btn-primary flex items-center justify-center gap-2 text-lg px-8 py-4"
+              <Button
+                onClick={() => navigate('/explore')}
+                variant="gradient"
+                size="lg"
+                className="text-lg"
               >
-                <span>Start for Free</span>
+                <span>Explore Platforms</span>
                 <ArrowRight size={20} />
-              </button>
-              <a href="#how-it-works" className="btn-secondary flex items-center justify-center gap-2 text-lg px-8 py-4">
-                <Play size={20} />
-                <span>Read the Docs</span>
+              </Button>
+              <a href="#how-it-works">
+                <Button variant="secondary" size="lg" className="text-lg">
+                  <Play size={20} />
+                  <span>Read the Docs</span>
+                </Button>
               </a>
             </div>
 

@@ -123,7 +123,8 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
   useEffect(() => {
     if (status !== "idle") {
       setVisible(true);
-      if (status === "success" || status === "error") {
+      // Only auto-dismiss on success; errors persist until user dismisses
+      if (status === "success") {
         const timer = setTimeout(() => {
           setVisible(false);
           onClose?.();
@@ -138,22 +139,22 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
   return (
     <div
       className={cn(
-        "fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all",
+        "fixed bottom-4 right-4 z-50 flex items-start gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all min-w-[320px]",
         status === "pending" && "bg-yellow-50 border-yellow-200",
         status === "success" && "bg-green-50 border-green-200",
         status === "error" && "bg-red-50 border-red-200"
       )}
     >
       {status === "pending" && (
-        <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full" />
+        <div className="animate-spin h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full flex-shrink-0" />
       )}
       {status === "success" && (
-        <CheckCircle className="h-5 w-5 text-green-600" />
+        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
       )}
       {status === "error" && (
-        <XCircle className="h-5 w-5 text-red-600" />
+        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
       )}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <p
           className={cn(
             "text-sm font-medium",
@@ -171,15 +172,27 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground mt-0.5 font-mono hover:text-[#10b981] transition-colors flex items-center gap-1 underline"
           >
-            {digest.slice(0, 8)}...{digest.slice(-4)}
+            View on Sui Explorer
             <ExternalLink className="h-3 w-3" />
           </a>
+        )}
+        {status === "error" && (
+          <div className="flex items-center gap-3 mt-2">
+            <a
+              href="https://discord.gg/paystreamer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-red-600 hover:text-red-700 hover:underline"
+            >
+              Need help?
+            </a>
+          </div>
         )}
       </div>
       {onClose && (
         <button
           onClick={() => setVisible(false)}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground flex-shrink-0"
         >
           <X className="h-4 w-4" />
         </button>
