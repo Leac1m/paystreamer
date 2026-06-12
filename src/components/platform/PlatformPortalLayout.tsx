@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
-import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Clock, Loader2 } from "lucide-react";
+import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { NetworkBanner } from "../dashboard/NetworkBanner";
 import { useOwnedPlatforms, PlatformObject } from "../../lib/platformDiscovery";
@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { path: "/platforms/subscribers", label: "Subscribers", icon: Users },
   { path: "/platforms/treasury", label: "Treasury", icon: Wallet },
   { path: "/platforms/settings", label: "Settings", icon: Settings },
-  { path: "/platforms/scheduler", label: "Scheduler", icon: Clock },
 ];
 
 export function PlatformPortalLayout() {

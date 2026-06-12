@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, CheckCircle, Users, Zap, Shield } from 'lucide-react';
+import { ArrowRight, CheckCircle, Users, Zap, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 
 export default function HeroSection() {
@@ -52,12 +52,14 @@ export default function HeroSection() {
                 <span>Create Free Platform</span>
                 <ArrowRight size={20} />
               </Button>
-              <a href="#how-it-works">
-                <Button variant="secondary" size="lg" className="text-lg">
-                  <Play size={20} />
-                  <span>Read the Docs</span>
-                </Button>
-              </a>
+              <Button 
+                onClick={() => navigate('/explore')}
+                variant="secondary" 
+                size="lg" 
+                className="text-lg"
+              >
+                <span>Explore Platforms</span>
+              </Button>
             </div>
 
             {/* Trust Indicators */}

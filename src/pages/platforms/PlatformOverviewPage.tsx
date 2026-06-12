@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Plus } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { PlatformOwnerOverview } from "../../components/platform/PlatformOwnerOverview";
@@ -41,6 +42,8 @@ export function PlatformOverviewPage() {
   }
 
   const activePlatform = platforms[0];
+  const tiers = Array.isArray(activePlatform.json.tiers) ? activePlatform.json.tiers : [];
+  const hasTier = tiers.length > 0;
 
   return (
     <div className="space-y-6">
@@ -60,39 +63,33 @@ export function PlatformOverviewPage() {
       <Card className="bg-gradient-to-r from-[#6c63ff]/10 to-[#3b82f6]/10 border-[#6c63ff]/20">
         <CardContent className="py-6">
           <h3 className="text-lg font-semibold text-white mb-4">Getting Started</h3>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            {/* Step 1: Register Platform */}
             <div className="flex items-start gap-3">
               <div className="w-6 h-6 rounded-full bg-[#10b981] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="h-4 w-4 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Register your platform</p>
                 <p className="text-xs text-[#94a3b8]">Platform registered</p>
               </div>
             </div>
-            <a href="/platforms/tiers" className="flex items-start gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
-              <div className="w-6 h-6 rounded-full border border-[#6c63ff] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs text-[#6c63ff]">2</span>
+
+            {/* Step 2: Create your first tier */}
+            <Link to="/platforms/tiers" className="flex items-start gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${hasTier ? 'bg-[#10b981]' : 'border border-[#6c63ff]'}`}>
+                {hasTier ? <Check className="h-4 w-4 text-white" /> : <span className="text-xs text-[#6c63ff]">2</span>}
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Create your first tier</p>
-                <p className="text-xs text-[#94a3b8]">Set up pricing</p>
+                <p className="text-xs text-[#94a3b8]">{hasTier ? 'Tier created' : 'Set up pricing'}</p>
               </div>
-            </a>
-            <a href="/platforms/scheduler" className="flex items-start gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
-              <div className="w-6 h-6 rounded-full border border-[#6c63ff] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs text-[#6c63ff]">3</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">Configure scheduler</p>
-                <p className="text-xs text-[#94a3b8]">Set payment timing</p>
-              </div>
-            </a>
+            </Link>
+
+            {/* Step 3: Share your platform */}
             <a href={`/subscribe/${activePlatform.objectId}`} target="_blank" className="flex items-start gap-3 hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors">
               <div className="w-6 h-6 rounded-full border border-[#6c63ff] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xs text-[#6c63ff]">4</span>
+                <span className="text-xs text-[#6c63ff]">3</span>
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Share your platform</p>
@@ -102,6 +99,8 @@ export function PlatformOverviewPage() {
           </div>
         </CardContent>
       </Card>
+
+
 
       <PlatformOwnerOverview platform={activePlatform} />
       <RegisterPlatformModal open={registerModalOpen} onClose={() => setRegisterModalOpen(false)} />
