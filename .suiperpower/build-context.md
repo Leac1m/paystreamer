@@ -11,7 +11,7 @@ Captures what's working, what's failing, and why.
 
 PayStreamer is a Web3 billing infrastructure for recurring crypto subscriptions on [Sui](https://sui.io/).
 The v1 MVP lives on `main` (published devnet package `0xd2ddd9bd...`).
-The v2 rewrite lives on `feature/v2-core` (published devnet package `0x9df2b6a647b8a30b...`).
+The v2 rewrite lives on `feature/v2-core` (published devnet package `0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f`).
 
 ## Repository
 
@@ -31,19 +31,21 @@ The v2 rewrite lives on `feature/v2-core` (published devnet package `0x9df2b6a64
 
 ## v2 package — current deployment
 
-**Package ID:** `0x9df2b6a647b8a30bdfa09681f45067461acc094d3d38f1076291ad94cd0d0fb0`
-**Published:** 2026-06-10 via `sui client test-publish` (cost: ~0.34 SUI)
-**Latest commit:** `79d2404` ("fix(v2): resolve bytecode verification error and make e2e idempotent")
+**Package ID:** `0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f`
+**Published:** 2026-06-11 via `sui client test-publish` (cost: ~0.34 SUI) to devnet
+**Latest commit:** `303b991` (frontend rewrite after git pull)
+**Previous package:** `0x9df2b6a647b8a30bdfa09681f45067461acc094d3d38f1076291ad94cd0d0fb0` (superseded)
 
 ### On-chain shared objects
 
-| Object | ID |
-|--------|-----|
-| PaymentScheduler | `0xf475cb554d3d6f367085f6bdf9eb38effe590503dc6a9cd14ae611b8be2c8c26` |
-| CoinTypeRegistry | `0x51de469c0f465c4b789520451cb2249bacbcfc7ee441977b564d564cc6a2d0e2` |
-| AccessControl | `0x97ae33555f82bcbb9b6e2de3ce190e92793c7e091781b6227ec0ffa9ea87c487` |
+| Object | ID | Initial Version |
+|--------|-----|-----------------|
+| PaymentScheduler | `0x42238297b71f28b9054dd86f0165311df500f19590939cb57ee9db7ca300d6f7` | 2889533 |
+| CoinTypeRegistry | `0x678f525faeb3491edf890efd54fef590cef8ab350dc1c9017e30d50f37b9f479` | 2889533 |
+| AccessControl | `0xdac30d15141f3970ac27dbb272fbe622fa46b43b3b1b49a126e0b33f3f2361d0` | 2889533 |
+| UpgradeCap | `0x03c8f514da001a153c118f978c1b96189cd1fc30c6e55eb202274cd27e1f661e` | (account-owned) | |
 
-### 10 modules in `move/subscriptions_v2/sources/`
+### 10 modules in `move/subscriptions/sources/`
 
 `ac`, `account`, `asset`, `billing`, `payment`, `platform`, `policies`, `registry`, `scheduler`, `version`
 
@@ -60,33 +62,33 @@ openzeppelin = { git = "https://github.com/OpenZeppelin/contracts-sui.git", subd
 **Script:** `scripts/v2/e2e-payment-cycle.ts`
 **Run:** `npx tsx scripts/v2/e2e-payment-cycle.ts`
 
-### Step results (2026-06-10, all ✅)
+### Step results (2026-06-11, all ✅)
 
 | Step | Status | Notes |
 |------|--------|-------|
 | 1: register_coin_type<SUI> | ✅ SKIP | SUI already registered from prior runs |
 | 2: register_platform | ✅ | Platform created |
 | 3: create_tier | ✅ | Unique tier name per run (`Tier ${Date.now()}`) |
-| 4: create_account + share_account | ✅ | |
+| 4: create_account + share_account | ✅ | Retry on gas coin version mismatch |
 | 5: deposit<SUI> | ✅ | Retry on gas coin version mismatch |
-| 6: create_subscription | ✅ (expected) | ESubscriptionAlreadyExists on re-runs |
-| 7: process_due_payment (1st) | ✅ (expected) | ENotDue — already processed in prior run |
-| 8: process_due_payment (2nd) | ✅ (expected) | ENotDue — subscription billing window not open |
-| 9: cancel_subscription | ✅ | |
+| 6: create_subscription | ✅ | Retry on cap/account version mismatch |
+| 7: process_due_payment (1st) | ✅ | Payment processed |
+| 8: process_due_payment (2nd) | ✅ (expected) | ENotDue — billing window not open |
+| 9: cancel_subscription | ✅ | Retry on gas coin version mismatch |
 
 ### Event counts (cumulative, sender)
 
 ```
 CoinTypeRegistered:      1
-PlatformRegistered:     12
-TierCreated:            4
-AccountCreated:         10
-Deposit:                5
-SubscriptionCreated:    1
+PlatformRegistered:     7
+TierCreated:            6
+AccountCreated:         5
+Deposit:                3
+SubscriptionCreated:    2
 SubscriptionUpdated:    1
-PaymentProcessed:       0  ← ENotDue means payment already happened; this is correct
+PaymentProcessed:       2  ← Two payments processed successfully
 PaymentFailed:          0
-DuePaymentSubmitted:    0  ← scheduler emits DuePaymentSubmitted on process_due_payment
+DuePaymentSubmitted:    2
 ```
 
 ---
@@ -204,7 +206,41 @@ tx.moveCall({ target: `${V2_PACKAGE_ID}::registry::from_u8`, arguments: [tx.pure
 
 ---
 
-## Known bugs / issues — ALL RESOLVED
+## Recent contract changes (2026-06-11)
+
+### Change 1: Remove global rate limiter from scheduler
+
+**What:** Removed `global_limiter` field and associated `rate_limiter` logic from `scheduler.move`.
+
+**Why:** The global rate limiter was throttling all payment processing across all platforms. With the per-platform rate limiters in place, the global one was redundant and causing unnecessary delays.
+
+**Files modified:**
+- `move/subscriptions_v2/sources/scheduler.move` — removed `global_limiter` field, deferred init, `build_global_limiter`, `global_limiter_mut_for_testing`
+- `move/subscriptions_v2/tests/scheduler_tests.move` — removed `rate_limiter` import, removed `test_process_due_payment_global_rate_limited`, updated limiter assertions
+
+### Change 2: Resubscription after cancel
+
+**What:** Allow users to resubscribe after cancelling a subscription.
+
+**Why:** Previously, `create_subscription` would abort with `ESubscriptionAlreadyExists` if the user already had a subscription (even if cancelled). Now it checks if the existing subscription has status == 2 (Cancelled) and allows resubscription in that case.
+
+**How:**
+- `billing.move`: `create_subscription` now checks `account::sub_status(existing) == 2` before aborting
+- `billing.move`: `cancel_subscription` now calls `account::remove_subscription` to purge the entry from VecMap
+- `account.move`: Added `remove_subscription` helper function to remove a subscription entry
+
+**Files modified:**
+- `move/subscriptions_v2/sources/billing.move` — duplicate check allows cancelled status
+- `move/subscriptions_v2/sources/account.move` — added `remove_subscription` function
+- `move/subscriptions_v2/tests/billing_tests.move` — updated tests for new behavior
+
+### Change 3: E2E script retry logic
+
+**What:** Added retry logic for gas coin version mismatches across all steps.
+
+**Why:** The SDK builds transactions referencing a fixed gas coin version. By the time the tx is signed+executed, the coin may have been spent by a prior tx and the version is stale.
+
+**Steps with retry:** 4, 5, 6, 9 (all steps that use the gas coin)
 
 ### Bug 1 — `AccountType` enum encoding (RESOLVED)
 
@@ -363,7 +399,7 @@ tx.moveCall({
 
 ## Key design decisions
 
-1. **`paystreamer_v2::ac`** — renamed from `access_control` to avoid OZ module name collision.
+1. **`subscriptions::ac`** — renamed from `access_control` to avoid OZ module name collision.
 2. **`registry::from_u8`** — helper function to convert u8 to AccountType enum, workaround for SDK inability to serialize custom Move enums.
 3. **On-chain scheduler** — `PaymentScheduler` shared object with `RateLimiter::Bucket` circuit breaker. Anyone can call `process_due_payment`.
 4. **Shared object version tracking** — `PLATFORM_INITIAL_VERSION` captured from `PlatformRegistered` event's `initialSharedVersion`.
@@ -389,7 +425,7 @@ tx.moveCall({
 ## Key files
 
 ```
-move/subscriptions_v2/
+move/subscriptions/
   sources/
     ac.move                   # AccountCap, 8 role types, OTW AC
     account.move              # SubscriptionAccount<T>, deposit, pause cascade

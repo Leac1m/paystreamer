@@ -3,13 +3,13 @@
 # this file should not be committed to source control
 
 build-env = "devnet"
-chain-id = "f91cee94"
+chain-id = "043d64c6"
 
 [[published]]
-source = { local = "/home/michael/projects/sui-next-demo/move/subscriptions" }
-published-at = "0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e"
-original-id = "0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e"
+source = { local = "/home/leac1m/paystreamer/move/subscriptions_v2" }
+published-at = "0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f"
+original-id = "0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f"
 version = 1
-toolchain-version = "1.72.2"
+toolchain-version = "1.73.1"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0xaa9dac2d6f5e8bf8df87fc22c841bdcf5ea2b937ca82eddb253a15fbe01f44fe"
+upgrade-capability = "0x03c8f514da001a153c118f978c1b96189cd1fc30c6e55eb202274cd27e1f661e"

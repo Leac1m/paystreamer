@@ -41,7 +41,7 @@
 
 - **OTW name = uppercase of module name.** Module `ac` ⇒ OTW `AC`. Original v2-doc used `CORE`; Sui's strict OTW invariant forced the rename. Subagent caught and fixed.
 - **Sui 1.73.1 `init` is restricted.** Must take OTW as first parameter; cannot take `&Clock`. This forced a deferred-init pattern in `scheduler.move` (the global `RateLimiter` is `Option<RateLimiter>`, rebuilt on first call).
-- **Module name collision with OZ.** `paystreamer_v2::access_control` collides with `openzeppelin_access::access_control` when OZ is published alongside us. Renamed to `paystreamer_v2::ac` across all modules.
+- **Module name collision with OZ.** `subscriptions::access_control` collides with `openzeppelin_access::access_control` when OZ is published alongside us. Renamed to `subscriptions::ac` across all modules.
 - **OZ `new_bucket` argument order.** `(capacity, refill_amount, refill_interval_ms, last_refill_ms, initial_available, clock)`. The subagent's deviation was a correct fix; spec example had wrong order.
 - **`FixedWindow` initial seed must equal capacity.** Seeding `0` would make the first month fail because OZ's projection returns 0 headroom for an empty bucket.
 

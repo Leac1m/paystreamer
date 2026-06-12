@@ -258,8 +258,8 @@ async function fetchTreasuryCoinBalance(
 }
 
 // Shared object initial versions captured at publish time.
-const SHARED_INIT_VERSION_REGISTRY = 2824956;
-const SHARED_INIT_VERSION_SCHEDULER = 2824956;
+const SHARED_INIT_VERSION_REGISTRY = 2889533;
+const SHARED_INIT_VERSION_SCHEDULER = 2889533;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
 
 function sharedObjectMut(id: string, initialVersion: number) {
@@ -521,27 +521,56 @@ async function main() {
   // Step 4: create_account + share_account
   // ------------------------------------------------------------------
   {
-    const tx = newTx(keypair);
-    const initialPolicies = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
-    });
-    const created = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::account::create_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(V2_COIN_TYPE_REGISTRY_ID),  // immutable (&CoinTypeRegistry in create_account)
-        initialPolicies,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-    const account = created[0];
-    const cap = created[1];
-    tx.moveCall({
-      target: `${V2_PACKAGE_ID}::account::share_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [account, cap],
-    });
-    const r = await executeStep(client, keypair, { name: "Step 4: create_account + share_account", tx });
+    let r = await executeStep(client, keypair, { name: "Step 4: create_account + share_account", tx: (() => {
+      const tx = newTx(keypair);
+      const initialPolicies = tx.moveCall({
+        target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
+      });
+      const created = tx.moveCall({
+        target: `${V2_PACKAGE_ID}::account::create_account`,
+        typeArguments: [SUI_TYPE_ARG],
+        arguments: [
+          tx.object(V2_COIN_TYPE_REGISTRY_ID),  // immutable (&CoinTypeRegistry in create_account)
+          initialPolicies,
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+      const account = created[0];
+      const cap = created[1];
+      tx.moveCall({
+        target: `${V2_PACKAGE_ID}::account::share_account`,
+        typeArguments: [SUI_TYPE_ARG],
+        arguments: [account, cap],
+      });
+      return tx;
+    })() });
+    // Retry on gas coin version mismatch
+    if (r.status === "failure" && r.error?.includes("version")) {
+      console.log("  gas coin stale, retrying...");
+      r = await executeStep(client, keypair, { name: "Step 4: create_account + share_account (retry)", tx: (() => {
+        const tx = newTx(keypair);
+        const initialPolicies = tx.moveCall({
+          target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
+        });
+        const created = tx.moveCall({
+          target: `${V2_PACKAGE_ID}::account::create_account`,
+          typeArguments: [SUI_TYPE_ARG],
+          arguments: [
+            tx.object(V2_COIN_TYPE_REGISTRY_ID),
+            initialPolicies,
+            tx.object(CLOCK_OBJECT_ID),
+          ],
+        });
+        const account = created[0];
+        const cap = created[1];
+        tx.moveCall({
+          target: `${V2_PACKAGE_ID}::account::share_account`,
+          typeArguments: [SUI_TYPE_ARG],
+          arguments: [account, cap],
+        });
+        return tx;
+      })() });
+    }
     results.push(r);
     if (r.status === "success") {
       // Discover accountId and capId from the AccountCreated event.
@@ -587,8 +616,8 @@ async function main() {
       });
       return tx;
     })() });
-    // Retry on gas coin version mismatch (Insufficient coin balance)
-    if (r.status === "failure" && r.error?.includes("Insufficient coin balance")) {
+    // Retry on gas coin version mismatch
+    if (r.status === "failure" && r.error?.includes("Insufficient coin balance") || r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
       r = await executeStep(client, keypair, { name: "Step 5: deposit<SUI> (retry)", tx: (() => {
         const tx = newTx(keypair);
@@ -613,26 +642,53 @@ async function main() {
   // Step 6: create_subscription
   // ------------------------------------------------------------------
   {
-    const tx = newTx(keypair);
-    const accountType = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
-    });
-    tx.moveCall({
-      target: `${V2_PACKAGE_ID}::billing::create_subscription`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(summary.ids.capId),
-        tx.object(summary.ids.accountId),
-        tx.pure.id(summary.ids.platformId!),
-        tx.pure.u64(0), // tier_index
-        tx.pure.u64(TIER_AMOUNT),
-        tx.pure.u64(TIER_FREQUENCY_MS),
-        accountType,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-    const r = await executeStep(client, keypair, { name: "Step 6: create_subscription", tx });
+    let r = await executeStep(client, keypair, { name: "Step 6: create_subscription", tx: (() => {
+      const tx = newTx(keypair);
+      const accountType = tx.moveCall({
+        target: `${V2_PACKAGE_ID}::registry::from_u8`,
+        arguments: [tx.pure.u8(0)],
+      });
+      tx.moveCall({
+        target: `${V2_PACKAGE_ID}::billing::create_subscription`,
+        typeArguments: [SUI_TYPE_ARG],
+        arguments: [
+          tx.object(summary.ids.capId),
+          tx.object(summary.ids.accountId),
+          tx.pure.id(summary.ids.platformId!),
+          tx.pure.u64(0), // tier_index
+          tx.pure.u64(TIER_AMOUNT),
+          tx.pure.u64(TIER_FREQUENCY_MS),
+          accountType,
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+      return tx;
+    })() });
+    if (r.status === "failure" && r.error?.includes("version")) {
+      console.log("  cap/account stale, retrying...");
+      r = await executeStep(client, keypair, { name: "Step 6: create_subscription (retry)", tx: (() => {
+        const tx = newTx(keypair);
+        const accountType = tx.moveCall({
+          target: `${V2_PACKAGE_ID}::registry::from_u8`,
+          arguments: [tx.pure.u8(0)],
+        });
+        tx.moveCall({
+          target: `${V2_PACKAGE_ID}::billing::create_subscription`,
+          typeArguments: [SUI_TYPE_ARG],
+          arguments: [
+            tx.object(summary.ids.capId),
+            tx.object(summary.ids.accountId),
+            tx.pure.id(summary.ids.platformId!),
+            tx.pure.u64(0),
+            tx.pure.u64(TIER_AMOUNT),
+            tx.pure.u64(TIER_FREQUENCY_MS),
+            accountType,
+            tx.object(CLOCK_OBJECT_ID),
+          ],
+        });
+        return tx;
+      })() });
+    }
     results.push(r);
   }
 
@@ -718,18 +774,37 @@ async function main() {
   // Step 9: cancel_subscription
   // ------------------------------------------------------------------
   {
-    const tx = newTx(keypair);
-    tx.moveCall({
-      target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(summary.ids.capId),
-        tx.object(summary.ids.accountId),
-        tx.pure.id(summary.ids.platformId!),
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-    const r = await executeStep(client, keypair, { name: "Step 9: cancel_subscription", tx });
+    let r = await executeStep(client, keypair, { name: "Step 9: cancel_subscription", tx: (() => {
+      const tx = newTx(keypair);
+      tx.moveCall({
+        target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
+        typeArguments: [SUI_TYPE_ARG],
+        arguments: [
+          tx.object(summary.ids.capId),
+          tx.object(summary.ids.accountId),
+          tx.pure.id(summary.ids.platformId!),
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+      return tx;
+    })() });
+    if (r.status === "failure" && r.error?.includes("version")) {
+      console.log("  gas coin stale, retrying...");
+      r = await executeStep(client, keypair, { name: "Step 9: cancel_subscription (retry)", tx: (() => {
+        const tx = newTx(keypair);
+        tx.moveCall({
+          target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
+          typeArguments: [SUI_TYPE_ARG],
+          arguments: [
+            tx.object(summary.ids.capId),
+            tx.object(summary.ids.accountId),
+            tx.pure.id(summary.ids.platformId!),
+            tx.object(CLOCK_OBJECT_ID),
+          ],
+        });
+        return tx;
+      })() });
+    }
     results.push(r);
   }
 

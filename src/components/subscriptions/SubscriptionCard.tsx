@@ -276,9 +276,9 @@ export function SubscriptionCard({
             </div>
           )}
 
-          {subscription.status.variant !== 2 && (
+{statusVariant !== 2 && (
             <div className="flex flex-wrap gap-2 pt-2">
-              {subscription.status.variant === 0 ? (
+              {statusVariant === 0 ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -292,7 +292,7 @@ export function SubscriptionCard({
                   <Pause className="h-4 w-4 mr-1" />
                   Pause Billing
                 </Button>
-              ) : subscription.status.variant === 1 ? (
+              ) : statusVariant === 1 ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -316,7 +316,7 @@ export function SubscriptionCard({
                 }}
                 disabled={isPending}
                 loading={isPending}
- >
+              >
                 <X className="h-4 w-4 mr-1" />
                 Cancel Subscription
               </Button>
