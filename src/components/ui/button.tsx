@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 import { Loader2 } from "lucide-react";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "secondary" | "outline" | "ghost";
+  variant?: "default" | "secondary" | "outline" | "ghost" | "gradient";
   size?: "default" | "sm" | "lg";
   loading?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
@@ -31,6 +31,8 @@ function Button({
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground":
             variant === "outline",
           "hover:bg-accent hover:text-accent-foreground": variant === "ghost",
+          "bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] text-white shadow hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all":
+            variant === "gradient",
         },
         {
           "h-9 px-4 py-2": size === "default",

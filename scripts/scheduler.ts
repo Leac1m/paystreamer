@@ -1,27 +1,28 @@
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { DEVNET_SUBSCRIPTIONS_PACKAGE_ID } from '../src/constants.ts';
+import {
+    V2_PACKAGE_ID,
+    V2_PAYMENT_SCHEDULER_ID,
+    CLOCK_OBJECT_ID,
+    SUI_TYPE_ARG
+} from '../src/constants.ts';
 
 import { config } from 'dotenv';
 config();
 
-// This is the keypair for the demo scheduler.
-// It will be loaded from the secure .env file.
-const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET; 
+const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET;
 
-// Define the network
 const client = new SuiGraphQLClient({ url: "https://fullnode.devnet.sui.io:443/graphql", network: "devnet" });
 
 async function runScheduler() {
     console.log("Starting Subscriptions Scheduler...");
 
-    // Setup keypair
     if (!SCHEDULER_SECRET) {
         console.error("SCHEDULER_SECRET is not set in the .env file. Please configure it.");
         return;
     }
-    
+
     let keypair: Ed25519Keypair;
     try {
         keypair = Ed25519Keypair.fromSecretKey(SCHEDULER_SECRET);
@@ -29,164 +30,144 @@ async function runScheduler() {
         console.warn("Invalid secret key. Please set a valid scheduler secret in .env for the demo.");
         return;
     }
-    
+
     try {
         const schedulerAddress = keypair.toSuiAddress();
         console.log(`Scheduler Address: ${schedulerAddress}`);
 
-        // 1. Find SchedulerCap objects owned by the scheduler
-        console.log("Finding SchedulerCaps...");
-        const { objects: caps } = await client.core.listOwnedObjects({
-            owner: schedulerAddress,
-            type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::SchedulerCap`,
-            include: { json: true }
-        });
+        console.log("Finding Subscription Accounts...");
 
-        if (caps.length === 0) {
-            console.log("No SchedulerCaps found for this address. Waiting for platform authorization.");
+        let hasNextPage = true;
+        let cursor: any = null;
+        const accountIds: string[] = [];
+
+        while (hasNextPage) {
+            const result = await client.query({
+                query: `
+                    query GetEvents($cursor: String, $type: String!) {
+                        events(first: 50, after: $cursor, filter: { type: $type }) {
+                            nodes { contents { json } }
+                            pageInfo { hasNextPage endCursor }
+                        }
+                    }
+                `,
+                variables: {
+                    type: `${V2_PACKAGE_ID}::account::AccountCreated`,
+                },
+            });
+
+            if (!result.data?.events) {
+                console.error("Failed to query events:", result.errors);
+                break;
+            }
+
+            const events = {
+                data: result.data.events.nodes.map((n: any) => ({
+                    parsedJson: n.contents.json,
+                })),
+                hasNextPage: result.data.events.pageInfo.hasNextPage,
+                nextCursor: result.data.events.pageInfo.endCursor,
+            };
+
+            events.data.forEach((e: any) => {
+                const json = e.parsedJson || e.json;
+                if (json?.account_id) accountIds.push(json.account_id);
+            });
+            hasNextPage = events.hasNextPage;
+            cursor = events.nextCursor;
+        }
+
+        if (accountIds.length === 0) {
+            console.log("No subscription accounts found on the network.");
             return;
         }
 
-        // For each authorized platform, run the batch withdrawal
-        for (const capObj of caps) {
-            const content = capObj.json as any;
-            if (!content) continue;
+        console.log(`Found ${accountIds.length} accounts. Checking subscriptions...`);
 
-            const platformId = content.platform_id;
-            const schedulerCapId = capObj.objectId;
+        const { objects: accountsResult } = await client.core.getObjects({
+            objectIds: accountIds,
+            include: { json: true }
+        });
 
-            if (!platformId || !schedulerCapId) continue;
+        const duePayments: { accountId: string, platformId: string, amount: number }[] = [];
+        const now = Date.now();
 
-            console.log(`Processing withdrawals for Platform: ${platformId}`);
+        for (const acc of accountsResult) {
+            if (acc instanceof Error) continue;
+            const accContent = acc.json as any;
+            if (!accContent) continue;
 
-            // 2. Query all SubscriptionAccount objects
-            // In a real app, you'd index these accounts off-chain in a database.
-            // For the demo, we'll query events or search by type, but querying all accounts can be heavy.
-            // As a simplification, we assume we have a list of account IDs, or we find them via an indexer.
-            // Since we can't fetch all shared objects easily without an indexer, we query AccountCreated events.
-            
-            let hasNextPage = true;
-            let cursor: any = null;
-            const accountIds: string[] = [];
+            const subscriptions = accContent.subscriptions?.contents || [];
 
-            while (hasNextPage) {
-                const result = await client.query({
-                    query: `
-                        query GetEvents($cursor: String, $type: String!) {
-                            events(first: 50, after: $cursor, filter: { type: $type }) {
-                                nodes { contents { json } sender { address } }
-                                pageInfo { hasNextPage endCursor }
-                            }
-                        }
-                    `,
-                    variables: {
-                        type: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::subscription_account::AccountCreated`,
-                    },
-                });
-
-                const events = {
-                    data: result.data.events.nodes.map((n: any) => ({
-                        parsedJson: n.contents.json,
-                        sender: n.sender,
-                    })),
-                    hasNextPage: result.data.events.pageInfo.hasNextPage,
-                    nextCursor: result.data.events.pageInfo.endCursor,
-                };
-
-                events.data.forEach((e: any) => {
-                    const json = e.parsedJson || e.json;
-                    if (json?.account_id) accountIds.push(json.account_id);
-                });
-                hasNextPage = events.hasNextPage;
-                cursor = events.nextCursor;
-            }
-
-            if (accountIds.length === 0) {
-                console.log("No subscription accounts found on the network.");
-                continue;
-            }
-
-            // 3. Fetch the account objects to check their status
-            const { objects: accountsResult } = await client.core.getObjects({
-                objectIds: accountIds,
-                include: { json: true }
-            });
-
-            const accountsToWithdraw: string[] = [];
-            const withdrawalAmounts: number[] = [];
-            const now = Date.now();
-
-            for (const acc of accountsResult) {
-                if (acc instanceof Error) continue;
-                const accContent = acc.json as any;
-                if (!accContent) continue;
-
-                // Check if account has an active subscription for this platform
-                // Note: GraphQL returns subscriptions as { contents: [{ key, value }] }
-                const subscriptions = accContent.subscriptions?.contents || [];
-
-                const subEntry = subscriptions.find(
-                    (s: any) => s.key === platformId
-                );
-
-                if (!subEntry) continue; // Not subscribed to this platform
-
-                // GraphQL returns subscription values directly (not wrapped in .fields)
-                const sub = subEntry.value;
+            for (const subEntry of subscriptions) {
+                const platformId = subEntry.key;
+                const sub = subEntry.value?.fields || subEntry.value;
                 if (!sub) continue;
 
-                const nextBilling = Number(sub.schedule?.next_billing_time || 0);
-                const amount = Number(sub.tier_amount || 0);
-                const status = sub.status?.variant;
+                const nextBilling = Number(sub.next_billing_ts || sub.next_billing_time || 0);
+                const amount = Number(sub.tier_amount || sub.amount || 0);
+                const status = sub.status?.variant ?? sub.status;
 
                 if (status === 0 && now >= nextBilling && amount > 0) {
-                    // Subscription is active and due for billing
-                    // Check if account has enough balance
-                    const balance = Number(accContent.balance || 0);
+                    const balance = Number(accContent.balance?.public_balance || 0);
                     if (balance >= amount) {
-                        accountsToWithdraw.push(acc.objectId);
-                        withdrawalAmounts.push(amount);
-                    } else {
-                        console.log(`Account ${acc.objectId} has insufficient balance for subscription.`);
-                    }
-                }
-            }
-
-            if (accountsToWithdraw.length > 0) {
-                console.log(`Found ${accountsToWithdraw.length} due subscriptions. Processing individually...`);
-
-                for (let idx = 0; idx < accountsToWithdraw.length; idx++) {
-                    const accountId = accountsToWithdraw[idx];
-                    const amount = withdrawalAmounts[idx];
-
-                    const tx = new Transaction();
-
-                    tx.moveCall({
-                        target: `${DEVNET_SUBSCRIPTIONS_PACKAGE_ID}::platform_registry::process_withdrawal_scheduler`,
-                        typeArguments: ['0x2::sui::SUI'],
-                        arguments: [
-                            tx.object(schedulerCapId),
-                            tx.object(platformId),
-                            tx.object(accountId),
-                            tx.pure.u64(amount),
-                            tx.object('0x6') // Clock object
-                        ]
-                    });
-
-                    try {
-                        const result = await (client as any).signAndExecuteTransaction({
-                            transaction: tx,
-                            signer: keypair,
+                        duePayments.push({
+                            accountId: acc.objectId,
+                            platformId,
+                            amount
                         });
-                        const digest = result.Transaction?.digest || result.digest;
-                        console.log(`Withdrawal for account ${accountId} successful! Digest: ${digest}`);
-                    } catch (err) {
-                        console.error(`Failed to withdraw from account ${accountId}:`, err);
                     }
                 }
-            } else {
-                console.log(`No subscriptions due for Platform: ${platformId}`);
             }
+        }
+
+        if (duePayments.length > 0) {
+            console.log(`Found ${duePayments.length} due subscriptions. Processing individually...`);
+
+            for (const payment of duePayments) {
+                const tx = new Transaction();
+
+                const limiters = tx.moveCall({
+                    target: `${V2_PACKAGE_ID}::policies::empty_limiters`,
+                    arguments: [tx.object(CLOCK_OBJECT_ID)],
+                });
+
+                tx.moveCall({
+                    target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
+                    typeArguments: [SUI_TYPE_ARG],
+                    arguments: [
+                        tx.object(payment.accountId),
+                        limiters,
+                        tx.object(CLOCK_OBJECT_ID)
+                    ],
+                });
+
+                tx.moveCall({
+                    target: `${V2_PACKAGE_ID}::scheduler::process_due_payment`,
+                    typeArguments: [SUI_TYPE_ARG],
+                    arguments: [
+                        tx.object(V2_PAYMENT_SCHEDULER_ID),
+                        tx.object(payment.platformId),
+                        tx.object(payment.accountId),
+                        limiters,
+                        tx.object(CLOCK_OBJECT_ID)
+                    ]
+                });
+
+                try {
+                    console.log(`Submitting withdrawal for account ${payment.accountId} / platform ${payment.platformId}...`);
+                    const result = await (client as any).signAndExecuteTransaction({
+                        transaction: tx,
+                        signer: keypair,
+                    });
+                    const digest = result.Transaction?.digest || result.digest || (result as any).effects?.transactionDigest;
+                    console.log(`Withdrawal successful! Digest: ${digest}`);
+                } catch (err) {
+                    console.error(`Failed to withdraw from account ${payment.accountId}:`, err);
+                }
+            }
+        } else {
+            console.log(`No subscriptions due on the network right now.`);
         }
     } catch (error) {
         console.error("Scheduler encountered an error during this iteration:");
@@ -195,6 +176,5 @@ async function runScheduler() {
     }
 }
 
-// Run every minute for the demo
-setInterval(runScheduler, 5000);
-runScheduler(); // run immediately once
+setInterval(runScheduler, 15000);
+runScheduler();

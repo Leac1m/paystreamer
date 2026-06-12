@@ -1,9 +1,31 @@
-// TODO: Update these with your deployed package IDs after running `sui client publish`
+export const DEVNET_V2_PACKAGE_ID = "0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f";
+export const V2_PACKAGE_ID = DEVNET_V2_PACKAGE_ID;
+export const TESTNET_V2_PACKAGE_ID = undefined;
+export const MAINNET_V2_PACKAGE_ID = undefined;
+
+export const DEVNET_PAYMENT_SCHEDULER_ID = "0x42238297b71f28b9054dd86f0165311df500f19590939cb57ee9db7ca300d6f7";
+export const V2_PAYMENT_SCHEDULER_ID = DEVNET_PAYMENT_SCHEDULER_ID;
+export const DEVNET_COIN_TYPE_REGISTRY_ID = "0x678f525faeb3491edf890efd54fef590cef8ab350dc1c9017e30d50f37b9f479";
+export const DEVNET_ACCESS_CONTROL_ID = "0xdac30d15141f3970ac27dbb272fbe622fa46b43b3b1b49a126e0b33f3f2361d0";
+
+export const TESTNET_PAYMENT_SCHEDULER_ID = undefined;
+export const TESTNET_COIN_TYPE_REGISTRY_ID = undefined;
+export const TESTNET_ACCESS_CONTROL_ID = undefined;
+
+export const MAINNET_PAYMENT_SCHEDULER_ID = undefined;
+export const MAINNET_COIN_TYPE_REGISTRY_ID = undefined;
+export const MAINNET_ACCESS_CONTROL_ID = undefined;
+
+export const GRAPHQL_URL = "https://fullnode.devnet.sui.io:443/graphql";
+export const SUI_TYPE_ARG = "0x2::sui::SUI";
+export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
+export const USDC_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdc::USDC";
+export const USDSUI_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdsui::USDSui";
+
 export const DEVNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 export const TESTNET_COUNTER_PACKAGE_ID: string | undefined = "0xb36f813e3c9f2b3d25461a9f0695dc44922cd99f94ca519c244778bbc75ec0c1";
 export const MAINNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 
-// Subscription package IDs (update after deploying move/subscriptions)
 export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e";
 export const TESTNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Mail } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function CTASection() {
   return (
@@ -24,14 +25,14 @@ export default function CTASection() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <button className="btn-primary flex items-center justify-center gap-2 text-lg px-10 py-4">
+            <Button variant="gradient" size="lg" className="text-lg">
               <span>Launch Platform Dashboard</span>
               <ArrowRight size={20} />
-            </button>
-            <button className="btn-secondary flex items-center justify-center gap-2 text-lg px-10 py-4">
+            </Button>
+            <Button variant="secondary" size="lg" className="text-lg">
               <Mail size={20} />
               <span>Contact Sales</span>
-            </button>
+            </Button>
           </div>
 
           {/* Trust Badges */}
@@ -52,6 +53,10 @@ export default function CTASection() {
               <div className="w-2 h-2 rounded-full bg-[#10b981]" />
               <span>Built on Sui</span>
             </div>
+            <a href="/pricing" className="flex items-center gap-2 hover:text-white transition-colors">
+              <div className="w-2 h-2 rounded-full bg-[#6c63ff]" />
+              <span>2.5% per transaction</span>
+            </a>
           </div>
         </motion.div>
 
@@ -65,7 +70,7 @@ export default function CTASection() {
         >
           <h3 className="text-xl font-semibold text-white mb-3">Stay Updated</h3>
           <p className="text-[#94a3b8] text-sm mb-6">
-            Get the latest news on Web3 infrastructure, API updates, and platform integrations.
+            Get actionable updates on crypto billing, new features, and integration guides — no spam, unsubscribe anytime.
           </p>
           <div className="flex gap-3">
             <input
@@ -73,7 +78,7 @@ export default function CTASection() {
               placeholder="your@email.com"
               className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-[#94a3b8] focus:outline-none focus:border-[#6c63ff]"
             />
-            <button className="btn-primary px-6">Subscribe</button>
+            <Button variant="gradient" size="default">Subscribe</Button>
           </div>
         </motion.div>
       </div>

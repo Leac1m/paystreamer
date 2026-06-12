@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogOut } from 'lucide-react';
 import { ConnectModal } from '@mysten/dapp-kit-react/ui';
-import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit, useWalletConnection } from '@mysten/dapp-kit-react';
+import { Button } from './ui/button';
 
 export default function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -10,6 +11,7 @@ export default function NavBar() {
   const modalRef = useRef<any>(null);
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const { isConnecting } = useWalletConnection();
   const disconnect = () => dAppKit.disconnectWallet();
 
   useEffect(() => {
@@ -21,10 +23,12 @@ export default function NavBar() {
   }, []);
 
   const navLinks = [
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'For Users', href: '#for-users' },
-    { label: 'For Platforms', href: '#for-platforms' },
-    { label: 'Security', href: '#security' },
+    { label: 'Explore Platforms', href: '/explore' },
+    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'The Problem', href: '/#the-problem' },
+    { label: 'Platform Features', href: '/#for-platforms' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'Security', href: '/#security' },
   ];
 
   return (
@@ -40,7 +44,7 @@ export default function NavBar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <a href="#" className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white" fillOpacity="0.9" />
@@ -48,7 +52,7 @@ export default function NavBar() {
                   <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-white">Sui Subscriptions</span>
+              <span className="text-xl font-bold text-white">PayStreamer</span>
             </a>
 
             {/* Desktop Navigation */}
@@ -67,24 +71,33 @@ export default function NavBar() {
             {/* Wallet Button */}
             <div className="hidden md:flex items-center gap-4">
               {account ? (
-                <button
+                <Button
                   onClick={() => disconnect()}
-                  className="btn-secondary flex items-center gap-2 text-sm px-4 py-2"
+                  variant="secondary"
+                  className="flex items-center gap-2 text-sm px-4 py-2"
                   title="Disconnect"
                 >
                   <span className="font-mono">
                     {account.address.slice(0, 6)}...{account.address.slice(-4)}
                   </span>
                   <LogOut size={16} />
-                </button>
+                </Button>
+              ) : isConnecting ? (
+                <Button disabled className="flex items-center justify-center text-sm px-6 py-2" variant="gradient">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </Button>
               ) : (
                 <>
-                  <button
+                  <Button
                     onClick={() => modalRef.current?.show()}
-                    className="btn-primary text-sm px-6 py-2"
+                    className="text-sm px-6 py-2"
+                    variant="gradient"
                   >
                     Connect Wallet
-                  </button>
+                  </Button>
                   <ConnectModal ref={modalRef} />
                 </>
               )}
@@ -126,25 +139,34 @@ export default function NavBar() {
                 ))}
                 <div className="mt-4 flex justify-center">
                   {account ? (
-                    <button
+                    <Button
                       onClick={() => disconnect()}
-                      className="btn-secondary flex items-center justify-center gap-2 text-sm px-6 py-3 w-full"
+                      variant="secondary"
+                      className="flex items-center justify-center gap-2 text-sm px-6 py-3 w-full"
                     >
                       <span className="font-mono">
                         {account.address.slice(0, 6)}...{account.address.slice(-4)}
                       </span>
                       <LogOut size={16} />
-                    </button>
+                    </Button>
+                  ) : isConnecting ? (
+                    <Button disabled className="flex items-center justify-center text-sm px-6 py-3 w-full" variant="gradient">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </Button>
                   ) : (
-                    <button
+                    <Button
                       onClick={() => {
                         setIsMobileMenuOpen(false);
                         modalRef.current?.show();
                       }}
-                      className="btn-primary text-sm px-6 py-3 w-full"
+                      className="text-sm px-6 py-3 w-full"
+                      variant="gradient"
                     >
                       Connect Wallet
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

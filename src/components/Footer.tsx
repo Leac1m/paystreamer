@@ -29,7 +29,7 @@ export default function Footer() {
                   <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-white">Sui Subscriptions</span>
+              <span className="text-xl font-bold text-white">PayStreamer</span>
             </a>
             <p className="text-sm text-[#94a3b8]">
               Empowering users with full control over their subscription payments on the Sui blockchain.
@@ -58,7 +58,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/10 gap-4">
           <div className="text-sm text-[#94a3b8]">
-            © 2024 Sui Subscriptions. Built on Sui Network.
+            © 2024 PayStreamer. Built on Sui Network.
           </div>
 
           <div className="flex items-center gap-4">
