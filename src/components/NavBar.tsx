@@ -23,7 +23,6 @@ export default function NavBar() {
   }, []);
 
   const navLinks = [
-    { label: 'Explore Platforms', href: '/explore' },
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'The Problem', href: '/#the-problem' },
     { label: 'Platform Features', href: '/#for-platforms' },
