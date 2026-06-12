@@ -6,8 +6,8 @@ import { useCurrentClient, useCurrentAccount, useDAppKit, useWalletConnection } 
 import { Transaction } from "@mysten/sui/transactions";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, X, Wallet, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { CheckCircle, Wallet, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -94,7 +94,6 @@ export default function SubscribePage() {
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
-  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
   const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
 
@@ -308,54 +307,6 @@ export default function SubscribePage() {
     }
   };
 
-  const handleCreateAccount = async () => {
-    if (!account) return;
-
-    setTxStatus("pending");
-    setTxMessage("Creating account...");
-
-    const tx = new Transaction();
-    tx.setGasBudget(50_000_000);
-
-    const initialPolicies = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
-    });
-
-    const [accountObj, cap] = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
-        initialPolicies,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-
-    tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [accountObj, cap],
-    });
-
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
-      }
-
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      setTxDigest(result.Transaction.digest);
-      setTxStatus("success");
-      setTxMessage("Account created!");
-
-      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
-      await queryClient.invalidateQueries({ queryKey: ["account-caps", account.address] });
-    } catch (err) {
-      setTxStatus("error");
-      setTxMessage(parseMoveError(err));
-    }
-  };
 
   const isPending = txStatus === "pending";
 
@@ -443,23 +394,11 @@ export default function SubscribePage() {
                     <span>Connect Wallet</span>
                   </div>
                   <div className="w-8 h-px bg-white/20" />
-                  <div className={`flex items-center gap-2 ${accountId ? "text-[#10b981]" : "text-white"}`}>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${accountId ? "bg-[#10b981]" : "bg-[#6c63ff]"}`}>
-                      {accountId ? <CheckCircle className="w-4 h-4 text-white" /> : "2"}
-                    </div>
-                    <span>Set Up Billing</span>
-                  </div>
-                  <div className="w-8 h-px bg-white/20" />
                   <div className="flex items-center gap-2 text-white">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-[#6c63ff]">3</div>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-[#6c63ff]">2</div>
                     <span>Subscribe</span>
                   </div>
                 </div>
-                {!accountId && (
-                  <p className="text-xs text-[#94a3b8] mt-3 text-center">
-                    Your billing account stores your payment preferences on-chain.
-                  </p>
-                )}
               </div>
             )}
 
@@ -571,41 +510,28 @@ export default function SubscribePage() {
                             >
                               Connect to Subscribe
                             </Button>
-                          ) : !accountId ? (
+                          ) : (
                             <div className="space-y-2">
                               <Button
                                 onClick={() => {
                                   const frequencyMs = getFrequencyMs(tier);
-                                  createAccountAndSubscribe(index, BigInt(tier.amount), frequencyMs);
+                                  if (!accountId) {
+                                    createAccountAndSubscribe(index, BigInt(tier.amount), frequencyMs);
+                                  } else {
+                                    handleSubscribe(index, BigInt(tier.amount), frequencyMs);
+                                  }
                                 }}
                                 disabled={isPending}
                                 loading={isPending}
                                 className="w-full"
                                 variant="gradient"
                               >
-                                Subscribe Now
+                                Subscribe
                               </Button>
-                              <Button
-                                onClick={() => setShowCreateAccountModal(true)}
-                                disabled={isPending}
-                                variant="secondary"
-                                className="w-full"
-                              >
-                                Set Up Billing First
-                              </Button>
+                              <p className="text-xs text-center text-[#94a3b8] mt-2">
+                                Cancel anytime. Secure smart contract.
+                              </p>
                             </div>
-                          ) : (
-                            <Button
-                              onClick={() => {
-                                const frequencyMs = getFrequencyMs(tier);
-                                handleSubscribe(index, BigInt(tier.amount), frequencyMs);
-                              }}
-                              disabled={isPending}
-                              loading={isPending}
-                              className="w-full"
-                            >
-                              Subscribe
-                            </Button>
                           )}
                         </CardContent>
                       </Card>
@@ -642,52 +568,6 @@ export default function SubscribePage() {
 
       <ConnectModal ref={modalRef} />
 
-      <AnimatePresence>
-        {showCreateAccountModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="absolute inset-0 bg-black/60" onClick={() => !isPending && setShowCreateAccountModal(false)} />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="relative glass-card p-6 max-w-md w-full"
-            >
-              <button
-                onClick={() => !isPending && setShowCreateAccountModal(false)}
-                className="absolute top-4 right-4 text-[#94a3b8] hover:text-white"
-                disabled={isPending}
-              >
-                <X size={20} />
-              </button>
-
-              <h3 className="text-xl font-bold text-white mb-4">Set Up Billing Account</h3>
-              <p className="text-[#94a3b8] mb-6">
-                Your billing account stores your payment preferences on-chain. Create one to subscribe to this platform and enable automatic payments.
-              </p>
-
-              {txStatus === "error" && (
-                <div className="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                  {txMessage}
-                </div>
-              )}
-
-              <Button
-                onClick={handleCreateAccount}
-                disabled={isPending}
-                loading={isPending}
-                className="w-full"
-              >
-                {isPending ? "Creating..." : "Create Billing Account"}
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <TxStatusToast
         status={txStatus}

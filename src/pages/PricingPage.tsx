@@ -107,8 +107,9 @@ export default function PricingPage() {
               <Button
                 onClick={() => navigate('/platforms')}
                 className="text-lg px-8 py-4"
+                variant="gradient"
               >
-                Start Your Platform
+                Create Free Platform
               </Button>
               <Button
                 variant="outline"
@@ -211,8 +212,9 @@ export default function PricingPage() {
             <Button
               onClick={() => navigate('/platforms')}
               className="text-lg px-10 py-4"
+              variant="gradient"
             >
-              Launch Your Platform
+              Create Free Platform
             </Button>
           </motion.div>
         </div>

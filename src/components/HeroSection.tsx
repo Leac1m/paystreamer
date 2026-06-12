@@ -34,12 +34,12 @@ export default function HeroSection() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              <span className="text-white">Accept Crypto Subscriptions Automatically — </span>
-              <span className="gradient-text">No More Chasing Payments</span>
+              <span className="text-white">Automate Your Crypto Subscriptions. </span>
+              <span className="gradient-text">Zero Chargebacks.</span>
             </h1>
 
             <p className="text-lg text-[#94a3b8] mb-8 max-w-xl leading-relaxed">
-              Stop losing MRR to manual payments. Your customers connect their wallet once, approve a spending limit, and never worry about billing again. Most integrations are live same-day.
+              Stop losing MRR to manual crypto payments. Your customers connect their wallet once, and our smart contracts handle the recurring billing. Same-day integration. 2.5% flat fee.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -49,7 +49,7 @@ export default function HeroSection() {
                 size="lg"
                 className="text-lg"
               >
-                <span>Launch Your Platform</span>
+                <span>Create Free Platform</span>
                 <ArrowRight size={20} />
               </Button>
               <a href="#how-it-works">

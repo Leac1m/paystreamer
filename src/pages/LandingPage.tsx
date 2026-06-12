@@ -225,8 +225,9 @@ export default function LandingPage() {
                   <Button
                     onClick={() => modalRef.current?.show()}
                     className="flex items-center justify-center gap-2 text-lg px-10 py-4"
+                    variant="gradient"
                   >
-                    <span>Launch Platform Dashboard</span>
+                    <span>Create Free Platform</span>
                     <ArrowRight size={20} />
                   </Button>
                 )}

@@ -41,12 +41,13 @@ export function DashboardLayout() {
               <Button onClick={() => navigate("/")} variant="outline">
                 Go to Home
               </Button>
-              <button
+              <Button
                 onClick={() => modalRef.current?.show()}
-                className="btn-primary text-sm px-6 py-2"
+                className="text-sm px-6 py-2"
+                variant="gradient"
               >
                 Connect Wallet
-              </button>
+              </Button>
             </div>
             <ConnectModal ref={modalRef} />
           </div>
