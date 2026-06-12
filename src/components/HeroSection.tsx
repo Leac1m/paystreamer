@@ -1,47 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Users, Zap, Shield } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle, Users, Zap, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 
 export default function HeroSection() {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
-  const [stats, setStats] = useState({ transactions: 0, volume: 0, subscriptions: 0 });
 
   useEffect(() => {
     setMounted(true);
-    animateNumbers();
   }, []);
-
-  const animateNumbers = () => {
-    const targets = { transactions: 12500000, volume: 3600000000, subscriptions: 850000 };
-    const duration = 2000;
-    const steps = 60;
-    const interval = duration / steps;
-
-    let step = 0;
-    const timer = setInterval(() => {
-      step++;
-      const progress = step / steps;
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-
-      setStats({
-        transactions: Math.floor(targets.transactions * easeOut),
-        volume: Math.floor(targets.volume * easeOut),
-        subscriptions: Math.floor(targets.subscriptions * easeOut),
-      });
-
-      if (step >= steps) clearInterval(timer);
-    }, interval);
-  };
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-12">
@@ -75,12 +44,12 @@ export default function HeroSection() {
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <Button
-                onClick={() => navigate('/explore')}
+                onClick={() => navigate('/platforms')}
                 variant="gradient"
                 size="lg"
                 className="text-lg"
               >
-                <span>Explore Platforms</span>
+                <span>Launch Your Platform</span>
                 <ArrowRight size={20} />
               </Button>
               <a href="#how-it-works">
@@ -91,41 +60,24 @@ export default function HeroSection() {
               </a>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-center sm:text-left"
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
-                  {formatNumber(stats.transactions)}
-                </div>
-                <div className="text-sm text-[#94a3b8]">Transactions Processed</div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                className="text-center sm:text-left"
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
-                  ${formatNumber(stats.volume)}
-                </div>
-                <div className="text-sm text-[#94a3b8]">Treasury Volume</div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                className="text-center sm:text-left"
-              >
-                <div className="text-2xl sm:text-3xl font-bold text-white stat-number">
-                  {formatNumber(stats.subscriptions)}
-                </div>
-                <div className="text-sm text-[#94a3b8]">Active Platforms</div>
-              </motion.div>
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap gap-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={18} className="text-[#10b981]" />
+                <span className="text-sm text-[#94a3b8]">2.5% per transaction</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle size={18} className="text-[#10b981]" />
+                <span className="text-sm text-[#94a3b8]">No setup fees</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle size={18} className="text-[#10b981]" />
+                <span className="text-sm text-[#94a3b8]">Zero chargebacks</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle size={18} className="text-[#10b981]" />
+                <span className="text-sm text-[#94a3b8]">Built on Sui</span>
+              </div>
             </div>
           </motion.div>
 
@@ -220,8 +172,8 @@ export default function HeroSection() {
               {/* Trust Badge */}
               <div className="absolute -bottom-4 -right-4 glass-card px-4 py-2">
                 <div className="flex items-center gap-2">
-                  <Users size={16} className="text-[#6c63ff]" />
-                  <span className="text-xs text-[#94a3b8]">12.5M+ Users</span>
+                  <Shield size={16} className="text-[#6c63ff]" />
+                  <span className="text-xs text-[#94a3b8]">Smart contract audited</span>
                 </div>
               </div>
             </div>

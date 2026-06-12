@@ -24,8 +24,8 @@ export default function NavBar() {
   const navLinks = [
     { label: 'Explore Platforms', href: '/explore' },
     { label: 'How It Works', href: '/#how-it-works' },
-    { label: 'For Users', href: '/#for-users' },
-    { label: 'For Platforms', href: '/#for-platforms' },
+    { label: 'The Problem', href: '/#the-problem' },
+    { label: 'Platform Features', href: '/#for-platforms' },
     { label: 'Pricing', href: '/pricing' },
     { label: 'Security', href: '/#security' },
   ];
