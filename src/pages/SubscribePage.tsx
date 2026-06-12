@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCurrentClient, useCurrentAccount, useDAppKit, useWalletConnection } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 
-import { Transaction } from "@mysten/sui/transactions";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { useRef } from "react";
 import { motion } from "framer-motion";
@@ -11,16 +10,9 @@ import { CheckCircle, Wallet, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { TxStatusToast, TxStatus } from "../components/TxStatusToast";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
+import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
 import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
-import { parseMoveError } from "../lib/errors";
-import {
-  DEVNET_V2_PACKAGE_ID,
-  DEVNET_COIN_TYPE_REGISTRY_ID,
-  CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
-} from "../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -86,16 +78,18 @@ export default function SubscribePage() {
   const { platformId } = useParams<{ platformId: string }>();
   const client = useCurrentClient();
   const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
   const { isConnecting } = useWalletConnection();
   const modalRef = useRef<any>(null);
   const queryClient = useQueryClient();
-
-  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
-  const [txMessage, setTxMessage] = useState("");
-  const [txDigest, setTxDigest] = useState<string | undefined>();
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
   const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
+
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [selectedTierParams, setSelectedTierParams] = useState<{
+    index: number;
+    amount: bigint;
+    frequencyMs: bigint;
+  } | null>(null);
 
   const { data: platform, isPending: platformLoading } = useQuery({
     queryKey: ["platform", platformId],
@@ -159,13 +153,9 @@ export default function SubscribePage() {
     return key === platformId;
   });
 
-  const handleSubscribe = async (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
+  const handleSubscribeClick = (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
       modalRef.current?.show();
-      return;
-    }
-
-    if (!accountId || !accountCapId) {
       return;
     }
 
@@ -173,142 +163,15 @@ export default function SubscribePage() {
       return;
     }
 
-    await executeSubscription(tierIndex, tierAmount, tierFrequency);
-  };
-
-  const executeSubscription = async (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
-    if (!account || !accountId || !accountCapId) return;
-
-    setTxStatus("pending");
-    setTxMessage("Creating subscription...");
-
-    const tx = new Transaction();
-    tx.setGasBudget(50_000_000);
-
-    const accountType = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
+    setSelectedTierParams({
+      index: tierIndex,
+      amount: tierAmount,
+      frequencyMs: tierFrequency,
     });
-
-    tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::billing::create_subscription`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(accountCapId),
-        tx.object(accountId),
-        tx.pure.id(platformId!),
-        tx.pure.u64(BigInt(tierIndex)),
-        tx.pure.u64(tierAmount),
-        tx.pure.u64(tierFrequency),
-        accountType,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
-      }
-
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      setTxDigest(result.Transaction.digest);
-      setTxStatus("success");
-      setTxMessage("You're subscribed!");
-      setSubscriptionSuccess(true);
-
-      const nextDate = new Date();
-      nextDate.setDate(nextDate.getDate() + 30);
-      setNextBillingDate(nextDate.toLocaleDateString());
-
-      await queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
-    } catch (err) {
-      setTxStatus("error");
-      setTxMessage(parseMoveError(err));
-    }
-  };
-
-  const createAccountAndSubscribe = async (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
-    if (!account) {
-      modalRef.current?.show();
-      return;
-    }
-
-    setTxStatus("pending");
-    setTxMessage("Setting up account and subscribing...");
-
-    const tx = new Transaction();
-    tx.setGasBudget(100_000_000);
-
-    const initialPolicies = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
-    });
-
-    const [newAccountObj, newCap] = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
-        initialPolicies,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-
-    tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [newAccountObj, newCap],
-    });
-
-    const accountType = tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
-    });
-
-    tx.moveCall({
-      target: `${DEVNET_V2_PACKAGE_ID}::billing::create_subscription`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [
-        newCap,
-        newAccountObj,
-        tx.pure.id(platformId!),
-        tx.pure.u64(BigInt(tierIndex)),
-        tx.pure.u64(tierAmount),
-        tx.pure.u64(tierFrequency),
-        accountType,
-        tx.object(CLOCK_OBJECT_ID),
-      ],
-    });
-
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
-      }
-
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      setTxDigest(result.Transaction.digest);
-      setTxStatus("success");
-      setTxMessage("You're subscribed!");
-      setSubscriptionSuccess(true);
-
-      const nextDate = new Date();
-      nextDate.setDate(nextDate.getDate() + 30);
-      setNextBillingDate(nextDate.toLocaleDateString());
-
-      await queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
-    } catch (err) {
-      setTxStatus("error");
-      setTxMessage(parseMoveError(err));
-    }
+    setIsSetupModalOpen(true);
   };
 
 
-  const isPending = txStatus === "pending";
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -515,18 +378,12 @@ export default function SubscribePage() {
                               <Button
                                 onClick={() => {
                                   const frequencyMs = getFrequencyMs(tier);
-                                  if (!accountId) {
-                                    createAccountAndSubscribe(index, BigInt(tier.amount), frequencyMs);
-                                  } else {
-                                    handleSubscribe(index, BigInt(tier.amount), frequencyMs);
-                                  }
+                                  handleSubscribeClick(index, BigInt(tier.amount), frequencyMs);
                                 }}
-                                disabled={isPending}
-                                loading={isPending}
                                 className="w-full"
                                 variant="gradient"
                               >
-                                Subscribe
+                                {isSubscribed ? "Current Plan" : "Subscribe"}
                               </Button>
                               <p className="text-xs text-center text-[#94a3b8] mt-2">
                                 Cancel anytime. Secure smart contract.
@@ -568,13 +425,32 @@ export default function SubscribePage() {
 
       <ConnectModal ref={modalRef} />
 
+      {selectedTierParams && (
+        <SetupSubscriptionModal
+          isOpen={isSetupModalOpen}
+          onClose={() => {
+            setIsSetupModalOpen(false);
+            setSelectedTierParams(null);
+          }}
+          platformId={platformId!}
+          tierIndex={selectedTierParams.index}
+          tierAmount={selectedTierParams.amount}
+          tierFrequencyMs={selectedTierParams.frequencyMs}
+          accountId={accountId ?? undefined}
+          accountCapId={accountCapId ?? undefined}
+          currentBalance={accountJson?.balance?.value ? BigInt(accountJson.balance.value) : 0n}
+          onSuccess={() => {
+            setIsSetupModalOpen(false);
+            setSubscriptionSuccess(true);
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + 30);
+            setNextBillingDate(nextDate.toLocaleDateString());
+            queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
+            queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
+          }}
+        />
+      )}
 
-      <TxStatusToast
-        status={txStatus}
-        message={txMessage}
-        digest={txDigest}
-        onClose={() => setTxStatus("idle")}
-      />
     </div>
   );
 }
