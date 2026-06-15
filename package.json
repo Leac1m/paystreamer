@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "codegen": "rm -rf src/contracts && sui-ts-codegen generate"
+    "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
+    "seed:demo": "ts-node --esm scripts/v2/seed-demo-platform.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",

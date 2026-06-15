@@ -43,9 +43,6 @@ export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0xd2ddd9bd52
 export const TESTNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 
-export const DEMO_PLATFORM_ID: string | undefined = undefined; // populated by pnpm seed:demo
-export const DEMO_PLATFORM_INIT_VERSION: number | undefined = undefined; // populated by pnpm seed:demo
-
 // Populated by `pnpm seed:demo` (Phase 2.1). When undefined, the demo CTAs
 // on the landing and explore pages are hidden.
 export const DEMO_PLATFORM_ID: string | undefined = undefined;
