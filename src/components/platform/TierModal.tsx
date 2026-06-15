@@ -62,8 +62,26 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
   const [denomination, setDenomination] = useState("SUI");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 60-second frequency exists specifically so the "Process Now" button (Phase 1.1)
+  // can be demoed end-to-end inside a 5-minute window for the live hackathon demo.
+  const [useDemoDefaults, setUseDemoDefaults] = useState(false);
 
   const isEditMode = !!tier;
+
+  function handleDemoToggle(checked: boolean) {
+    setUseDemoDefaults(checked);
+    if (checked) {
+      setName("Demo Tier (1-minute billing)");
+      setAmount("0.001");
+      setBillingCycle("custom");
+      setCustomSeconds("60");
+    } else {
+      setName("");
+      setAmount("");
+      setBillingCycle("monthly");
+      setCustomSeconds("30");
+    }
+  }
 
   const frequencySeconds =
     billingCycle === "custom"
@@ -129,6 +147,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     setBillingCycle("monthly");
     setCustomSeconds("30");
     setDenomination("SUI");
+    setUseDemoDefaults(false);
   }
 
   return (
@@ -144,6 +163,23 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
         </ModalHeader>
 
         <div className="space-y-4">
+          {!isEditMode && (
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-[#6c63ff]/40 bg-[#6c63ff]/5 p-3">
+              <input
+                type="checkbox"
+                checked={useDemoDefaults}
+                onChange={(e) => handleDemoToggle(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium">Use demo defaults</span>
+                <p className="text-xs text-muted-foreground">
+                  Pre-fills a 60-second billing cycle so the live "Process Now" button can be demoed end-to-end in &lt;5 minutes.
+                </p>
+              </div>
+            </label>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Tier Name</label>
             <Input
