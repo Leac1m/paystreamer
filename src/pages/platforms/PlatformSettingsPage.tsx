@@ -17,7 +17,6 @@ export function PlatformSettingsPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isPendingTx, setIsPendingTx] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,15 +115,6 @@ export function PlatformSettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Category</label>
-            <Input
-              placeholder={fields.category}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
             <label className="text-sm font-medium">Webhook URL</label>
             <Input
               placeholder="https://..."
@@ -147,6 +137,14 @@ export function PlatformSettingsPage() {
           <CardDescription>Platform identification and creation details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Category</label>
+            <p className="text-sm text-muted-foreground">
+              {fields.category || "Uncategorized"}{" "}
+              <span className="text-xs">(set at registration; not editable on-chain)</span>
+            </p>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Platform ID</label>
             <p className="font-mono text-sm bg-muted p-2 rounded break-all">{platform.objectId}</p>
