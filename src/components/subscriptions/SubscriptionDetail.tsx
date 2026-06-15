@@ -12,6 +12,7 @@ import {
 } from "../ui/card";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { formatAmount, symbolFor } from "../../lib/format";
 
 interface SubscriptionDetailProps {
   accountId: string;
@@ -28,18 +29,6 @@ interface SubscriptionDetailProps {
     payment_count?: number;
   };
   denomination: string;
-}
-
-function formatAmount(amount: string | number, denomination: string): string {
-  const raw = typeof amount === "string" ? parseInt(amount) : amount;
-  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
-  const normalized = safeRaw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
 }
 
 function getFrequencyLabel(ms: string | number): string {
@@ -168,7 +157,7 @@ export function SubscriptionDetail({
               <p className="font-medium">
                 {subscription.total_paid
                   ? formatAmount(subscription.total_paid, denomination)
-                  : `0 ${denomination.includes("usdc") ? "USDC" : denomination.includes("usdsui") ? "USDSui" : "SUI"}`}
+                  : `0 ${symbolFor(denomination)}`}
               </p>
             </div>
             <div className="space-y-1">

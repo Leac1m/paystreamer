@@ -16,6 +16,7 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
+import { getDenominationDecimals } from "../../lib/format";
 import {
   DEVNET_V2_PACKAGE_ID,
   DEVNET_COIN_TYPE_REGISTRY_ID,
@@ -90,7 +91,8 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
       const depositNum = parseFloat(depositAmount);
       if (depositNum > 0) {
-        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * 1_000_000_000))]);
+        const scale = Math.pow(10, getDenominationDecimals(selectedDenomination));
+        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * scale))]);
         tx.moveCall({
           target: `${DEVNET_V2_PACKAGE_ID}::account::deposit`,
           typeArguments: [selectedDenomination],

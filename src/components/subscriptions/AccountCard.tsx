@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
+import { formatAmount, symbolFor } from "../../lib/format";
 
 interface AccountCardProps {
   accountId: string;
@@ -19,21 +20,14 @@ interface AccountCardProps {
   onManage?: (accountId: string) => void;
 }
 
-function formatBalance(rawBalance: any, denomination: string): string {
-  let raw = 0;
+function normalizeBalance(rawBalance: any): number {
   if (typeof rawBalance === "object" && rawBalance !== null) {
-    raw = parseInt(rawBalance.public_balance ?? rawBalance.balance ?? rawBalance.value ?? "0", 10);
-  } else if (typeof rawBalance === "string" || typeof rawBalance === "number") {
-    raw = parseInt(String(rawBalance), 10);
+    return parseInt(rawBalance.public_balance ?? rawBalance.balance ?? rawBalance.value ?? "0", 10);
   }
-
-  const normalized = raw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
+  if (typeof rawBalance === "string" || typeof rawBalance === "number") {
+    return parseInt(String(rawBalance), 10);
+  }
+  return 0;
 }
 
 export function AccountCard({ accountId, capId, denomination, onManage }: AccountCardProps) {
@@ -57,11 +51,7 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
   const subscriptions = fields?.subscriptions as Array<{ key: string; value: unknown }> | undefined;
   const status = (fields?.status as { variant?: number })?.variant;
 
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
+  const symbol = symbolFor(denomination);
 
   return (
     <Card>
@@ -86,7 +76,7 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           <div>
             <p className="text-sm text-muted-foreground">Balance</p>
             <p className="text-2xl font-bold">
-              {isPending ? "..." : balance ? formatBalance(balance, denomination) : `0 ${symbol}`}
+              {isPending ? "..." : balance ? formatAmount(normalizeBalance(balance), denomination) : `0 ${symbol}`}
             </p>
           </div>
           <div className="text-right text-sm text-muted-foreground">

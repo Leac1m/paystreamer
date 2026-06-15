@@ -6,6 +6,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
+import { getDenominationDecimals } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import {
   DEVNET_V2_PACKAGE_ID,
@@ -48,10 +49,11 @@ export function SetupSubscriptionModal({
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   
-  const minDepositSui = Number(absoluteMinRequired) / 1_000_000_000;
-  const defaultDepositSui = Number(shortfall) / 1_000_000_000;
-  const currentBalanceSui = Number(currentBalance) / 1_000_000_000;
-  const tierAmountSui = Number(tierAmount) / 1_000_000_000;
+  const suiScale = Math.pow(10, getDenominationDecimals(SUI_TYPE_ARG));
+  const minDepositSui = Number(absoluteMinRequired) / suiScale;
+  const defaultDepositSui = Number(shortfall) / suiScale;
+  const currentBalanceSui = Number(currentBalance) / suiScale;
+  const tierAmountSui = Number(tierAmount) / suiScale;
 
   const [depositAmount, setDepositAmount] = useState(defaultDepositSui.toString());
   const [step, setStep] = useState<"input" | "success">("input");
@@ -109,7 +111,7 @@ export function SetupSubscriptionModal({
       }
 
       // 2. Deposit SUI (if amount > 0)
-      const amountInMist = Math.floor(amountVal * 1_000_000_000);
+      const amountInMist = Math.floor(amountVal * suiScale);
       if (amountInMist > 0) {
         const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
         tx.moveCall({

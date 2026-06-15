@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { parseMoveError } from "../../lib/errors";
+import { formatAmount } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
@@ -40,18 +41,6 @@ interface SubscriptionCardProps {
   };
   denomination: string;
  onExpand?: () => void;
-}
-
-function formatAmount(amount: string | number, denomination: string): string {
-  const raw = typeof amount === "string" ? parseInt(amount) : amount;
-  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
-  const normalized = safeRaw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
 }
 
 function getFrequencyLabel(ms: string | number): string {

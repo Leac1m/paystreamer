@@ -612,7 +612,11 @@ Tracking implementation of `docs/demo-readiness-plan.md` phases 0–4.
   - Shared `formatTimeAgo` in `src/lib/utils.ts` (also available for `PlatformOwnerOverview` to dedupe)
   - Placed after the "Recent Platforms" section, before `IntegrationFlow`
 - 4.3: "Onboard a fresh stranger" modal
-- 4.4: Per-denomination decimals lookup
+- **4.4: Per-denomination decimals lookup ✅ done**
+  - New `src/lib/format.ts` with `DECIMALS_BY_TYPE` map (SUI=9, USDC=6, USDSui=6), `getDenominationDecimals`, `symbolFor`, `formatAmount`
+  - `AccountCard.tsx`, `ActivityFeed.tsx`, `SubscriptionCard.tsx`, `SubscriptionDetail.tsx` now import `formatAmount` / `symbolFor`; local `formatAmount` / `formatBalance` removed
+  - `SetupSubscriptionModal.tsx`, `CreateAccountModal.tsx`, `PolicyEditor.tsx` also routed through `getDenominationDecimals` so the SUI→u64 chain encoding uses the helper (latent USDC bug fixed in passing)
+  - `grep "1_000_000_000" src/components/subscriptions/` now returns zero matches
 - 4.5: Fix e2e scripts + `pnpm seed:demo`
 - 4.6: CI lint to catch regressions
 - 4.7: Append this section ✅

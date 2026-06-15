@@ -23,6 +23,7 @@ import {
   Download,
   AlertTriangle,
 } from "lucide-react";
+import { formatAmount } from "../../lib/format";
 
 type FilterTab = "all" | "payments" | "deposits" | "alerts";
 
@@ -34,16 +35,6 @@ interface EventRow {
   status: "success" | "failed";
   reason?: string;
   digest: string;
-}
-
-function formatAmount(amount: number, denomination: string): string {
-  const normalized = amount / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
 }
 
 export function ActivityFeed() {
