@@ -4,18 +4,22 @@ Stop losing MRR to manual payments. Let your customers connect their wallet once
 
 PayStreamer is a Web3 billing infrastructure that allows digital platforms to accept, manage, and automate recurring cryptocurrency subscriptions seamlessly.
 
-## v2 — what shipped recently
+## v2 — current
 
-The `feature/v2-core` branch contains a clean rewrite of the contract suite. See [`docs/architecture-v2.md`](docs/architecture-v2.md) for the design and [`docs/v2-build-log.md`](docs/v2-build-log.md) for the build session.
+`feature/v2-core` is the active branch and contains the v2 contract suite. See [`docs/architecture-v2.md`](docs/architecture-v2.md) for the design and [`docs/v2-build-log.md`](docs/v2-build-log.md) for the build session.
 
-- 10 Move modules (`move/subscriptions_v2/`) — OZ AccessControl + RateLimiter, on-chain permissionless scheduler, BalanceContainer seam for future confidential transfers, agentic-commerce permission seam
+- 10 Move modules (`move/subscriptions/`) — OZ AccessControl + RateLimiter, on-chain permissionless scheduler, BalanceContainer seam for future confidential transfers, agentic-commerce permission seam
 - 73 / 73 unit tests pass
-- Published to Sui devnet (package `0xe4928343c89668936e3bac1daf786ca7ba1ab295489921caf4894f5a7a3694ca`)
-- E2E script at `scripts/v2/e2e-payment-cycle.ts` exercises 4 of the 9 steps on devnet today (Step 3's enum-encoding issue is a known SDK gap, documented)
+- Published to Sui devnet (package `0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f`)
+- All 9 e2e steps pass on devnet.
 
 ## v1 (this branch's `main`) — original MVP
 
 The `main` branch is the original MVP that was published to devnet (package `0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e`). v1 used an off-chain scheduler signed with a `SCHEDULER_SECRET`; that approach is deprecated.
+
+## Demo
+
+Want to see it in action? See [docs/DEMO.md](docs/DEMO.md) for a 5-minute presenter script, or jump straight to [the live demo](https://paystreamer.app).
 
 ## The Problem
 
@@ -38,7 +42,7 @@ Web3 businesses run on MRR, but blockchains weren't built for recurring payments
 
 Two contract packages side by side:
 1. **v1** (this README's content, `move/subscriptions/`) — the published MVP, 3 modules, custom capabilities.
-2. **v2** (`move/subscriptions_v2/`, branch `feature/v2-core`) — the OZ-based refactor, 10 modules. See `docs/architecture-v2.md`.
+2. **v2** (`move/subscriptions/`, branch `feature/v2-core`) — the OZ-based refactor, 10 modules. See `docs/architecture-v2.md`.
 
 Frontend dApp: React, Vite, Tailwind CSS v4, `@mysten/dapp-kit-react`.
 
