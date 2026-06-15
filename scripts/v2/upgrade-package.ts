@@ -2,9 +2,10 @@ import { Transaction } from '@mysten/sui/transactions';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { executeTransaction } from './helpers.js';
+import { V2_PACKAGE_ID, V2_UPGRADE_CAP_ID } from './config.js';
 
-const UPGRADE_CAP = '0xb560a18678f9403fcf3306ff9a3894141856e963df7929f31224054fabd4926d';
-const PACKAGE_ID = '0xe4928343c89668936e3bac1daf786ca7ba1ab295489921caf4894f5a7a3694ca';
+const UPGRADE_CAP = V2_UPGRADE_CAP_ID;
+const PACKAGE_ID = V2_PACKAGE_ID;
 
 const modules = JSON.parse(process.argv[2]);
 
