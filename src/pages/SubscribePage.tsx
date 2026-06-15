@@ -449,10 +449,10 @@ export default function SubscribePage() {
             setIsSetupModalOpen(false);
             setSubscriptionSuccess(true);
             const nextDate = new Date();
-            nextDate.setDate(nextDate.getDate() + 30);
+            nextDate.setTime(nextDate.getTime() + Number(selectedTierParams.frequencyMs));
             setNextBillingDate(nextDate.toLocaleDateString());
             queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
-            queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
+            queryClient.invalidateQueries({ queryKey: ["account-created-events", account?.address] });
           }}
         />
       )}

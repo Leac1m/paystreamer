@@ -69,15 +69,25 @@ export function SetupSubscriptionModal({
       setTxStatus("idle");
       setTxDigest(undefined);
     }
-  }, [isOpen, platformId, tierIndex]); // reset when modal opens for a new tier
+  }, [isOpen, platformId, tierIndex]);
 
   if (!isOpen) return null;
+
+  const isValidSuiAddress = (addr: string): boolean => {
+    return /^0x[0-9a-fA-F]{64}$/.test(addr);
+  };
 
   const handleSubscribe = async () => {
     const amountVal = parseFloat(depositAmount || "0");
     if (amountVal < minDepositSui) {
       setTxStatus("error");
       setTxMessage(`Deposit must be at least ${minDepositSui} SUI to cover the first bill.`);
+      return;
+    }
+
+    if (hasAccount && accountId && !isValidSuiAddress(accountId)) {
+      setTxStatus("error");
+      setTxMessage("Invalid account reference. Please refresh and try again.");
       return;
     }
 
@@ -92,7 +102,6 @@ export function SetupSubscriptionModal({
       let workingCap: any = tx.object(accountCapId || "0x0");
 
       if (!hasAccount) {
-        // 1. Create account
         const initialPolicies = tx.moveCall({
           target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
         });
@@ -110,7 +119,6 @@ export function SetupSubscriptionModal({
         workingCap = newCap;
       }
 
-      // 2. Deposit SUI (if amount > 0)
       const amountInMist = Math.floor(amountVal * suiScale);
       if (amountInMist > 0) {
         const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
@@ -126,7 +134,6 @@ export function SetupSubscriptionModal({
         });
       }
 
-      // 3. Create Subscription
       const accountType = tx.moveCall({
         target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
         arguments: [tx.pure.u8(0)],
@@ -147,7 +154,6 @@ export function SetupSubscriptionModal({
         ],
       });
 
-      // 4. Share account (only if we created a NEW one)
       if (!hasAccount) {
         tx.moveCall({
           target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,

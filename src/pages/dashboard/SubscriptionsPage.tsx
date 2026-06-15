@@ -66,7 +66,7 @@ export function SubscriptionsPage() {
     enabled: !!account?.address,
   });
 
-  const subscriptions: SubscriptionInfo[] = [];
+  const subscriptionsRaw: SubscriptionInfo[] = [];
 
   if (accountObjects) {
     for (const item of accountObjects as any[]) {
@@ -82,7 +82,7 @@ export function SubscriptionsPage() {
         for (const contentItem of contents) {
           const platformId = contentItem.key;
           const sub = contentItem.value?.fields || contentItem.value;
-          subscriptions.push({
+          subscriptionsRaw.push({
             accountId: obj.objectId,
             capId: capId,
             platformId: String(platformId),
@@ -96,21 +96,22 @@ export function SubscriptionsPage() {
   }
 
   const { data: platformVersions } = useQuery({
-    queryKey: ["platform-versions", subscriptions.map((s) => s.platformId).join(",")],
+    queryKey: ["platform-versions", subscriptionsRaw.map((s) => s.platformId).join(",")],
     queryFn: async () => {
-      const ids = Array.from(new Set(subscriptions.map((s) => s.platformId).filter(Boolean)));
+      const ids = Array.from(new Set(subscriptionsRaw.map((s) => s.platformId).filter(Boolean)));
       if (ids.length === 0) return new Map<string, number>();
       const infos = await queryPlatformInitialVersions(ids);
       return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
     },
-    enabled: subscriptions.length > 0,
+    enabled: subscriptionsRaw.length > 0,
   });
 
-  if (platformVersions) {
-    for (const sub of subscriptions) {
-      sub.platformInitVersion = platformVersions.get(sub.platformId) ?? 0;
-    }
-  }
+  const subscriptions: SubscriptionInfo[] = platformVersions
+    ? subscriptionsRaw.map(sub => ({
+        ...sub,
+        platformInitVersion: platformVersions.get(sub.platformId) ?? 0,
+      }))
+    : subscriptionsRaw;
 
   const filteredSubscriptions = subscriptions.filter((sub) => {
     if (activeTab === "all") return true;

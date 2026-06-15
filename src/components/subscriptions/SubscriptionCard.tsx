@@ -11,7 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { parseMoveError } from "../../lib/errors";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "../ui/modal";
+import { parseMoveError, isRetryableError } from "../../lib/errors";
 import { formatAmount } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
@@ -40,7 +41,7 @@ interface SubscriptionCardProps {
     payment_count?: number;
   };
   denomination: string;
- onExpand?: () => void;
+  onExpand?: () => void;
 }
 
 function getFrequencyLabel(ms: string | number): string {
@@ -75,6 +76,7 @@ export function SubscriptionCard({
   const [txDigest, setTxDigest] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const { data: platform } = useQuery({
     queryKey: ["platform", platformId],
@@ -92,8 +94,8 @@ export function SubscriptionCard({
   const platformName = String(platformFields?.name ?? "Unknown Platform");
 
   const statusRaw = subscription?.status as any;
-  const statusVariant = typeof statusRaw === 'number' 
-    ? statusRaw 
+  const statusVariant = typeof statusRaw === 'number'
+    ? statusRaw
     : (statusRaw?.variant ?? 0);
 
   const statusType =
@@ -276,17 +278,57 @@ export function SubscriptionCard({
         ],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
+      let digest: string | undefined;
+      try {
+        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+        if (result.$kind === "FailedTransaction") {
+          throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
+        }
+        digest = result.Transaction.digest;
+      } catch (primaryErr) {
+        const isTimeout =
+          primaryErr instanceof Error &&
+          (primaryErr.message.includes("504") ||
+            primaryErr.message.includes("Gateway Timeout") ||
+            primaryErr.message.includes("timeout") ||
+            primaryErr.message.includes("exceeded") ||
+            primaryErr.message.includes("network error"));
+
+        if (isTimeout && isRetryableError(primaryErr)) {
+          setTxStatus("pending");
+          setTxMessage("Transaction submitted — waiting for confirmation...");
+          setError("The request timed out but the transaction may still be processing on-chain. Waiting to confirm...");
+          if (digest) {
+            try {
+              await client.core.waitForTransaction({ digest, timeout: 60_000 });
+              setTxStatus("success");
+              setTxMessage("Payment processed");
+              setTxDigest(digest);
+              await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+              await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
+              setIsPending(false);
+              return;
+            } catch {
+              // confirmation polling failed — fall through to error state
+            }
+          }
+          setTxStatus("error");
+          setTxMessage("Transaction submitted — confirmation timed out");
+          setError(
+            "Your transaction was submitted but confirmation took too long. Please check the Sui Explorer to verify the payment status before retrying."
+          );
+          setIsPending(false);
+          return;
+        }
+        throw primaryErr;
       }
 
       setTxStatus("success");
       setTxMessage("Payment processed");
-      setTxDigest(result.Transaction.digest);
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setTxDigest(digest);
+      await client.core.waitForTransaction({ digest: digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
+      await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to process payment");
@@ -339,7 +381,7 @@ export function SubscriptionCard({
             </div>
           )}
 
-{statusVariant !== 2 && (
+          {statusVariant !== 2 && (
             <div className="flex flex-wrap gap-2 pt-2">
               {statusVariant === 0 ? (
                 <Button
@@ -395,7 +437,7 @@ export function SubscriptionCard({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  cancelSubscription();
+                  setShowCancelDialog(true);
                 }}
                 disabled={isPending}
                 loading={isPending}
@@ -414,6 +456,32 @@ export function SubscriptionCard({
         digest={txDigest}
         onClose={() => setTxStatus("idle")}
       />
+
+      <Modal open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Cancel Subscription?</ModalTitle>
+            <ModalDescription>
+              Are you sure you want to cancel this subscription? This action cannot be undone.
+            </ModalDescription>
+          </ModalHeader>
+          <ModalFooter>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Keep Subscription
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                setShowCancelDialog(false);
+                cancelSubscription();
+              }}
+              disabled={isPending}
+            >
+              Yes, Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 }

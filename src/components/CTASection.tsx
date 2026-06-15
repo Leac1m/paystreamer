@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Mail } from 'lucide-react';
 import { Button } from './ui/button';
 
 export default function CTASection() {
@@ -24,16 +23,7 @@ export default function CTASection() {
             Join the leading platforms powering their subscriptions with Sui's trustless infrastructure.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button variant="gradient" size="lg" className="text-lg">
-              <span>Launch Platform Dashboard</span>
-              <ArrowRight size={20} />
-            </Button>
-            <Button variant="secondary" size="lg" className="text-lg">
-              <Mail size={20} />
-              <span>Contact Sales</span>
-            </Button>
-          </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12" />
 
           {/* Trust Badges */}
           <div className="flex flex-wrap justify-center gap-6 text-sm text-[#94a3b8]">
