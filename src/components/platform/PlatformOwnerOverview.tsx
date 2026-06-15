@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, Users, DollarSign, UserMinus, Activity } from "lucide-react";
+import { TrendingUp, Users, DollarSign, UserMinus, CheckCircle, UserPlus } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -10,7 +10,11 @@ import {
 } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { PlatformObject } from "../../lib/platformDiscovery";
-import { queryPaymentProcessedEvents } from "../../lib/graphql";
+import {
+  queryPaymentProcessedEvents,
+  querySubscriptionCreatedEventsByPlatform,
+  querySubscriptionUpdatedEventsByPlatform,
+} from "../../lib/graphql";
 
 interface PlatformOwnerOverviewProps {
   platform: PlatformObject;
@@ -53,74 +57,148 @@ function calculateMRR(tiers: PlatformObject["json"]["tiers"]): string {
   return `$${totalMonthly.toFixed(2)}`;
 }
 
-function calculateChurnRate(subscriberCount: number): string {
-  if (subscriberCount === 0) return "0%";
-  return "2.1%";
+function formatTimeAgo(ms: number): string {
+  const diffMs = Date.now() - ms;
+  if (diffMs < 0) return "just now";
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  return `${Math.floor(diffSec / 86400)}d ago`;
 }
+
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function buildLastSixMonthBuckets(now: Date): { key: string; label: string; start: number; end: number }[] {
+  const buckets: { key: string; label: string; start: number; end: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = d.getTime();
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
+    buckets.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: MONTH_LABELS[d.getMonth()],
+      start,
+      end,
+    });
+  }
+  return buckets;
+}
+
+type RecentActivityItem = {
+  kind: "payment" | "subscription";
+  description: string;
+  amountSui: number;
+  timestamp: number;
+};
 
 export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) {
   const fields = platform.json;
+  const platformId = platform.objectId;
 
-  const { data: paymentEvents } = useQuery({
-    queryKey: ["payment-events", platform.objectId],
+  const { data: monthlyPaymentEvents } = useQuery({
+    queryKey: ["payment-events-this-month", platformId],
     queryFn: async () => {
-      const events = await queryPaymentProcessedEvents(undefined, platform.objectId);
-      
+      const events = await queryPaymentProcessedEvents(undefined, platformId);
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
-
-      return events.filter((e) => {
-        const eventTime = e.timestamp ? Number(e.timestamp) / 1000 : 0;
-        return eventTime >= startOfMonth;
-      });
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      return events.filter((e) => Number(e.timestamp) >= startOfMonth);
     },
-    enabled: !!platform.objectId,
+    enabled: !!platformId,
+  });
+
+  const { data: allPaymentEvents } = useQuery({
+    queryKey: ["payment-events-all", platformId],
+    queryFn: () => queryPaymentProcessedEvents(undefined, platformId),
+    enabled: !!platformId,
+  });
+
+  const { data: subscriptionEvents } = useQuery({
+    queryKey: ["subscription-created-events", platformId],
+    queryFn: () => querySubscriptionCreatedEventsByPlatform(platformId),
+    enabled: !!platformId,
+  });
+
+  const { data: subscriptionUpdatedEvents } = useQuery({
+    queryKey: ["subscription-updated-events", platformId],
+    queryFn: () => querySubscriptionUpdatedEventsByPlatform(platformId),
+    enabled: !!platformId,
   });
 
   const monthlyRevenue = useMemo(() => {
-    if (!paymentEvents || paymentEvents.length === 0) return "$0.00";
+    if (!monthlyPaymentEvents || monthlyPaymentEvents.length === 0) return "$0.00";
 
-    const total = paymentEvents.reduce((sum: number, event: any) => {
+    const total = monthlyPaymentEvents.reduce((sum: number, event: { amount?: string }) => {
       const amount = Number(event.amount || 0);
       return sum + amount / 1_000_000_000;
     }, 0);
 
     return `$${total.toFixed(2)}`;
-  }, [paymentEvents]);
+  }, [monthlyPaymentEvents]);
 
   const activeSubscribers = fields.subscriber_count || 0;
 
-  const recentActivity = useMemo(() => {
-    return [
-      {
-        type: "new_subscriber",
-        description: "New subscriber to Pro tier",
-        time: Date.now() / 1000 - 3600,
-      },
-      {
-        type: "payment",
-        description: "Payment processed: $9.99",
-        time: Date.now() / 1000 - 7200,
-      },
-      {
-        type: "tier_change",
-        description: "Subscriber upgraded from Basic to Pro",
-        time: Date.now() / 1000 - 86400,
-      },
-    ];
-  }, []);
+  const churnRate = useMemo(() => {
+    if (activeSubscribers === 0) return "—";
+    if (!subscriptionUpdatedEvents) return "—";
+
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const cancellations = subscriptionUpdatedEvents.filter(
+      (e) => e.change_kind === 2 && Number(e.timestamp) >= thirtyDaysAgo
+    ).length;
+
+    const rate = cancellations / activeSubscribers;
+    return `${(rate * 100).toFixed(1)}%`;
+  }, [activeSubscribers, subscriptionUpdatedEvents]);
+
+  const recentActivity: RecentActivityItem[] = useMemo(() => {
+    const items: RecentActivityItem[] = [];
+
+    for (const e of allPaymentEvents ?? []) {
+      items.push({
+        kind: "payment",
+        description: "Payment processed",
+        amountSui: Number(e.amount || 0) / 1_000_000_000,
+        timestamp: Number(e.timestamp),
+      });
+    }
+
+    for (const e of subscriptionEvents ?? []) {
+      items.push({
+        kind: "subscription",
+        description: "New subscriber",
+        amountSui: 0,
+        timestamp: Number(e.timestamp),
+      });
+    }
+
+    return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+  }, [allPaymentEvents, subscriptionEvents]);
 
   const chartData = useMemo(() => {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-    const values = [420, 580, 720, 890, 1050, 1230];
+    const buckets = buildLastSixMonthBuckets(new Date());
+    const events = allPaymentEvents ?? [];
 
-    return months.map((month, i) => ({
-      month,
-      amount: values[i],
-    }));
-  }, []);
+    return buckets.map((bucket) => {
+      const totalSui = events
+        .filter((e) => {
+          const t = Number(e.timestamp);
+          return t >= bucket.start && t < bucket.end;
+        })
+        .reduce((sum, e) => sum + Number(e.amount || 0) / 1_000_000_000, 0);
 
-  const maxAmount = Math.max(...chartData.map((d) => d.amount));
+      return {
+        month: bucket.label,
+        amount: totalSui,
+      };
+    });
+  }, [allPaymentEvents]);
+
+  const hasChartData = chartData.some((d) => d.amount > 0);
+  const maxAmount = Math.max(...chartData.map((d) => d.amount), 1);
 
   return (
     <div className="space-y-6">
@@ -145,8 +223,8 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
         />
         <MetricCard
           title="Churn Rate"
-          value={calculateChurnRate(activeSubscribers)}
-          subtitle="This month"
+          value={churnRate}
+          subtitle="Last 30 days"
           icon={<UserMinus className="h-4 w-4 text-red-600" />}
         />
       </div>
@@ -157,17 +235,23 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
           <CardDescription>Last 6 months revenue</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end justify-between gap-2 h-40">
-            {chartData.map((data) => (
-              <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
-                <div
-                  className="w-full bg-primary rounded-t transition-all hover:bg-primary/80"
-                  style={{ height: `${(data.amount / maxAmount) * 100}%` }}
-                />
-                <span className="text-xs text-muted-foreground">{data.month}</span>
-              </div>
-            ))}
-          </div>
+          {hasChartData ? (
+            <div className="flex items-end justify-between gap-2 h-40">
+              {chartData.map((data) => (
+                <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
+                  <div
+                    className="w-full bg-primary rounded-t transition-all hover:bg-primary/80"
+                    style={{ height: `${(data.amount / maxAmount) * 100}%` }}
+                  />
+                  <span className="text-xs text-muted-foreground">{data.month}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">No payments yet — your chart will populate as subscribers pay.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -177,36 +261,39 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
           <CardDescription>Latest platform events</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentActivity.map((activity, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="p-1.5 rounded-lg bg-muted">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
+          {recentActivity.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">No payments yet — your dashboard will populate as subscribers pay.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentActivity.map((activity, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg bg-muted">
+                    {activity.kind === "payment" ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 text-blue-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      {activity.description}
+                      {activity.kind === "payment" && `: $${activity.amountSui.toFixed(4)}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeAgo(activity.timestamp)}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {activity.kind === "payment" ? "payment" : "new subscriber"}
+                  </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{activity.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatTimeAgo(activity.time)}
-                  </p>
-                </div>
-                <Badge variant="secondary">
-                  {activity.type.replace("_", " ")}
-                </Badge>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function formatTimeAgo(timestamp: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = now - timestamp;
-
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
 }
