@@ -17,6 +17,7 @@ import CTASection from "../components/CTASection";
 import { SocialProof } from "../components/SocialProof";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import GuidedDemoBanner from "../components/GuidedDemoBanner";
+import { LiveEventFeed } from "../components/LiveEventFeed";
 import { Button } from "../components/ui/button";
 import { GRAPHQL_URL, DEVNET_V2_PACKAGE_ID } from "../constants";
 
@@ -137,6 +138,8 @@ export default function LandingPage() {
             </div>
           </section>
         )}
+
+        <LiveEventFeed />
 
         <IntegrationFlow />
 

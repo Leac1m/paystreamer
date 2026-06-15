@@ -300,6 +300,31 @@ export async function queryDepositEvents(accountId: string): Promise<DepositEven
     .filter((e) => e.account_id === accountId);
 }
 
+export async function queryRecentEventsByType(
+  type: string,
+  limit: number = 10
+): Promise<Array<{ id: string; transactionDigest: string; timestamp: number; json: Record<string, unknown> }>> {
+  const data = await executeQuery<{ events: { nodes: { id: string; transactionDigest: string; timestamp: string; contents: { json: Record<string, unknown> } }[] } }>(
+    `query GetRecentEvents($type: String!) {
+      events(first: 50, filter: { type: $type }) {
+        nodes {
+          id
+          transactionDigest
+          timestamp
+          contents { json }
+        }
+      }
+    }`,
+    { type }
+  );
+  return (data.events?.nodes ?? []).map((n) => ({
+    id: n.id,
+    transactionDigest: n.transactionDigest,
+    timestamp: new Date(n.timestamp).getTime(),
+    json: n.contents?.json ?? {},
+  })).slice(0, limit);
+}
+
 export async function querySubscriptionUpdatedEventsByPlatform(
   platformId: string
 ): Promise<SubscriptionUpdatedEvent[]> {

@@ -604,9 +604,13 @@ Tracking implementation of `docs/demo-readiness-plan.md` phases 0–4.
 - 3.4: Delete or replace `preview.html`
 - 3.5: README + `docs/v2-build-log.md` updates
 
-### Phase 4 — Polish — pending
+### Phase 4 — Polish — in progress
 - 4.1: Network selector on NavBar
-- 4.2: Live event feed on landing
+- **4.2: Live event feed on landing ✅ done**
+  - New `src/components/LiveEventFeed.tsx` — tabs for `PlatformRegistered` / `PaymentProcessed` / `SubscriptionCreated`, auto-refresh every 15s, SuiVision link per event, "No platform activity yet" empty state
+  - New `queryRecentEventsByType` helper in `src/lib/graphql.ts` (returns `transactionDigest`)
+  - Shared `formatTimeAgo` in `src/lib/utils.ts` (also available for `PlatformOwnerOverview` to dedupe)
+  - Placed after the "Recent Platforms" section, before `IntegrationFlow`
 - 4.3: "Onboard a fresh stranger" modal
 - 4.4: Per-denomination decimals lookup
 - 4.5: Fix e2e scripts + `pnpm seed:demo`
