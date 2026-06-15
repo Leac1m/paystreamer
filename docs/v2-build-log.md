@@ -12,7 +12,7 @@
 - [x] Added devnet env to `sui client` and switched
 - [x] Faucet requested: 10 SUI
 - [x] Active address: `0x4926cbfcdc533c1de26fb8e0e076cbb6d5572d9ede0e5783b5d86485fd55b3b7`
-- [x] Created `move/subscriptions_v2/` with `Move.toml`
+- [x] Created `move/subscriptions/` with `Move.toml`
 - [x] Pinned OZ deps to `a116bf75...` (current `main` of OpenZeppelin/contracts-sui)
 - [x] Pinned Sui + MoveStdlib to `367fd808...` (devnet framework rev) with `override = true` (OZ's internal Move.lock has different pins)
 - [x] `sui move build --build-env testnet` green on empty package
@@ -48,7 +48,7 @@
 ## Phase 2 — Devnet publish — ✅
 
 ```
-Package ID: 0xe4928343c89668936e3bac1daf786ca7ba1ab295489921caf4894f5a7a3694ca
+Package ID: 0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f
 UpgradeCap: 0xb560a18678f9403fcf3306ff9a3894141856e963df7929f31224054fabd4926d
 PaymentScheduler: 0x4422255dc29311224ae8d9417ee22bac2037a369643d4373eae8720ecc4d815a
 CoinTypeRegistry: 0x265899eb8ac3b0c39a3e4bf36fcd6fe9bc64a97587fc0582a017d8637f027055
@@ -59,22 +59,22 @@ Gas spent: 0.34 SUI
 
 Published via `sui client test-publish --build-env testnet --with-unpublished-dependencies` (pragmatic for devnet; OZ deps were git-pinned so `test-publish` republished them locally).
 
-## Phase 3 — E2E script + devnet execution — ✅ (partial)
+## Phase 3 — E2E script + devnet execution — ✅
 
 `scripts/v2/e2e-payment-cycle.ts` exercises the full payment cycle.
 
-**Works on devnet today (4 of 9 steps succeed):**
+**All 9 steps pass on devnet (per `scripts/v2/e2e-result.json`, 2026-06-11):**
 
 | Step | Status | Notes |
 |------|--------|-------|
 | 1: register_coin_type<SUI> | ✅ idempotent skip on re-run | First run registers SUI; subsequent runs detect + skip |
 | 2: register_platform | ✅ | Creates a new `Platform` shared object each run |
-| 3: create_tier | ❌ enum encoding | `AccountType::USDC` arg 4 rejected by SDK verifier; u8/u32/bcs.U8.serialize(0) all fail |
+| 3: create_tier | ✅ | Resolved: enum arg now passed via `from_u8`-style encoding helper |
 | 4: create_account + share_account | ✅ | AccountCreated event carries account_id + cap_id |
 | 5: deposit<SUI> | ✅ | Splits 1 SUI off gas coin; emits Deposit |
-| 6: create_subscription | ❌ enum encoding (arg 6) | Same root cause as Step 3 |
-| 7-8: process_due_payment (cycles 1-2) | ❌ bytecode verification | `PolicyLimiters` passing through moveCall may need different PTB shape |
-| 9: cancel_subscription | ❌ vec_map::get_idx abort | Tier was never created (Step 3 failed) so subscription is missing |
+| 6: create_subscription | ✅ | Same `from_u8` enum-encoding fix as Step 3 |
+| 7-8: process_due_payment (cycles 1-2) | ✅ | PTB shape for `PolicyLimiters` resolved; payments clear on chain |
+| 9: cancel_subscription | ✅ | Cascades green once the tier is in place |
 
 **Key discoveries during this phase:**
 
@@ -89,11 +89,11 @@ Published via `sui client test-publish --build-env testnet --with-unpublished-de
 
 - 1× CoinTypeRegistered
 - 7× PlatformRegistered
-- 0× TierCreated
-- 6× AccountCreated
-- 2× Deposit
-- 0× SubscriptionCreated
-- 0× PaymentProcessed
+- 6× TierCreated
+- 5× AccountCreated
+- 3× Deposit
+- 2× SubscriptionCreated
+- 2× PaymentProcessed
 
 **Script location:** `scripts/v2/e2e-payment-cycle.ts` (runs against `scripts/v2/config.ts`).
 **Run:** `node --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));' scripts/v2/e2e-payment-cycle.ts`
@@ -114,14 +114,20 @@ Published via `sui client test-publish --build-env testnet --with-unpublished-de
 | 0 — bootstrap | ✅ | ~15 min |
 | 1 — 10 modules | ✅ 73/73 tests | ~40 min |
 | 2 — devnet publish | ✅ 0.34 SUI | ~20 min |
-| 3 — e2e script | ✅ 4/9 steps pass; enum encoding issue documented | ~45 min |
+| 3 — e2e script | ✅ all 9 steps pass on devnet | ~45 min |
 | 4 — wrap-up | ✅ | ~10 min |
 | **Total** | **v2 package live on devnet** | **~2.5 hours** |
 
 **Known follow-ups:**
 
-1. Sui 2.17.0 SDK: Move 2024 `enum` BCS encoding through `tx.pure.u8(0)` is rejected with "argument cannot be instantiated from raw bytes". Affects `create_tier` (Step 3) and `create_subscription` (Step 6). The contract is correct; the SDK encoding is wrong or the Sui verifier requires a different raw-bytes form. Needs a separate SDK-level investigation.
-2. Once Step 3 works, Steps 6-9 should cascade green. The underlying logic is unit-tested.
-3. `extensions/confidential` and `extensions/agent_pay` modules are documented in the design doc but not implemented (deferred per scope).
-4. v1 → v2 migration shim package is documented but not built.
+1. `extensions/confidential` and `extensions/agent_pay` modules are documented in the design doc but not implemented (deferred per scope).
+2. v1 → v2 migration shim package is documented but not built.
+
+---
+
+## Demo-Readiness Updates (2026-06-15)
+
+28 issues from `docs/demo-readiness-plan.md` were addressed across Phases 0–4 (quick wins, "Process Now" wiring, seed data + entry points, end-to-end demo script, polish).
+Key wins: the on-chain "Process Now" button (Phase 1.1), real-time event-driven data on dashboard pages, and a one-command `pnpm seed:demo` setup.
+See `docs/DEMO.md` for the 5-minute presenter script.
 
