@@ -13,6 +13,7 @@ import { Badge } from "../components/ui/badge";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
 import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
+import { DEMO_PLATFORM_ID } from "../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -230,6 +231,11 @@ export default function SubscribePage() {
                 {platformJson.is_verified && (
                   <Badge variant="default" className="bg-[#10b981]/20 text-[#10b981] border-[#10b981]/30">
                     Verified
+                  </Badge>
+                )}
+                {platformId && platformId === DEMO_PLATFORM_ID && (
+                  <Badge className="bg-[#6c63ff]/20 text-[#a78bfa] border-[#6c63ff]/30">
+                    Featured Demo
                   </Badge>
                 )}
               </div>

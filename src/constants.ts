@@ -21,8 +21,19 @@ export const MAINNET_ACCESS_CONTROL_ID = undefined;
 export const GRAPHQL_URL = "https://fullnode.devnet.sui.io:443/graphql";
 export const SUI_TYPE_ARG = "0x2::sui::SUI";
 export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
-export const USDC_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdc::USDC";
-export const USDSUI_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdsui::USDSui";
+
+// USDC and USDSui are not yet registered on this network — selecting them
+// will abort with ECoinTypeNotRegistered. Hidden in the UI for the demo.
+// To re-enable: register the coin type via registry::register_coin_type<USDC>
+// and replace the hex strings below with the real package::module::Type.
+export const USDC_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdc::USDC"; // PLACEHOLDER — not registered
+export const USDSUI_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdsui::USDSui"; // PLACEHOLDER — not registered
+
+// Demo-only: the set of denominations the UI is allowed to render.
+// USDC and USDSui are excluded because they are not registered on the
+// target network (see comment above). To re-enable them, add their
+// type-arg constants to this list once they are registered on chain.
+export const DEMO_DENOMINATIONS: string[] = [SUI_TYPE_ARG];
 
 export const DEVNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 export const TESTNET_COUNTER_PACKAGE_ID: string | undefined = "0xb36f813e3c9f2b3d25461a9f0695dc44922cd99f94ca519c244778bbc75ec0c1";
@@ -31,3 +42,8 @@ export const MAINNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e";
 export const TESTNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
+
+// Populated by `pnpm seed:demo` (Phase 2.1). When undefined, the demo CTAs
+// on the landing and explore pages are hidden.
+export const DEMO_PLATFORM_ID: string | undefined = undefined;
+export const DEMO_PLATFORM_INIT_VERSION: number | undefined = undefined;

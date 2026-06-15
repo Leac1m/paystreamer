@@ -3,8 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Layers, Users, Zap, ExternalLink } from "lucide-react";
+import { Layers, Users, Zap, ExternalLink, Sparkles } from "lucide-react";
 import NavBar from "../components/NavBar";
+import { DEMO_PLATFORM_ID } from "../constants";
+
+const hasDemo = typeof DEMO_PLATFORM_ID === "string";
+const demoLink = hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : null;
 
 export function ExplorePage() {
   const { data: platforms, isLoading } = useAllPlatforms();
@@ -38,13 +42,40 @@ export function ExplorePage() {
             ))}
           </div>
         ) : !platforms || platforms.length === 0 ? (
-          <div className="text-center py-24 border border-dashed rounded-xl border-muted-foreground/30 bg-muted/10">
-            <Layers className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="text-2xl font-semibold mb-2">No platforms found</h3>
-            <p className="text-muted-foreground">
-              Be the first platform to accept crypto subscriptions! Register your platform to start collecting.
-            </p>
-          </div>
+          demoLink ? (
+            <div className="max-w-2xl mx-auto">
+              <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 sm:p-12 text-center">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50" />
+                <div className="relative">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/15 mb-6">
+                    <Sparkles className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+                    Featured Demo Platform
+                  </h3>
+                  <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8">
+                    Subscribe to our seeded demo platform and see a real on-chain payment execute every 60 seconds.
+                  </p>
+                  <Button
+                    size="lg"
+                    className="text-base px-8"
+                    onClick={() => navigate(demoLink)}
+                  >
+                    Subscribe
+                    <ExternalLink className="w-4 h-4 ml-2 opacity-80" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-24 border border-dashed rounded-xl border-muted-foreground/30 bg-muted/10">
+              <Layers className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+              <h3 className="text-2xl font-semibold mb-2">No platforms found</h3>
+              <p className="text-muted-foreground">
+                Be the first platform to accept crypto subscriptions! Register your platform to start collecting.
+              </p>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {platforms.map((platform) => (
