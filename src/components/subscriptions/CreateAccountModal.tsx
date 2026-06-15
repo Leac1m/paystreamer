@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from "../ui/card";
 import { DenominationSelector } from "./DenominationSelector";
-import { PolicyEditor } from "./PolicyEditor";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
@@ -23,7 +22,7 @@ import {
   CLOCK_OBJECT_ID,
 } from "../../constants";
 
-type Step = "denomination" | "policy" | "deposit" | "confirm";
+type Step = "denomination" | "deposit" | "confirm";
 
 interface CreateAccountModalProps {
   open: boolean;
@@ -39,14 +38,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
   const [step, setStep] = useState<Step>("denomination");
   const [selectedDenomination, setSelectedDenomination] = useState<string | null>(null);
-  const [policyValues, setPolicyValues] = useState({
-    maxPerTransaction: "",
-    maxPerMonth: "",
-    minBalance: "",
-    minFrequencyDays: "",
-  });
   const [depositAmount, setDepositAmount] = useState("");
-  const [skipPolicy, setSkipPolicy] = useState(false);
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState("");
@@ -56,7 +48,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
   const steps: { key: Step; label: string }[] = [
     { key: "denomination", label: "Denomination" },
-    { key: "policy", label: "Policies" },
     { key: "deposit", label: "Deposit" },
     { key: "confirm", label: "Confirm" },
   ];
@@ -161,9 +152,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
   function resetForm() {
     setStep("denomination");
     setSelectedDenomination(null);
-    setPolicyValues({ maxPerTransaction: "", maxPerMonth: "", minBalance: "", minFrequencyDays: "" });
     setDepositAmount("");
-    setSkipPolicy(false);
     setTxStatus("idle");
     setTxMessage("");
     setTxDigest("");
@@ -219,19 +208,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
             </>
           )}
 
-          {step === "policy" && (
-            <>
-              <CardHeader className="p-0">
-                <CardTitle>Set Spending Limits</CardTitle>
-                <CardDescription>Configure optional spending limits (skip to skip)</CardDescription>
-              </CardHeader>
-              <Button variant="ghost" onClick={() => setSkipPolicy(true)} className="mb-4">
-                Skip policies
-              </Button>
-              <PolicyEditor values={policyValues} onChange={setPolicyValues} />
-            </>
-          )}
-
           {step === "deposit" && (
             <>
               <CardHeader className="p-0">
@@ -277,12 +253,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Policies</span>
-                    <span className="text-sm font-medium">
-                      {skipPolicy ? "None" : "Custom"}
-                    </span>
-                  </div>
                 </CardContent>
               </Card>
             </>
@@ -301,7 +271,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
             Back
           </Button>
           {currentStepIndex < steps.length - 1 ? (
-            <Button onClick={goNext} disabled={!selectedDenomination || (step === "policy" && !skipPolicy && Object.values(policyValues).every((v) => !v))}>
+            <Button onClick={goNext} disabled={!selectedDenomination}>
               Next
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>

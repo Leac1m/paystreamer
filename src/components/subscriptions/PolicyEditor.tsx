@@ -1,3 +1,7 @@
+// TODO(v2.1): PolicyEditor is currently unused — the create_account PTB
+// hardcodes empty_policy_set() regardless of the editor's output. Wire
+// account::update_policies into the editor once the v2.1 contract
+// changes ship.
 import { useState, useEffect } from "react";
 import { Input } from "../ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
