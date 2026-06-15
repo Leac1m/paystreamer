@@ -70,7 +70,7 @@ export function PlatformSettingsPage() {
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       navigate(0);

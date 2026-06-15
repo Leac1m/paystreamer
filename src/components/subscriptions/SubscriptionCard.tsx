@@ -137,7 +137,7 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
@@ -176,7 +176,7 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
@@ -215,7 +215,7 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
@@ -278,7 +278,7 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");

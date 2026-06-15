@@ -128,7 +128,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
