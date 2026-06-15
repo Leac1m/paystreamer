@@ -16,6 +16,7 @@ interface SubscriptionInfo {
   accountId: string;
   capId: string;
   platformId: string;
+  platformInitVersion: number;
   subscription: {
     tier_index: number;
     tier_name: string;
@@ -29,7 +30,7 @@ interface SubscriptionInfo {
   denomination: string;
 }
 
-import { queryAccountCreatedEvents } from "../../lib/graphql";
+import { queryAccountCreatedEvents, queryPlatformInitialVersions } from "../../lib/graphql";
 
 export function SubscriptionsPage() {
   const navigate = useNavigate();
@@ -85,11 +86,29 @@ export function SubscriptionsPage() {
             accountId: obj.objectId,
             capId: capId,
             platformId: String(platformId),
+            platformInitVersion: 0,
             subscription: sub as SubscriptionInfo["subscription"],
             denomination: fields?.denomination as string || "0x2::sui::SUI",
           });
         }
       }
+    }
+  }
+
+  const { data: platformVersions } = useQuery({
+    queryKey: ["platform-versions", subscriptions.map((s) => s.platformId).join(",")],
+    queryFn: async () => {
+      const ids = Array.from(new Set(subscriptions.map((s) => s.platformId).filter(Boolean)));
+      if (ids.length === 0) return new Map<string, number>();
+      const infos = await queryPlatformInitialVersions(ids);
+      return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
+    },
+    enabled: subscriptions.length > 0,
+  });
+
+  if (platformVersions) {
+    for (const sub of subscriptions) {
+      sub.platformInitVersion = platformVersions.get(sub.platformId) ?? 0;
     }
   }
 
@@ -147,6 +166,7 @@ export function SubscriptionsPage() {
                 accountId={sub.accountId}
                 capId={sub.capId}
                 platformId={sub.platformId}
+                platformInitVersion={sub.platformInitVersion}
                 subscription={sub.subscription}
                 denomination={sub.denomination}
                 onExpand={() =>

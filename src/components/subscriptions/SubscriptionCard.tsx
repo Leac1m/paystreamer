@@ -14,16 +14,20 @@ import {
 import { parseMoveError } from "../../lib/errors";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
-import { Pause, Play, X } from "lucide-react";
+import { Pause, Play, X, Zap } from "lucide-react";
 import {
   DEVNET_V2_PACKAGE_ID,
+  DEVNET_PAYMENT_SCHEDULER_ID,
+  DEVNET_PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
 } from "../../constants";
 
 interface SubscriptionCardProps {
   accountId: string;
   capId: string;
   platformId: string;
+  platformInitVersion: number;
   subscription: {
     tier_index: number;
     tier_name: string;
@@ -67,6 +71,7 @@ export function SubscriptionCard({
   accountId,
   capId,
   platformId,
+  platformInitVersion,
   subscription,
   denomination,
   onExpand,
@@ -115,6 +120,11 @@ export function SubscriptionCard({
       : statusVariant === 1
       ? "Paused"
       : "Cancelled";
+
+  const nextBillingRaw = (subscription as any).next_billing_ts ?? (subscription as any).next_billing_time;
+  const nextBillingMs = nextBillingRaw != null ? Number(nextBillingRaw) : null;
+  const isDue = statusVariant === 0 && nextBillingMs != null && nextBillingMs <= Date.now();
+  const isSui = denomination === SUI_TYPE_ARG;
 
   async function pauseSubscription() {
     if (!account) return;
@@ -233,6 +243,70 @@ export function SubscriptionCard({
     }
   }
 
+  async function processPayment() {
+    if (!account) return;
+    if (!platformInitVersion) {
+      setTxStatus("error");
+      setTxMessage("Platform version unavailable");
+      setError("Could not load the platform's shared-object version. Please refresh and try again.");
+      return;
+    }
+    setIsPending(true);
+    setError(null);
+    setTxStatus("pending");
+    setTxMessage("Processing payment...");
+
+    try {
+      const tx = new Transaction();
+      const limiters = tx.moveCall({
+        target: `${DEVNET_V2_PACKAGE_ID}::policies::empty_limiters`,
+        arguments: [tx.object(CLOCK_OBJECT_ID)],
+      });
+      tx.moveCall({
+        target: `${DEVNET_V2_PACKAGE_ID}::policies::ensure_initialized`,
+        typeArguments: [denomination],
+        arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
+      });
+      tx.moveCall({
+        target: `${DEVNET_V2_PACKAGE_ID}::scheduler::process_due_payment`,
+        typeArguments: [denomination],
+        arguments: [
+          tx.sharedObjectRef({
+            objectId: DEVNET_PAYMENT_SCHEDULER_ID,
+            initialSharedVersion: DEVNET_PAYMENT_SCHEDULER_INIT_VERSION,
+            mutable: true,
+          }),
+          tx.sharedObjectRef({
+            objectId: platformId,
+            initialSharedVersion: platformInitVersion,
+            mutable: true,
+          }),
+          tx.object(accountId),
+          limiters,
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+
+      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      if (result.$kind === "FailedTransaction") {
+        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      }
+
+      setTxStatus("success");
+      setTxMessage("Payment processed");
+      setTxDigest(result.Transaction.digest);
+      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
+    } catch (err) {
+      setTxStatus("error");
+      setTxMessage("Failed to process payment");
+      setError(parseMoveError(err));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
   return (
     <>
       <Card className="cursor-pointer" onClick={onExpand}>
@@ -307,6 +381,26 @@ export function SubscriptionCard({
                   Resume Billing
                 </Button>
               ) : null}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  processPayment();
+                }}
+                disabled={isPending || !isDue || !isSui || !platformInitVersion}
+                loading={isPending}
+                title={
+                  !isSui
+                    ? "Demo only supports SUI denominations."
+                    : !isDue
+                    ? "This subscription isn't due yet."
+                    : undefined
+                }
+              >
+                <Zap className="h-4 w-4 mr-1" />
+                Process Now
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

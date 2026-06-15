@@ -33,6 +33,11 @@ export interface CoinTypeRegistryObject {
   version: number;
 }
 
+export interface PlatformVersionInfo {
+  objectId: string;
+  initialSharedVersion: number;
+}
+
 export interface PaymentSchedulerObject {
   id: string;
   initialSharedVersion: number;
@@ -152,6 +157,31 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
     ...data.object.asMoveObject.contents.json,
     initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
   };
+}
+
+export async function queryPlatformInitialVersions(
+  platformIds: string[]
+): Promise<PlatformVersionInfo[]> {
+  if (platformIds.length === 0) return [];
+
+  const data = await executeQuery<{ objects: { nodes: { address: string, owner: { initialSharedVersion: number } | null }[] } }>(
+    `query GetPlatformVersions($ids: [SuiAddress!]!) {
+      objects(filter: { objectIds: $ids }) {
+        nodes {
+          address
+          owner { ... on Shared { initialSharedVersion } }
+        }
+      }
+    }`,
+    { ids: platformIds }
+  );
+
+  return (data.objects?.nodes ?? [])
+    .filter((n): n is { address: string, owner: { initialSharedVersion: number } | null } => !!n)
+    .map((n) => ({
+      objectId: n.address,
+      initialSharedVersion: n.owner?.initialSharedVersion ?? 0,
+    }));
 }
 
 export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegisteredEvent[]> {
