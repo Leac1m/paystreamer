@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Users, Zap, Shield, Sparkles } from 'lucide-react';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { Button } from './ui/button';
+import { OnboardModal } from './OnboardModal';
 import { DEMO_PLATFORM_ID } from '../constants';
 
 const hasDemo = typeof DEMO_PLATFORM_ID === 'string';
@@ -10,11 +12,21 @@ const demoLink = hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : null;
 
 export default function HeroSection() {
   const navigate = useNavigate();
+  const account = useCurrentAccount();
   const [mounted, setMounted] = useState(false);
+  const [onboardOpen, setOnboardOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleCreatePlatform = () => {
+    if (account) {
+      navigate('/platforms');
+    } else {
+      setOnboardOpen(true);
+    }
+  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-12">
@@ -48,7 +60,7 @@ export default function HeroSection() {
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
               <Button
-                onClick={() => navigate('/platforms')}
+                onClick={handleCreatePlatform}
                 variant="gradient"
                 size="lg"
                 className="text-lg"
@@ -215,6 +227,8 @@ export default function HeroSection() {
           <div className="w-1.5 h-3 bg-white/50 rounded-full" />
         </motion.div>
       </motion.div>
+
+      <OnboardModal open={onboardOpen} onClose={() => setOnboardOpen(false)} />
     </section>
   );
 }
