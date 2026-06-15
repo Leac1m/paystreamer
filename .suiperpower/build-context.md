@@ -597,8 +597,8 @@ Tracking implementation of `docs/demo-readiness-plan.md` phases 0–4.
 - 2.4: Devnet-faucet link in empty wallet
 - 2.5: Open Graph / favicon on `index.html`
 
-### Phase 3 — End-to-end demo script — pending
-- 3.1: Guided Demo banner on landing
+### Phase 3 — End-to-end demo script — in progress
+- 3.1: Guided Demo banner on landing ✅ done
 - 3.2: `docs/DEMO.md` walkthrough
 - 3.3: Hero demo video / animated `<DemoFlow />`
 - 3.4: Delete or replace `preview.html`
