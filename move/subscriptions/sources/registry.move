@@ -33,14 +33,16 @@ module subscriptions::registry {
 
     // === AccountType enum ===
 
-    /// Stablecoin denomination. Resolved at account-creation time from
-    /// the `CoinTypeRegistry`. Adding a new variant would be a package
-    /// upgrade; the v2 governance path adds new types by registering a
-    /// custom `u8` discriminant in the registry's `discriminants` table
-    /// (see `register_coin_type<T>` and `try_into_builtin`).
+    /// Billing denomination. Resolved at account-creation time from
+    /// the `CoinTypeRegistry`. Built-in slots 0 (USDC), 1 (USDSui), and
+    /// 2 (SUI) are reserved for the canonical types; the v2 governance
+    /// path adds new types by registering a custom `u8` discriminant in
+    /// the registry's `discriminants` table (see `register_coin_type<T>`
+    /// and `try_into_builtin`).
     public enum AccountType has copy, drop, store {
         USDC,       // variant 0
         USDSui,     // variant 1
+        SUI,        // variant 2
     }
 
     /// `AccountType::USDC` (discriminant 0). Use at account-creation
@@ -50,13 +52,19 @@ module subscriptions::registry {
     /// `AccountType::USDSui` (discriminant 1).
     public fun account_type_usdsui(): AccountType { AccountType::USDSui }
 
+    /// `AccountType::SUI` (discriminant 2). Native SUI is supported as
+    /// a billing denomination alongside the stablecoin slots; the
+    /// demo and the e2e script use it.
+    public fun account_type_sui(): AccountType { AccountType::SUI }
+
     /// `u8` discriminant of the enum variant. Built-in only; custom
-    /// discriminants (>= 2) have no `AccountType` variant and must be
+    /// discriminants (>= 3) have no `AccountType` variant and must be
     /// handled via `CoinTypeRegistry::info_of` directly.
     public fun account_type_to_u8(t: &AccountType): u8 {
         match (t) {
             AccountType::USDC => 0,
             AccountType::USDSui => 1,
+            AccountType::SUI => 2,
         }
     }
 
@@ -222,7 +230,7 @@ module subscriptions::registry {
     }
 
     /// Convert a `u8` discriminant into a built-in `AccountType`, or
-    /// return `none` if the discriminant is non-standard (>= 2). Custom
+    /// return `none` if the discriminant is non-standard (>= 3). Custom
     /// discriminants are valid in the registry; they simply do not have
     /// a built-in `AccountType` variant. Callers that need to handle
     /// custom types should branch on `info_of` directly.
@@ -231,19 +239,23 @@ module subscriptions::registry {
             std::option::some(AccountType::USDC)
         } else if (discriminant == 1) {
             std::option::some(AccountType::USDSui)
+        } else if (discriminant == 2) {
+            std::option::some(AccountType::SUI)
         } else {
             std::option::none()
         }
     }
 
     /// Convert a `u8` discriminant directly to `AccountType`.
-    /// Aborts with `EInvalidDiscriminant` if the value is not 0 or 1.
+    /// Aborts with `EInvalidDiscriminant` if the value is not 0, 1, or 2.
     /// Use this from SDK calls that cannot serialize `AccountType` directly.
     public fun from_u8(discriminant: u8): AccountType {
         if (discriminant == 0) {
             AccountType::USDC
         } else if (discriminant == 1) {
             AccountType::USDSui
+        } else if (discriminant == 2) {
+            AccountType::SUI
         } else {
             abort EInvalidDiscriminant
         }

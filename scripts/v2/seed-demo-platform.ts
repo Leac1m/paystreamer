@@ -38,11 +38,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { Transaction } from "@mysten/sui/transactions";
+import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 
 import {
   CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
+  V2_COIN_TYPE_REGISTRY_ID,
+  V2_COIN_TYPE_REGISTRY_INIT_VERSION,
   V2_GRAPHQL_URL,
   V2_NETWORK,
   V2_PACKAGE_ID,
@@ -77,6 +80,7 @@ type SeedResult = {
   tierName: string;
   tierAmountMist: string;
   tierFrequencyMs: string;
+  suiDiscriminant: number;
 };
 
 async function fetchPlatformObjectVersion(
@@ -158,6 +162,89 @@ async function discoverDemoPlatform(
   };
 }
 
+/**
+ * Look up the on-chain discriminant assigned to `SUI` in the
+ * `CoinTypeRegistry`. Returns `undefined` if SUI is not yet registered.
+ *
+ * Reads the most recent `CoinTypeRegistered` event whose
+ * `contents.json.type_name` matches `0x2::sui::SUI` and returns its
+ * `discriminant`. The registry may assign 0, 1, 2, or higher depending
+ * on the registration order — we just use whatever SUI actually got.
+ */
+async function fetchSuiDiscriminant(
+  client: SuiGraphQLClient,
+): Promise<number | undefined> {
+  const res = await client.query({
+    query: `
+      query GetSuiRegistrations($type: String!) {
+        events(first: 50, filter: { type: $type }) {
+          nodes {
+            contents { json }
+          }
+        }
+      }
+    `,
+    variables: { type: `${V2_PACKAGE_ID}::registry::CoinTypeRegistered` },
+  });
+  const nodes: any[] = (res.data as any)?.events?.nodes ?? [];
+  // Find the most recent event for the SUI type. Events come back
+  // newest-first, so the first match is what we want.
+  for (const n of nodes) {
+    const json = n?.contents?.json;
+    if (json && typeof json.type_name === "string" && json.type_name.endsWith("::sui::SUI")) {
+      if (typeof json.discriminant === "number") return json.discriminant;
+      if (typeof json.discriminant === "string") return Number(json.discriminant);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Register `SUI` as a coin type in the `CoinTypeRegistry`. Idempotent:
+ * returns the existing discriminant if SUI is already registered.
+ */
+async function registerSuiCoinType(
+  client: SuiGraphQLClient,
+  keypair: ReturnType<typeof loadKeypair>,
+): Promise<number> {
+  const existing = await fetchSuiDiscriminant(client);
+  if (existing !== undefined) {
+    console.log("\n=== Step 0: register_coin_type<SUI> ===");
+    console.log(`  status: SKIP (SUI already registered, discriminant=${existing})`);
+    return existing;
+  }
+
+  const tx = newTx(keypair);
+  const info = tx.moveCall({
+    target: `${V2_PACKAGE_ID}::registry::new_account_type_info`,
+    arguments: [tx.pure.string("Sui"), tx.pure.u8(9), tx.pure.bool(false)],
+  });
+  tx.moveCall({
+    target: `${V2_PACKAGE_ID}::registry::register_coin_type`,
+    typeArguments: [SUI_TYPE_ARG],
+    arguments: [
+      tx.object(
+        Inputs.SharedObjectRef({
+          objectId: V2_COIN_TYPE_REGISTRY_ID,
+          mutable: true,
+          initialSharedVersion: V2_COIN_TYPE_REGISTRY_INIT_VERSION,
+        }),
+      ),
+      info,
+    ],
+  });
+  const r = await executeOrSkip(client, keypair, "Step 0: register_coin_type<SUI>", tx, []);
+  if (r.status === "failure") {
+    throw new Error(`register_coin_type<SUI> failed: ${r.error ?? "unknown"}`);
+  }
+  // Discover the discriminant we were just assigned.
+  const d = await fetchSuiDiscriminant(client);
+  if (d === undefined) {
+    throw new Error("register_coin_type<SUI> succeeded but no discriminant was discovered");
+  }
+  return d;
+}
+
 async function findExistingTier(
   client: SuiGraphQLClient,
   platformId: string,
@@ -178,28 +265,37 @@ async function findExistingTier(
   const json: any = (res.data as any)?.object?.asMoveObject?.contents?.json;
   if (!json || typeof json !== "object") return undefined;
 
-  // The `tiers` field is a VecMap<u64, SubscriptionTier>. JSON projection
-  // from Sui GraphQL typically renders it as an array of { key, value }
-  // pairs or as an object keyed by stringified index — handle both.
+  // The `tiers` field is a `VecMap<u64, SubscriptionTier>`. Sui GraphQL
+  // renders `VecMap` as `{ contents: [{ key, value }, ...] }` — the
+  // top-level `tiers` object is the wrapper, not the array of pairs.
+  // Unwrap the `contents` array first, then iterate the pairs.
   const tiers = json.tiers;
   if (!tiers) return undefined;
 
-  const entries: Array<{ key: number; value: any }> = [];
-  if (Array.isArray(tiers)) {
+  let pairs: Array<{ key: number; value: any }> = [];
+  if (Array.isArray(tiers.contents)) {
+    for (const e of tiers.contents) {
+      if (e && typeof e.key !== "undefined" && e.value) {
+        pairs.push({ key: Number(e.key), value: e.value });
+      }
+    }
+  } else if (Array.isArray(tiers)) {
+    // Defensive: in case a future Sui GraphQL change drops the
+    // `contents` wrapper.
     for (const e of tiers) {
       if (e && typeof e.key !== "undefined" && e.value) {
-        entries.push({ key: Number(e.key), value: e.value });
+        pairs.push({ key: Number(e.key), value: e.value });
       }
     }
   } else if (typeof tiers === "object") {
     for (const [k, v] of Object.entries(tiers)) {
-      if (v && typeof v === "object") {
-        entries.push({ key: Number(k), value: v });
+      if (v && typeof v === "object" && (v as any).name) {
+        pairs.push({ key: Number(k), value: v });
       }
     }
   }
 
-  for (const { key, value } of entries) {
+  for (const { key, value } of pairs) {
     if (value && value.name === DEMO_TIER_NAME) {
       return {
         tierIndex: key,
@@ -297,6 +393,7 @@ async function createDemoTier(
   keypair: ReturnType<typeof loadKeypair>,
   platformId: string,
   platformInitVersion: number,
+  suiDiscriminant: number,
 ): Promise<{ tierIndex: number; amount: string; frequencyMs: string; created: boolean }> {
   // Check first whether the tier already exists.
   const existing = await findExistingTier(client, platformId);
@@ -309,7 +406,7 @@ async function createDemoTier(
   const tx = newTx(keypair);
   const accountType = tx.moveCall({
     target: `${V2_PACKAGE_ID}::registry::from_u8`,
-    arguments: [tx.pure.u8(0)],
+    arguments: [tx.pure.u8(suiDiscriminant)],
   });
   tx.moveCall({
     target: `${V2_PACKAGE_ID}::platform::create_tier`,
@@ -415,6 +512,15 @@ async function main() {
   // ----------------------------------------------------------------
   // Step 1: discover or create the platform
   // ----------------------------------------------------------------
+  // ----------------------------------------------------------------
+  // Step 0: ensure SUI is registered in CoinTypeRegistry (idempotent)
+  // ----------------------------------------------------------------
+  const suiDiscriminant = await registerSuiCoinType(client, keypair);
+  console.log(`  SUI discriminant: ${suiDiscriminant}`);
+
+  // ----------------------------------------------------------------
+  // Step 1: discover or create the platform
+  // ----------------------------------------------------------------
   let platform: DiscoveredPlatform;
   const existing = await discoverDemoPlatform(client);
   if (existing) {
@@ -430,7 +536,7 @@ async function main() {
   // ----------------------------------------------------------------
   // Step 2: discover or create the tier
   // ----------------------------------------------------------------
-  const tier = await createDemoTier(client, keypair, platform.platformId, platform.initialSharedVersion);
+  const tier = await createDemoTier(client, keypair, platform.platformId, platform.initialSharedVersion, suiDiscriminant);
 
   // ----------------------------------------------------------------
   // Step 3: print the result
@@ -442,6 +548,7 @@ async function main() {
     tierName: DEMO_TIER_NAME,
     tierAmountMist: tier.amount,
     tierFrequencyMs: tier.frequencyMs,
+    suiDiscriminant,
   };
 
   console.log("\n======================================================");

@@ -27,7 +27,6 @@ import { config } from "dotenv";
 config();
 
 import { Transaction, Inputs } from "@mysten/sui/transactions";
-import { bcs } from "@mysten/sui/bcs";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 
@@ -501,7 +500,7 @@ async function main() {
     const tx = newTx(keypair);
     const accountType = tx.moveCall({
       target: `${V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
+      arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
     });
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::platform::create_tier`,
@@ -646,7 +645,7 @@ async function main() {
       const tx = newTx(keypair);
       const accountType = tx.moveCall({
         target: `${V2_PACKAGE_ID}::registry::from_u8`,
-        arguments: [tx.pure.u8(0)],
+        arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
       });
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::billing::create_subscription`,
@@ -670,7 +669,7 @@ async function main() {
         const tx = newTx(keypair);
         const accountType = tx.moveCall({
           target: `${V2_PACKAGE_ID}::registry::from_u8`,
-          arguments: [tx.pure.u8(0)],
+          arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
         });
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::billing::create_subscription`,

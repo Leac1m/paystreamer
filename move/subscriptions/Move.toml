@@ -1,6 +1,6 @@
 [package]
 name = "subscriptions"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2024"
 
 [dependencies]
@@ -9,3 +9,6 @@ openzeppelin_utils = { git = "https://github.com/OpenZeppelin/contracts-sui.git"
 
 [addresses]
 subscriptions = "0x0"
+# To build for devnet: `sui move build --build-env testnet`
+# (the lock file's pinned devnet entries reuse the testnet toolchain).
+# The `--build-env mainnet` flag is also supported.

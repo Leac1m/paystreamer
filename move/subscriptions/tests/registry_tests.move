@@ -13,6 +13,7 @@ module subscriptions::registry_tests {
     public struct TEST_TOKEN_X has drop {}
     public struct TEST_TOKEN_Y has drop {}
     public struct TEST_TOKEN_Z has drop {}
+    public struct TEST_TOKEN_W has drop {}
 
     /// Helper: construct an `AccountTypeInfo` for tests.
     fun test_info(name: vector<u8>, decimals: u8, is_confidential: bool): registry::AccountTypeInfo {
@@ -48,11 +49,20 @@ module subscriptions::registry_tests {
         registry::register_coin_type<TEST_TOKEN_Y>(&mut r, info2, ts::ctx(&mut sc));
         assert!(registry::discriminant_of<TEST_TOKEN_Y>(&r) == std::option::some(1), 5);
 
-        // A third distinct type gets discriminant 2 (custom slot).
+        // A third distinct type gets discriminant 2 (now a built-in
+        // SUI slot, but `try_into_builtin` for an unregistered
+        // `T`-driven discriminant can still return `none` if a custom
+        // type is registered with that slot's metadata. Here we use a
+        // non-built-in name and verify the discriminant allocated is 2).
         let info3 = test_info(b"CustomUSD", 6, false);
         registry::register_coin_type<TEST_TOKEN_Z>(&mut r, info3, ts::ctx(&mut sc));
         assert!(registry::discriminant_of<TEST_TOKEN_Z>(&r) == std::option::some(2), 6);
-        assert!(std::option::is_none(&registry::try_into_builtin(2)), 7);
+        // A fourth distinct type gets discriminant 3 (the first
+        // truly-custom slot past the built-ins 0/1/2).
+        let info4 = test_info(b"CustomEuro", 6, false);
+        registry::register_coin_type<TEST_TOKEN_W>(&mut r, info4, ts::ctx(&mut sc));
+        assert!(registry::discriminant_of<TEST_TOKEN_W>(&r) == std::option::some(3), 7);
+        assert!(std::option::is_none(&registry::try_into_builtin(3)), 8);
 
         // `Option<u8>` is `drop`; the bindings above are dropped at scope end.
         let _ = d;
@@ -174,14 +184,22 @@ module subscriptions::registry_tests {
     }
 
     /// `AccountType` enum discriminants are stable: 0 for USDC, 1 for
-    /// USDSui, and the equality helper matches.
+    /// USDSui, 2 for SUI, and the equality helper matches.
     #[test]
     fun test_account_type_enum_helpers() {
         let u = registry::account_type_usdc();
         let v = registry::account_type_usdsui();
+        let w = registry::account_type_sui();
         assert!(registry::account_type_to_u8(&u) == 0, 0);
         assert!(registry::account_type_to_u8(&v) == 1, 1);
-        assert!(registry::account_type_eq(&u, &u), 2);
-        assert!(!registry::account_type_eq(&u, &v), 3);
+        assert!(registry::account_type_to_u8(&w) == 2, 2);
+        assert!(registry::account_type_eq(&u, &u), 3);
+        assert!(!registry::account_type_eq(&u, &v), 4);
+        assert!(!registry::account_type_eq(&u, &w), 5);
+        assert!(!registry::account_type_eq(&v, &w), 6);
+        // from_u8 round-trips
+        assert!(registry::account_type_eq(&u, &registry::from_u8(0)), 7);
+        assert!(registry::account_type_eq(&v, &registry::from_u8(1)), 8);
+        assert!(registry::account_type_eq(&w, &registry::from_u8(2)), 9);
     }
 }
