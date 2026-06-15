@@ -1,14 +1,15 @@
-export const DEVNET_V2_PACKAGE_ID = "0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f";
+export const DEVNET_V2_PACKAGE_ID = "0xebe2028a1ebc2608f3968a5ef33533377f9284e007afb9f5267c0fd96de603b3";
 export const V2_PACKAGE_ID = DEVNET_V2_PACKAGE_ID;
 export const TESTNET_V2_PACKAGE_ID = "0xc1973975ba135ad9c1be3d36c518726e8bd61d06ecf4a06a5278171a35c240f1";
 export const MAINNET_V2_PACKAGE_ID = undefined;
 
-export const DEVNET_PAYMENT_SCHEDULER_ID = "0x42238297b71f28b9054dd86f0165311df500f19590939cb57ee9db7ca300d6f7";
+export const DEVNET_PAYMENT_SCHEDULER_ID = "0x68586ed1a6550ad68e03ed5d9acd9148572091156a685e788d261db6838dea6b";
 export const V2_PAYMENT_SCHEDULER_ID = DEVNET_PAYMENT_SCHEDULER_ID;
-export const DEVNET_PAYMENT_SCHEDULER_INIT_VERSION = 2889533;
+export const DEVNET_PAYMENT_SCHEDULER_INIT_VERSION = 7;
 export const V2_PAYMENT_SCHEDULER_INIT_VERSION = DEVNET_PAYMENT_SCHEDULER_INIT_VERSION;
-export const DEVNET_COIN_TYPE_REGISTRY_ID = "0x678f525faeb3491edf890efd54fef590cef8ab350dc1c9017e30d50f37b9f479";
-export const DEVNET_ACCESS_CONTROL_ID = "0xdac30d15141f3970ac27dbb272fbe622fa46b43b3b1b49a126e0b33f3f2361d0";
+export const DEVNET_COIN_TYPE_REGISTRY_ID = "0xa76da23119ccd31be762209068cb35e6bf817ac7dfbf4ac51de19dedc47fed77";
+export const DEVNET_COIN_TYPE_REGISTRY_INIT_VERSION = 7;
+export const DEVNET_ACCESS_CONTROL_ID = "0xb5ad97f909a765fa03c5989848fae4cf956cfaba2b36e933a36a5cdb793940b0";
 
 export const TESTNET_PAYMENT_SCHEDULER_ID = "0x588b90fb769f96c086af23cfa6664c74396c63b3a9e5a2973e31ae97aca26be5";
 export const TESTNET_COIN_TYPE_REGISTRY_ID = "0xab372a141068d9677bcc14996e95948c4b9c85686e0c04232885333dfdc917b6";
@@ -45,5 +46,5 @@ export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 
 // Populated by `pnpm seed:demo` (Phase 2.1). When undefined, the demo CTAs
 // on the landing and explore pages are hidden.
-export const DEMO_PLATFORM_ID: string | undefined = undefined;
-export const DEMO_PLATFORM_INIT_VERSION: number | undefined = undefined;
+export const DEMO_PLATFORM_ID: string | undefined = "0xbacdef263862483c96eaafc38441d892e49d8ac3ee40557523e52a90c71f7ee0"; // populated by pnpm seed:demo // populated by pnpm seed:demo
+export const DEMO_PLATFORM_INIT_VERSION: number | undefined = 254751; // populated by pnpm seed:demo // populated by pnpm seed:demo

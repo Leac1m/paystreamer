@@ -33,15 +33,16 @@ import * as table from './deps/sui/table.js';
 import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@local-pkg/subscriptions::registry';
 /**
- * Stablecoin denomination. Resolved at account-creation time from the
- * `CoinTypeRegistry`. Adding a new variant would be a package upgrade; the v2
- * governance path adds new types by registering a custom `u8` discriminant in the
- * registry's `discriminants` table (see `register_coin_type<T>` and
- * `try_into_builtin`).
+ * Billing denomination. Resolved at account-creation time from the
+ * `CoinTypeRegistry`. Built-in slots 0 (USDC), 1 (USDSui), and 2 (SUI) are
+ * reserved for the canonical types; the v2 governance path adds new types by
+ * registering a custom `u8` discriminant in the registry's `discriminants` table
+ * (see `register_coin_type<T>` and `try_into_builtin`).
  */
 export const AccountType = new MoveEnum({ name: `${$moduleName}::AccountType`, fields: {
         USDC: null,
-        USDSui: null
+        USDSui: null,
+        SUI: null
     } });
 export const AccountTypeInfo = new MoveStruct({ name: `${$moduleName}::AccountTypeInfo`, fields: {
         /** Human-readable name (e.g. `"USDC"`, `"USDSui"`). */
@@ -115,6 +116,23 @@ export function accountTypeUsdsui(options: AccountTypeUsdsuiOptions = {}) {
         function: 'account_type_usdsui',
     });
 }
+export interface AccountTypeSuiOptions {
+    package?: string;
+    arguments?: [
+    ];
+}
+/**
+ * `AccountType::SUI` (discriminant 2). Native SUI is supported as a billing
+ * denomination alongside the stablecoin slots; the demo and the e2e script use it.
+ */
+export function accountTypeSui(options: AccountTypeSuiOptions = {}) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'account_type_sui',
+    });
+}
 export interface AccountTypeToU8Arguments {
     t: TransactionArgument;
 }
@@ -126,7 +144,7 @@ export interface AccountTypeToU8Options {
 }
 /**
  * `u8` discriminant of the enum variant. Built-in only; custom discriminants
- * (>= 2) have no `AccountType` variant and must be handled via
+ * (>= 3) have no `AccountType` variant and must be handled via
  * `CoinTypeRegistry::info_of` directly.
  */
 export function accountTypeToU8(options: AccountTypeToU8Options) {
@@ -393,7 +411,7 @@ export interface TryIntoBuiltinOptions {
 }
 /**
  * Convert a `u8` discriminant into a built-in `AccountType`, or return `none` if
- * the discriminant is non-standard (>= 2). Custom discriminants are valid in the
+ * the discriminant is non-standard (>= 3). Custom discriminants are valid in the
  * registry; they simply do not have a built-in `AccountType` variant. Callers that
  * need to handle custom types should branch on `info_of` directly.
  */
@@ -421,8 +439,8 @@ export interface FromU8Options {
 }
 /**
  * Convert a `u8` discriminant directly to `AccountType`. Aborts with
- * `EInvalidDiscriminant` if the value is not 0 or 1. Use this from SDK calls that
- * cannot serialize `AccountType` directly.
+ * `EInvalidDiscriminant` if the value is not 0, 1, or 2. Use this from SDK calls
+ * that cannot serialize `AccountType` directly.
  */
 export function fromU8(options: FromU8Options) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';

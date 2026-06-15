@@ -29,6 +29,7 @@ config();
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
+import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import {
   CLOCK_OBJECT_ID,
@@ -116,7 +117,7 @@ function newTx(keypair: Ed25519Keypair): Transaction {
 }
 
 async function executeStep(
-  client: SuiGraphQLClient,
+  client: SuiJsonRpcClient,
   keypair: Ed25519Keypair,
   step: Step,
 ): Promise<StepResult> {
@@ -126,19 +127,31 @@ async function executeStep(
       transaction: step.tx,
       signer: keypair,
     });
-    if (result.$kind === "FailedTransaction") {
-      const msg = result.FailedTransaction.status.error
-        ? JSON.stringify(result.FailedTransaction.status.error)
-        : "unknown";
+    const digest = result.digest;
+    // signAndExecuteTransaction does not return effects; fetch them separately
+    // The transaction may not be indexed yet, so retry with backoff
+    let txData;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        txData = await client.getTransactionBlock({ digest, options: { showEffects: true } });
+        break;
+      } catch (e) {
+        if (attempt === 4) throw e;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    const effects = txData!.effects;
+    const status = effects?.status;
+    if (status?.error || status?.status === "failure") {
+      const msg = status?.error ? JSON.stringify(status.error) : "unknown";
       console.log(`  status: FAILED (${msg})`);
       return {
         step: step.name,
-        digest: result.FailedTransaction.digest,
+        digest,
         status: "failure",
         error: msg,
       };
     }
-    const digest = result.Transaction!.digest;
     console.log(`  status: success   digest: ${digest}`);
     summary.digests[step.name] = digest;
     return { step: step.name, digest, status: "success" };
@@ -407,10 +420,11 @@ function eventModule(eventName: string): string {
 async function main() {
   const keypair = loadKeypair();
   const sender = keypair.toSuiAddress();
-  const client = new SuiGraphQLClient({
+  const graphqlClient = new SuiGraphQLClient({
     url: V2_GRAPHQL_URL,
     network: V2_NETWORK,
   });
+  const rpcClient = new SuiJsonRpcClient({ url: "https://fullnode.devnet.sui.io:443", network: "devnet" });
 
   console.log("======================================================");
   console.log(" PayStreamer v2 — E2E Payment Cycle");
@@ -430,11 +444,11 @@ async function main() {
   // ------------------------------------------------------------------
   // Step 1: register_coin_type<SUI> (idempotent — skip if already registered)
   // ------------------------------------------------------------------
-  const suiAlreadyRegistered = await isSuiRegistered(client);
+  const suiAlreadyRegistered = await isSuiRegistered(graphqlClient);
   if (suiAlreadyRegistered) {
     console.log("\n=== Step 1: register_coin_type<SUI> ===");
     console.log("  status: SKIP (SUI is already registered in the registry)");
-    const d = await fetchCoinTypeDiscriminant(client, sender);
+    const d = await fetchCoinTypeDiscriminant(graphqlClient, sender);
     if (d !== undefined) summary.ids.suiDiscriminant = d;
   } else {
     const tx = newTx(keypair);
@@ -447,10 +461,10 @@ async function main() {
       typeArguments: [SUI_TYPE_ARG],
       arguments: [sharedObjectMut(V2_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx), info],
     });
-    const r = await executeStep(client, keypair, { name: "Step 1: register_coin_type<SUI>", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 1: register_coin_type<SUI>", tx });
     results.push(r);
     if (r.status === "success") {
-      const d = await fetchCoinTypeDiscriminant(client, sender);
+      const d = await fetchCoinTypeDiscriminant(graphqlClient, sender);
       if (d !== undefined) summary.ids.suiDiscriminant = d;
     }
   }
@@ -470,14 +484,14 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(client, keypair, { name: "Step 2: register_platform", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 2: register_platform", tx });
     results.push(r);
     if (r.status === "success") {
-      const p = await fetchPlatformIdForSender(client, sender);
+      const p = await fetchPlatformIdForSender(graphqlClient, sender);
       if (p) {
         summary.ids.platformId = p;
         // Look up the platform object's initialSharedVersion
-        const objRes = await client.query({
+        const objRes = await graphqlClient.query({
           query: `query GetObj($id: SuiAddress!) {
             object(address: $id) { asMoveObject { contents { json } }
               owner { ... on Shared { initialSharedVersion } } } }`,
@@ -512,7 +526,7 @@ async function main() {
         accountType,
       ],
     });
-    const r = await executeStep(client, keypair, { name: "Step 3: create_tier", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 3: create_tier", tx });
     results.push(r);
   }
 
@@ -520,7 +534,7 @@ async function main() {
   // Step 4: create_account + share_account
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(client, keypair, { name: "Step 4: create_account + share_account", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 4: create_account + share_account", tx: (() => {
       const tx = newTx(keypair);
       const initialPolicies = tx.moveCall({
         target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
@@ -546,7 +560,7 @@ async function main() {
     // Retry on gas coin version mismatch
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(client, keypair, { name: "Step 4: create_account + share_account (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 4: create_account + share_account (retry)", tx: (() => {
         const tx = newTx(keypair);
         const initialPolicies = tx.moveCall({
           target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
@@ -573,21 +587,27 @@ async function main() {
     results.push(r);
     if (r.status === "success") {
       // Discover accountId and capId from the AccountCreated event.
-      const evRes = await client.query({
-        query: `
-          query GetAcctCreated($sender: SuiAddress!) {
-            events(first: 5, filter: { type: "${V2_PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
-              nodes { contents { json } }
+      // The GraphQL indexer can lag a few seconds behind the chain, so
+      // retry with a short backoff before giving up.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const evRes = await graphqlClient.query({
+          query: `
+            query GetAcctCreated($sender: SuiAddress!) {
+              events(first: 5, filter: { type: "${V2_PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
+                nodes { contents { json } }
+              }
             }
-          }
-        `,
-        variables: { sender },
-      });
-      const nodes: any[] = (evRes.data as any)?.events?.nodes ?? [];
-      const latest = nodes[0]?.contents?.json;
-      if (latest) {
-        if (typeof latest.account_id === "string") summary.ids.accountId = latest.account_id;
-        if (typeof latest.cap_id === "string") summary.ids.capId = latest.cap_id;
+          `,
+          variables: { sender },
+        });
+        const nodes: any[] = (evRes.data as any)?.events?.nodes ?? [];
+        const latest = nodes[0]?.contents?.json;
+        if (latest) {
+          if (typeof latest.account_id === "string") summary.ids.accountId = latest.account_id;
+          if (typeof latest.cap_id === "string") summary.ids.capId = latest.cap_id;
+        }
+        if (summary.ids.accountId && summary.ids.capId) break;
+        await new Promise((r) => setTimeout(r, 1500));
       }
     }
   }
@@ -600,7 +620,7 @@ async function main() {
   // Step 5: deposit
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(client, keypair, { name: "Step 5: deposit<SUI> (attempt 1)", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 5: deposit<SUI> (attempt 1)", tx: (() => {
       const tx = newTx(keypair);
       const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(DEPOSIT_AMOUNT)]);
       tx.moveCall({
@@ -618,7 +638,7 @@ async function main() {
     // Retry on gas coin version mismatch
     if (r.status === "failure" && r.error?.includes("Insufficient coin balance") || r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(client, keypair, { name: "Step 5: deposit<SUI> (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 5: deposit<SUI> (retry)", tx: (() => {
         const tx = newTx(keypair);
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(DEPOSIT_AMOUNT)]);
         tx.moveCall({
@@ -641,7 +661,7 @@ async function main() {
   // Step 6: create_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(client, keypair, { name: "Step 6: create_subscription", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 6: create_subscription", tx: (() => {
       const tx = newTx(keypair);
       const accountType = tx.moveCall({
         target: `${V2_PACKAGE_ID}::registry::from_u8`,
@@ -665,7 +685,7 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  cap/account stale, retrying...");
-      r = await executeStep(client, keypair, { name: "Step 6: create_subscription (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 6: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         const accountType = tx.moveCall({
           target: `${V2_PACKAGE_ID}::registry::from_u8`,
@@ -720,12 +740,12 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(client, keypair, { name: "Step 7: process_due_payment (1st)", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 7: process_due_payment (1st)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
-      const b = await fetchBalanceMIST(client, summary.ids.accountId);
+      const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
       summary.balanceAfter1stPayment = String(b);
-      const treasuryBalance = await fetchTreasuryCoinBalance(client, sender);
+      const treasuryBalance = await fetchTreasuryCoinBalance(graphqlClient, sender);
       console.log(`  account balance:  ${b} MIST`);
       console.log(`  treasury (sender) balance: ${treasuryBalance} MIST`);
     }
@@ -760,10 +780,10 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(client, keypair, { name: "Step 8: process_due_payment (2nd)", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 8: process_due_payment (2nd)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
-      const b = await fetchBalanceMIST(client, summary.ids.accountId);
+      const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
       summary.balanceAfter2ndPayment = String(b);
       console.log(`  account balance:  ${b} MIST`);
     }
@@ -773,7 +793,7 @@ async function main() {
   // Step 9: cancel_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(client, keypair, { name: "Step 9: cancel_subscription", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 9: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
@@ -789,7 +809,7 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(client, keypair, { name: "Step 9: cancel_subscription (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 9: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
@@ -809,7 +829,7 @@ async function main() {
 
   // Step 10: snapshot
   console.log("\n=== Step 10: snapshot ===");
-  summary.eventCounts = await fetchEventCounts(client, sender);
+  summary.eventCounts = await fetchEventCounts(graphqlClient, sender);
 
   const out = {
     network: V2_NETWORK,

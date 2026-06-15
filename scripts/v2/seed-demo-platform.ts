@@ -237,8 +237,15 @@ async function registerSuiCoinType(
   if (r.status === "failure") {
     throw new Error(`register_coin_type<SUI> failed: ${r.error ?? "unknown"}`);
   }
-  // Discover the discriminant we were just assigned.
-  const d = await fetchSuiDiscriminant(client);
+  // Discover the discriminant we were just assigned. The GraphQL
+  // indexer can lag a few seconds behind the chain, so we retry with a
+  // short backoff.
+  let d: number | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    d = await fetchSuiDiscriminant(client);
+    if (d !== undefined) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   if (d === undefined) {
     throw new Error("register_coin_type<SUI> succeeded but no discriminant was discovered");
   }
@@ -378,8 +385,15 @@ async function registerPlatform(
     throw new Error(`register_platform failed: ${r.error ?? "unknown"}`);
   }
   // The platform was just shared in this tx (or already existed from a
-  // prior run). Discover it by name and capture the version.
-  const discovered = await discoverDemoPlatform(client);
+  // prior run). Discover it by name and capture the version. Retry
+  // with backoff because the GraphQL indexer can lag a few seconds
+  // behind the chain after a fresh publish.
+  let discovered: Awaited<ReturnType<typeof discoverDemoPlatform>>;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    discovered = await discoverDemoPlatform(client);
+    if (discovered) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   if (!discovered) {
     throw new Error(
       "register_platform reported success but no \"Demo SaaS\" PlatformRegistered event was found",
@@ -428,8 +442,14 @@ async function createDemoTier(
   if (r.status === "failure") {
     throw new Error(`create_tier failed: ${r.error ?? "unknown"}`);
   }
-  // Re-discover: the tier should now be present.
-  const after = await findExistingTier(client, platformId);
+  // Re-discover: the tier should now be present. The GraphQL indexer
+  // can lag behind the chain, so retry with a short backoff.
+  let after: Awaited<ReturnType<typeof findExistingTier>>;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    after = await findExistingTier(client, platformId);
+    if (after) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   if (!after) {
     throw new Error(
       "create_tier reported success but the demo tier was not found on the platform object",
