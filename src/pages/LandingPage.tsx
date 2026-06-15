@@ -16,6 +16,7 @@ import SecuritySection from "../components/SecuritySection";
 import CTASection from "../components/CTASection";
 import { SocialProof } from "../components/SocialProof";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
+import GuidedDemoBanner from "../components/GuidedDemoBanner";
 import { Button } from "../components/ui/button";
 import { GRAPHQL_URL, DEVNET_V2_PACKAGE_ID } from "../constants";
 
@@ -94,6 +95,7 @@ export default function LandingPage() {
       <div className="noise" />
       <NetworkBanner />
       <NavBar />
+      <GuidedDemoBanner />
 
       <main>
         <HeroSection />
