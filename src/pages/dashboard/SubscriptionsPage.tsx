@@ -141,8 +141,6 @@ export function SubscriptionsPage() {
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="SUI">SUI</TabsTrigger>
-          <TabsTrigger value="USDC">USDC</TabsTrigger>
-          <TabsTrigger value="USDSui">USDSui</TabsTrigger>
         </TabsList>
       </Tabs>
 

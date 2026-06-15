@@ -234,7 +234,6 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
               onChange={(e) => setDenomination(e.target.value)}
             >
               <option value="SUI">SUI</option>
-              <option value="USDC">USDC</option>
             </select>
           </div>
 

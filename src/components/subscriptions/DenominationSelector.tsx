@@ -3,7 +3,7 @@ import { useCurrentClient } from "@mysten/dapp-kit-react";
 import { cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
-import { DEVNET_COIN_TYPE_REGISTRY_ID } from "../../constants";
+import { DEVNET_COIN_TYPE_REGISTRY_ID, DEMO_DENOMINATIONS } from "../../constants";
 
 type Denomination = {
   type: string;
@@ -35,7 +35,7 @@ export function DenominationSelector({ selected, onSelect }: DenominationSelecto
     },
   });
 
-  const availableDenominations: Denomination[] = [
+  const allDenominations: Denomination[] = [
     {
       type: SUI_TYPE_ARG,
       name: "Sui",
@@ -49,13 +49,13 @@ export function DenominationSelector({ selected, onSelect }: DenominationSelecto
     const coinToDiscriminant = fields.coin_to_discriminant as Record<string, number> | undefined;
     if (coinToDiscriminant) {
       if (Object.values(coinToDiscriminant).some((d) => d > 0)) {
-        availableDenominations.push({
+        allDenominations.push({
           type: USDC_TYPE_ARG,
           name: "USD Coin",
           symbol: "USDC",
           isStable: true,
         });
-        availableDenominations.push({
+        allDenominations.push({
           type: USDSUI_TYPE_ARG,
           name: "Sui USD",
           symbol: "USDSui",
@@ -64,6 +64,13 @@ export function DenominationSelector({ selected, onSelect }: DenominationSelecto
       }
     }
   }
+
+  // Filter to the demo-enabled set. USDC and USDSui are excluded from
+  // DEMO_DENOMINATIONS until their coin types are registered on chain
+  // (see src/constants.ts for the full note).
+  const availableDenominations = allDenominations.filter((d) =>
+    DEMO_DENOMINATIONS.includes(d.type)
+  );
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
