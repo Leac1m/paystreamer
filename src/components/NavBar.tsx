@@ -4,6 +4,7 @@ import { Menu, X, LogOut } from 'lucide-react';
 import { ConnectModal } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit, useWalletConnection } from '@mysten/dapp-kit-react';
 import { Button } from './ui/button';
+import NetworkSelector from './NetworkSelector';
 
 export default function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -68,7 +69,8 @@ export default function NavBar() {
             </div>
 
             {/* Wallet Button */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-3">
+              <NetworkSelector />
               {account ? (
                 <Button
                   onClick={() => disconnect()}
@@ -126,6 +128,7 @@ export default function NavBar() {
             <div className="absolute inset-0 bg-black/60" onClick={() => setIsMobileMenuOpen(false)} />
             <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#12121a] p-6 pt-20">
               <div className="flex flex-col gap-4">
+                <NetworkSelector variant="mobile" />
                 {navLinks.map((link) => (
                   <a
                     key={link.label}
