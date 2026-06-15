@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useCurrentAccount, useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -9,31 +8,15 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
-import { useQueryClient } from "@tanstack/react-query";
-import { Transaction } from "@mysten/sui/transactions";
-import { DEVNET_V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
-import { parseMoveError } from "../../lib/errors";
-import { TxStatusToast } from "../../components/TxStatusToast";
-import { TxStatus } from "../../components/TxStatusToast";
 import { AlertTriangle } from "lucide-react";
 
 export function SettingsPage() {
-  const account = useCurrentAccount();
-  const client = useCurrentClient();
-  const dAppKit = useDAppKit();
-  const queryClient = useQueryClient();
-
   const [displayName, setDisplayName] = useState("");
   const [notifications, setNotifications] = useState({
     payments: true,
     failures: true,
     marketing: false,
   });
-  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
-  const [txMessage, setTxMessage] = useState("");
-  const [txDigest, setTxDigest] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("paystreamer_display_name");
@@ -49,46 +32,6 @@ export function SettingsPage() {
   function handleSaveNotifications() {
     localStorage.setItem("paystreamer_notifications", JSON.stringify(notifications));
   }
-
-  async function closeAccount(accountId: string, capId: string) {
-    if (!account) return;
-    if (!confirm("Are you sure you want to close this account? This action cannot be undone.")) {
-      return;
-    }
-
-    setIsPending(true);
-    setError(null);
-    setTxStatus("pending");
-    setTxMessage("Closing account...");
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::close_account`,
-        typeArguments: ["0x2::sui::SUI"],
-        arguments: [tx.object(capId), tx.object(accountId), tx.object(CLOCK_OBJECT_ID)],
-      });
-
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
-      }
-
-      setTxStatus("success");
-      setTxMessage("Account closed successfully");
-      setTxDigest(result.Transaction.digest);
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account.address] });
-    } catch (err) {
-      setTxStatus("error");
-      setTxMessage("Failed to close account");
-      setError(parseMoveError(err));
-    } finally {
-      setIsPending(false);
-    }
-  }
-
-
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -175,29 +118,14 @@ export function SettingsPage() {
               This will permanently close your subscription account and withdraw any remaining
               funds to your wallet. This action cannot be undone.
             </p>
-            <Button
-              variant="outline"
-              onClick={() => closeAccount("", "")}
-              disabled={isPending}
-              loading={isPending}
-            >
-              Close Account
-            </Button>
+            <span title="Coming soon" className="inline-block">
+              <Button variant="outline" disabled>
+                Close Account
+              </Button>
+            </span>
           </div>
-          {error && (
-            <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
-              {error}
-            </div>
-          )}
         </CardContent>
       </Card>
-
-      <TxStatusToast
-        status={txStatus}
-        message={txMessage}
-        digest={txDigest}
-        onClose={() => setTxStatus("idle")}
-      />
     </div>
   );
 }

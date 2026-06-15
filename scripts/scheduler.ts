@@ -1,3 +1,6 @@
+// DEPRECATED for v2: PayStreamer now uses a permissionless on-chain scheduler
+// (see move/subscriptions/sources/scheduler.move). This off-chain cron is kept
+// for reference only and is no longer part of the demo path. Do not run.
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';

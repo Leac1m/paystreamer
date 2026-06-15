@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
-    "scheduler": "ts-node --esm scripts/scheduler.ts"
+    "codegen": "rm -rf src/contracts && sui-ts-codegen generate"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",

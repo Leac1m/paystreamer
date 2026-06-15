@@ -15,7 +15,7 @@ The `feature/v2-core` branch contains a clean rewrite of the contract suite. See
 
 ## v1 (this branch's `main`) — original MVP
 
-The `main` branch is the original MVP that was published to devnet (package `0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e`).
+The `main` branch is the original MVP that was published to devnet (package `0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e`). v1 used an off-chain scheduler signed with a `SCHEDULER_SECRET`; that approach is deprecated.
 
 ## The Problem
 
@@ -25,7 +25,7 @@ Web3 businesses run on MRR, but blockchains weren't built for recurring payments
 
 - **Connect:** Integrate our API and smart contracts into your existing platform.
 - **Subscribe:** Customers approve a spending limit with a single wallet signature.
-- **Collect:** Our automated scheduler executes the payments automatically every billing cycle.
+- **Collect:** Our permissionless on-chain scheduler executes the payments automatically every billing cycle — no operator key required.
 
 ## Key Benefits
 
@@ -83,17 +83,7 @@ pnpm install
 pnpm dev
 ```
 
-### 3. Running the Scheduler (For Platform Owners)
-
-The off-chain scheduler automatically processes subscriptions that are due for billing.
-
-1. Put a real `SCHEDULER_SECRET` value in the project root `.env` file.
-2. Authorize the scheduler's wallet address in the Platform Owner Dashboard UI.
-3. Run the scheduler:
-
-```bash
-npx ts-node scripts/scheduler.ts
-```
+> v2's scheduler runs on-chain and is permissionless — anyone can call `process_due_payment` on the platform's pre-authorized scheduler role. There is no off-chain cron, no `SCHEDULER_SECRET`, and no platform-operator key to manage.
 
 ---
 
