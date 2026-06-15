@@ -17,21 +17,22 @@ import { getErrorMessage } from "../../lib/errors";
 interface SchedulerControlsProps {
   isPaused: boolean;
   initialSharedVersion: number;
-  lastProcessedAt?: number;
+  lastProcessedAtMs?: number;
 }
 
-function formatTimestamp(timestamp?: number): string {
-  if (!timestamp) return "Never";
-  return new Date(timestamp * 1000).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+function formatRelativeTimestamp(ms?: number): string {
+  if (!ms || ms <= 0) return "Never";
+  const diffSeconds = Math.round((ms - Date.now()) / 1000);
+  const abs = Math.abs(diffSeconds);
+  if (abs < 60) return rtf.format(diffSeconds, "second");
+  if (abs < 3600) return rtf.format(Math.round(diffSeconds / 60), "minute");
+  if (abs < 86400) return rtf.format(Math.round(diffSeconds / 3600), "hour");
+  return rtf.format(Math.round(diffSeconds / 86400), "day");
 }
 
-export function SchedulerControls({ isPaused, initialSharedVersion, lastProcessedAt }: SchedulerControlsProps) {
+export function SchedulerControls({ isPaused, initialSharedVersion, lastProcessedAtMs }: SchedulerControlsProps) {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const [isPending, setIsPending] = useState(false);
@@ -131,7 +132,7 @@ export function SchedulerControls({ isPaused, initialSharedVersion, lastProcesse
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          <span>Last processed: {formatTimestamp(lastProcessedAt)}</span>
+          <span>Last processed: {formatRelativeTimestamp(lastProcessedAtMs)}</span>
         </div>
 
         {isPaused && (

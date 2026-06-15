@@ -38,6 +38,7 @@ export interface PaymentSchedulerObject {
   initialSharedVersion: number;
   is_paused: boolean;
   min_gas_budget: string;
+  last_processed_at?: string;
 }
 
 export interface PlatformRegisteredEvent {
@@ -69,6 +70,14 @@ export interface PaymentProcessedEvent {
   account_id: string;
   platform_id: string;
   amount: string;
+  timestamp: number;
+}
+
+export interface SubscriptionUpdatedEvent {
+  id?: string;
+  account_id: string;
+  platform_id: string;
+  change_kind: number;
   timestamp: number;
 }
 
@@ -259,4 +268,20 @@ export async function queryDepositEvents(accountId: string): Promise<DepositEven
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as DepositEvent)
     .filter((e) => e.account_id === accountId);
+}
+
+export async function querySubscriptionUpdatedEventsByPlatform(
+  platformId: string
+): Promise<SubscriptionUpdatedEvent[]> {
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionUpdatedEvent } }[] } }>(
+    `query GetSubscriptionUpdated($type: String!) {
+      events(first: 50, filter: { type: $type }) {
+        nodes { timestamp, contents { json } }
+      }
+    }`,
+    { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionUpdated` }
+  );
+  return data.events.nodes
+    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionUpdatedEvent)
+    .filter((e) => e.platform_id === platformId);
 }
