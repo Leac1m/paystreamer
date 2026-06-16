@@ -236,7 +236,7 @@ export function SubscriptionCard({
 
   async function processPayment() {
     if (!account) return;
-    if (platformInitVersion == null) {
+    if (platformInitVersion === null || platformInitVersion === undefined) {
       setTxStatus("error");
       setTxMessage("Platform version unavailable");
       setError("Could not load the platform's shared-object version. Please refresh and try again.");
@@ -419,7 +419,7 @@ export function SubscriptionCard({
                   e.stopPropagation();
                   processPayment();
                 }}
-                disabled={isPending || !isDue || !isSui || platformInitVersion == null}
+                disabled={isPending || !isDue || !isSui || platformInitVersion == null || platformInitVersion === undefined}
                 loading={isPending}
                 title={
                   !isSui
