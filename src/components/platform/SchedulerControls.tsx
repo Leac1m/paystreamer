@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
-import { Transaction } from "@mysten/sui/transactions";
-import { Pause, Play, AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,10 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { V3_PACKAGE_ID, V2_PAYMENT_SCHEDULER_ID } from "../../constants";
-import { getErrorMessage } from "../../lib/errors";
 
 interface SchedulerControlsProps {
   isPaused: boolean;
@@ -32,82 +26,13 @@ function formatRelativeTimestamp(ms?: number): string {
   return rtf.format(Math.round(diffSeconds / 86400), "day");
 }
 
-export function SchedulerControls({ isPaused, initialSharedVersion, lastProcessedAtMs }: SchedulerControlsProps) {
-  const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function pauseScheduler() {
-    if (!account) return;
-
-    setIsPending(true);
-    setError(null);
-
-    const tx = new Transaction();
-    tx.moveCall({
-      target: `${V3_PACKAGE_ID}::scheduler::pause`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: V2_PAYMENT_SCHEDULER_ID,
-          initialSharedVersion,
-          mutable: true,
-        }),
-      ],
-    });
-
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(
-          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
-        );
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsPending(false);
-    }
-  }
-
-  async function resumeScheduler() {
-    if (!account) return;
-
-    setIsPending(true);
-    setError(null);
-
-    const tx = new Transaction();
-    tx.moveCall({
-      target: `${V3_PACKAGE_ID}::scheduler::unpause`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: V2_PAYMENT_SCHEDULER_ID,
-          initialSharedVersion,
-          mutable: true,
-        }),
-      ],
-    });
-
-    try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(
-          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
-        );
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsPending(false);
-    }
-  }
-
+export function SchedulerControls({ isPaused, lastProcessedAtMs }: SchedulerControlsProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Payment Scheduler</CardTitle>
         <CardDescription>
-          Control global payment processing across all platforms
+          Controls global payment processing across all platforms
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -121,11 +46,6 @@ export function SchedulerControls({ isPaused, initialSharedVersion, lastProcesse
             </span>
           </div>
           <Badge variant={isPaused ? "secondary" : "default"}>
-            {isPaused ? (
-              <Pause className="h-3 w-3 mr-1" />
-            ) : (
-              <Play className="h-3 w-3 mr-1" />
-            )}
             {isPaused ? "Paused" : "Active"}
           </Badge>
         </div>
@@ -144,30 +64,15 @@ export function SchedulerControls({ isPaused, initialSharedVersion, lastProcesse
           </div>
         )}
 
-        <div className="flex gap-3">
-          {isPaused ? (
-            <Button onClick={resumeScheduler} disabled={!account || isPending} loading={isPending}>
-              <Play className="h-4 w-4 mr-1" />
-              Resume Payments
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={pauseScheduler} disabled={!account || isPending} loading={isPending}>
-              <Pause className="h-4 w-4 mr-1" />
-              Pause All Payments
-            </Button>
-          )}
-        </div>
-
         <div className="rounded-lg bg-muted p-3">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600" />
             <p className="text-sm text-muted-foreground">
-              Pausing stops ALL payments across ALL platforms. Use this for emergency situations only.
+              Scheduler pause/resume was removed in v3. The scheduler runs continuously.
+              To pause payments for a specific platform, cancel the subscription.
             </p>
           </div>
         </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
       </CardContent>
     </Card>
   );

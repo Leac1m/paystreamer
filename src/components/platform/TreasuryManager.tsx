@@ -11,7 +11,7 @@ import {
 } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V3_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TreasuryManagerProps {
@@ -91,7 +91,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::platform::propose_treasury_change`,
+      target: `${PACKAGE_ID}::platform::propose_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -126,7 +126,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::platform::accept_treasury_change`,
+      target: `${PACKAGE_ID}::platform::accept_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -159,7 +159,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::platform::cancel_treasury_change`,
+      target: `${PACKAGE_ID}::platform::cancel_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

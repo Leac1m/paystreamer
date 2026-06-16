@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { queryPaymentScheduler } from "../../lib/graphql";
 import { SchedulerControls } from "../../components/platform/SchedulerControls";
-import { V2_PAYMENT_SCHEDULER_ID } from "../../constants";
+import { PAYMENT_SCHEDULER_ID } from "../../constants";
 
 export function SchedulerPage() {
   const { data: scheduler, isPending: schedulerPending } = useQuery({
-    queryKey: ["scheduler", V2_PAYMENT_SCHEDULER_ID],
-    queryFn: () => queryPaymentScheduler(V2_PAYMENT_SCHEDULER_ID),
+    queryKey: ["scheduler", PAYMENT_SCHEDULER_ID],
+    queryFn: () => queryPaymentScheduler(PAYMENT_SCHEDULER_ID),
   });
 
   if (schedulerPending) {

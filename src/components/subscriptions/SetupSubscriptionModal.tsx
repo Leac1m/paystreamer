@@ -9,8 +9,8 @@ import { parseMoveError } from "../../lib/errors";
 import { getDenominationDecimals } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import {
-  V3_PACKAGE_ID,
-  DEVNET_COIN_TYPE_REGISTRY_ID,
+  PACKAGE_ID,
+  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
 } from "../../constants";
@@ -78,13 +78,6 @@ export function SetupSubscriptionModal({
   };
 
   const handleSubscribe = async () => {
-    const amountVal = parseFloat(depositAmount || "0");
-    if (amountVal < minDepositUsd) {
-      setTxStatus("error");
-      setTxMessage(`Deposit must be at least ${minDepositUsd.toFixed(2)} USD to cover the first bill.`);
-      return;
-    }
-
     if (hasAccount && accountId && !isValidSuiAddress(accountId)) {
       setTxStatus("error");
       setTxMessage("Invalid account reference. Please refresh and try again.");
@@ -92,7 +85,7 @@ export function SetupSubscriptionModal({
     }
 
     setTxStatus("pending");
-    setTxMessage(hasAccount ? "Funding and subscribing..." : "Setting up account and subscribing...");
+    setTxMessage(hasAccount ? "Subscribing..." : "Setting up account and subscribing...");
 
     try {
       const tx = new Transaction();
@@ -102,16 +95,11 @@ export function SetupSubscriptionModal({
       let workingCap: any;
 
       if (!hasAccount) {
-        const initialPolicies = tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::empty_policy_set`,
-        });
-
         const [newAccountObj, newCap] = tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::create_account`,
+          target: `${PACKAGE_ID}::account::create_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
-            tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
-            initialPolicies,
+            tx.object(COIN_TYPE_REGISTRY_ID),
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
@@ -122,23 +110,8 @@ export function SetupSubscriptionModal({
         workingCap = tx.object(accountCapId!);
       }
 
-      const amountInMist = Math.floor(amountVal * pusdScale);
-      if (amountInMist > 0) {
-        const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
-        tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::deposit`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [
-            workingCap,
-            workingAccountObj,
-            coin,
-            tx.object(CLOCK_OBJECT_ID),
-          ],
-        });
-      }
-
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::create_subscription`,
+        target: `${PACKAGE_ID}::billing::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           workingCap,
@@ -153,7 +126,7 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::share_account`,
+          target: `${PACKAGE_ID}::account::share_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingAccountObj, workingCap],
         });

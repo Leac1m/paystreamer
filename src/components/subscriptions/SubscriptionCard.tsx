@@ -18,9 +18,9 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
 import {
-  V3_PACKAGE_ID,
-  DEVNET_PAYMENT_SCHEDULER_ID,
-  DEVNET_PAYMENT_SCHEDULER_INIT_VERSION,
+  PACKAGE_ID,
+  PAYMENT_SCHEDULER_ID,
+  PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
 } from "../../constants";
@@ -127,7 +127,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::pause_subscription`,
+        target: `${PACKAGE_ID}::billing::pause_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -166,7 +166,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::resume_subscription`,
+        target: `${PACKAGE_ID}::billing::resume_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -205,7 +205,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -250,21 +250,21 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       const limiters = tx.moveCall({
-        target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
+        target: `${PACKAGE_ID}::policies::empty_limiters`,
         arguments: [tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
+        target: `${PACKAGE_ID}::policies::ensure_initialized`,
         typeArguments: [denomination],
         arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
+        target: `${PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [denomination],
         arguments: [
           tx.sharedObjectRef({
-            objectId: DEVNET_PAYMENT_SCHEDULER_ID,
-            initialSharedVersion: DEVNET_PAYMENT_SCHEDULER_INIT_VERSION,
+            objectId: PAYMENT_SCHEDULER_ID,
+            initialSharedVersion: PAYMENT_SCHEDULER_INIT_VERSION,
             mutable: true,
           }),
           tx.sharedObjectRef({

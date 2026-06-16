@@ -16,10 +16,9 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
-import { getDenominationDecimals } from "../../lib/format";
 import {
-  V3_PACKAGE_ID,
-  DEVNET_COIN_TYPE_REGISTRY_ID,
+  PACKAGE_ID,
+  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";
 
@@ -79,29 +78,14 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
     try {
       const tx = new Transaction();
 
-      const initialPolicies = tx.moveCall({
-        target: `${V3_PACKAGE_ID}::account::empty_policy_set`,
-      });
-
       const [accountObj, cap] = tx.moveCall({
-        target: `${V3_PACKAGE_ID}::account::create_account`,
+        target: `${PACKAGE_ID}::account::create_account`,
         typeArguments: [selectedDenomination],
-        arguments: [tx.object(DEVNET_COIN_TYPE_REGISTRY_ID), initialPolicies, tx.object(CLOCK_OBJECT_ID)],
+        arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
       });
-
-      const depositNum = parseFloat(depositAmount);
-      if (depositNum > 0) {
-        const scale = Math.pow(10, getDenominationDecimals(selectedDenomination));
-        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * scale))]);
-        tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::deposit`,
-          typeArguments: [selectedDenomination],
-          arguments: [cap, accountObj, coin, tx.object(CLOCK_OBJECT_ID)],
-        });
-      }
 
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::account::share_account`,
+        target: `${PACKAGE_ID}::account::share_account`,
         typeArguments: [selectedDenomination],
         arguments: [accountObj, cap],
       });
