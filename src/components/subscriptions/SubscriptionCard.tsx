@@ -370,7 +370,7 @@ export function SubscriptionCard({
             <div>
               <p className="text-sm text-muted-foreground">Next billing</p>
               <p className="text-sm">
-                {new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleDateString()}
+                {new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
           )}

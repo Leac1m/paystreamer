@@ -282,7 +282,7 @@ export default function SubscribePage() {
                     <CheckCircle className="h-16 w-16 text-[#10b981] mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-white mb-2">You're subscribed!</h2>
                     {nextBillingDate && (
-                      <p className="text-[#94a3b8] mb-6">Next billing date: {nextBillingDate}</p>
+                      <p className="text-[#94a3b8] mb-6">Next billing: {nextBillingDate}</p>
                     )}
                     <div className="flex flex-col gap-3">
                       <Button onClick={() => window.location.href = "/"} className="w-full">
@@ -450,7 +450,7 @@ export default function SubscribePage() {
             setSubscriptionSuccess(true);
             const nextDate = new Date();
             nextDate.setTime(nextDate.getTime() + Number(selectedTierParams.frequencyMs));
-            setNextBillingDate(nextDate.toLocaleDateString());
+            setNextBillingDate(nextDate.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
             queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
             queryClient.invalidateQueries({ queryKey: ["account-created-events", account?.address] });
           }}

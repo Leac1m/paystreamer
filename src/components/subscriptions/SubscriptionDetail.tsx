@@ -148,7 +148,7 @@ export function SubscriptionDetail({
               <p className="text-sm text-muted-foreground">Next Billing</p>
               <p className="font-medium">
                 {((subscription as any).next_billing_ts || (subscription as any).next_billing_time)
-                  ? new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleDateString()
+                  ? new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
                   : "N/A"}
               </p>
             </div>
