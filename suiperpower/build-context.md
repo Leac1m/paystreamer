@@ -8,6 +8,7 @@
 - `register_platform_with_tier` creates platform + tier in one transaction
 - `CoinTypeRegistry` uses `TypeName` keys — `register_coin_type` auto-assigns discriminant
 - Balance queries use `addressBalance` field (not `balance.value`)
+- **pause/play removed from scheduler** — scheduler runs continuously
 
 ## Devnet Deployment (2026-06-16)
 
@@ -23,41 +24,56 @@
 
 ## Frontend Constants (src/constants.ts)
 
+All deployment-specific IDs are centralized in `src/constants.ts`. Update on every redeployment.
+
 ```ts
-DEVNET_V3_PACKAGE_ID = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473"
+PACKAGE_ID = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473"
+COIN_TYPE_REGISTRY_ID = "0x2f7bc0af8c20cff6e772d3d411cc018550b958f1574f52d0d3c152f373ffd618"
+COIN_TYPE_REGISTRY_INIT_VERSION = 254755
+PAYMENT_SCHEDULER_ID = "0x4d526187e4157fe58f2fc7111a733c3e9f419e7cd23dd528993d87e54a4eacda"
+PAYMENT_SCHEDULER_INIT_VERSION = 254755
 PUSD_PACKAGE_ID = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa"
 PUSD_TYPE_ARG = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa::pusd::PUSD"
-SUI_TYPE_ARG = "0x2::sui::SUI"     // gas only
 DEMO_PLATFORM_ID = "0xb84f8a6d57a20e605581a29342124762f2ac10c8c6d9f305a83edca5e7440aec"
 DEMO_PLATFORM_INIT_VERSION = 1491862
 ```
 
-## Files Changed
+## Verified PTB Signatures (2026-06-16)
 
-| File | Changes |
-|------|---------|
-| `src/constants.ts` | Added `DEVNET_V3_PACKAGE_ID`, `PUSD_PACKAGE_ID`, `PUSD_TYPE_ARG`. Updated `DEMO_DENOMINATIONS` to `[PUSD_TYPE_ARG]` |
-| `src/lib/format.ts` | PUSD displays as "USD" with 2 decimal places. `symbolFor` returns "USD" for PUSD |
-| `src/lib/graphql.ts` | `SubscriptionAccountObject.balance` changed to `address_balance: string` |
-| `src/lib/platformDiscovery.ts` | `discoverAllPlatforms` filters out e2e test platforms by name prefix "Demo" |
-| `src/components/subscriptions/SetupSubscriptionModal.tsx` | Uses `PUSD_TYPE_ARG`, removes `accountType` from `create_subscription` call |
-| `src/components/subscriptions/SubscriptionCard.tsx` | Uses `V3_PACKAGE_ID`, `PUSD_TYPE_ARG`. Process Now button checks `isPusd` |
-| `src/components/subscriptions/DenominationSelector.tsx` | Only shows USD denomination |
-| `src/components/subscriptions/CreateAccountModal.tsx` | Uses `V3_PACKAGE_ID` |
-| `src/components/platform/TierModal.tsx` | Uses `V3_PACKAGE_ID`. Removed `accountType` and denomination selector |
-| `src/components/platform/RegisterPlatformModal.tsx` | Uses `V3_PACKAGE_ID` |
-| `src/components/platform/TierCard.tsx` | Uses `V3_PACKAGE_ID` |
-| `src/components/platform/TreasuryManager.tsx` | Uses `V3_PACKAGE_ID` |
-| `src/components/platform/SchedulerControls.tsx` | Uses `V3_PACKAGE_ID` |
-| `src/pages/SubscribePage.tsx` | Uses `address_balance` for balance, `PUSD_TYPE_ARG` as default |
-| `src/pages/dashboard/SubscriptionsPage.tsx` | Tab "SUI" renamed to "USD", filter checks `pusd` |
-| `src/pages/platforms/PlatformSettingsPage.tsx` | Uses `V3_PACKAGE_ID` |
+All user-facing flows tested in TypeScript SDK and CLI:
+
+| Function | Args | Status |
+|----------|------|--------|
+| `account::create_account<T>` | registry, clock | ✓ |
+| `account::share_account<T>` | account, cap | ✓ |
+| `account::deposit<T>` | cap, account, coin, clock | ✓ |
+| `billing::create_subscription<T>` | cap, account, platform_id, tier_index, tier_amount, tier_frequency_ms, clock | ✓ |
+| `billing::pause_subscription<T>` | cap, account, platform_id, clock | ✓ |
+| `billing::resume_subscription<T>` | cap, account, platform_id, clock | ✓ |
+| `billing::cancel_subscription<T>` | cap, account, platform_id, clock | ✓ |
+| `scheduler::process_due_payment<T>` | scheduler, platform, account, limiters, clock | ✓ |
+| `platform::register_platform` | name, description, category, webhook_url, clock | ✓ |
+| `platform::create_tier` | platform, name, amount, frequency_ms, denomination: TypeName | ✓ |
+| `platform::deactivate_tier_by_index` | platform, tier_index | ✓ |
+| `platform::update_platform` | platform, name, description, webhook_url (nested Option) | ✓ |
+| `platform::propose_treasury_change` | platform, new_treasury, clock | ✓ |
+| `platform::accept_treasury_change` | platform, clock | ✓ |
+| `platform::cancel_treasury_change` | platform | ✓ |
+| `policies::empty_limiters` | clock | ✓ |
+| `policies::ensure_initialized<T>` | account, limiters, clock | ✓ |
+
+## Key Frontend Bugs Fixed
+
+1. **CreateAccountModal/SetupSubscriptionModal**: `create_account` takes 2 args (registry, clock) not 3
+2. **TierModal**: `create_tier` requires `TypeName` argument (use `type_name::get`)
+3. **TierCard**: `deactivate_tier_by_index` not `deactivate_tier`; no clock arg
+4. **SchedulerControls**: pause/unpause removed in v3
+5. **All components**: use centralized constants (PACKAGE_ID, not V3_PACKAGE_ID)
 
 ## Scripts
 
 - `pnpm seed:demo` — seeds demo platform on devnet (idempotent)
-- `pnpm e2e` — runs e2e payment cycle test
-- Both scripts use `scripts/v2/config.ts` (gitignored with deployment-specific IDs)
+- `pnpm e2e` — runs e2e payment cycle test (8/8 passing)
 
 ## E2E Test Result (2026-06-16)
 
