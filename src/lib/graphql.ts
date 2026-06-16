@@ -164,24 +164,24 @@ export async function queryPlatformInitialVersions(
 ): Promise<PlatformVersionInfo[]> {
   if (platformIds.length === 0) return [];
 
-  const data = await executeQuery<{ objects: { nodes: { address: string, owner: { initialSharedVersion: number } | null }[] } }>(
-    `query GetPlatformVersions($ids: [SuiAddress!]!) {
-      objects(filter: { objectIds: $ids }) {
-        nodes {
-          address
-          owner { ... on Shared { initialSharedVersion } }
-        }
-      }
-    }`,
-    { ids: platformIds }
+  const results = await Promise.all(
+    platformIds.map(async (id) => {
+      const data = await executeQuery<{ object: { owner: { initialSharedVersion: number } | null } }>(
+        `query GetPlatformVersion($id: SuiAddress!) {
+          object(address: $id) {
+            owner { ... on Shared { initialSharedVersion } }
+          }
+        }`,
+        { id }
+      );
+      return {
+        objectId: id,
+        initialSharedVersion: data.object?.owner?.initialSharedVersion ?? 0,
+      };
+    })
   );
 
-  return (data.objects?.nodes ?? [])
-    .filter((n): n is { address: string, owner: { initialSharedVersion: number } | null } => !!n)
-    .map((n) => ({
-      objectId: n.address,
-      initialSharedVersion: n.owner?.initialSharedVersion ?? 0,
-    }));
+  return results;
 }
 
 export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegisteredEvent[]> {
