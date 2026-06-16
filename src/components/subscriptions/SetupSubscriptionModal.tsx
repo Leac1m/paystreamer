@@ -85,6 +85,12 @@ export function SetupSubscriptionModal({
       return;
     }
 
+    if (hasAccount && (!accountId || !accountCapId)) {
+      setTxStatus("error");
+      setTxMessage("No account found. Please create an account first.");
+      return;
+    }
+
     if (hasAccount && accountId && !isValidSuiAddress(accountId)) {
       setTxStatus("error");
       setTxMessage("Invalid account reference. Please refresh and try again.");
@@ -98,8 +104,8 @@ export function SetupSubscriptionModal({
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
-      let workingAccountObj: any = tx.object(accountId || "0x0");
-      let workingCap: any = tx.object(accountCapId || "0x0");
+      let workingAccountObj: any;
+      let workingCap: any;
 
       if (!hasAccount) {
         const initialPolicies = tx.moveCall({
@@ -117,6 +123,9 @@ export function SetupSubscriptionModal({
         });
         workingAccountObj = newAccountObj;
         workingCap = newCap;
+      } else {
+        workingAccountObj = tx.object(accountId!);
+        workingCap = tx.object(accountCapId!);
       }
 
       const amountInMist = Math.floor(amountVal * suiScale);
