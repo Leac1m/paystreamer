@@ -12,29 +12,15 @@
 /// ## Authority model
 ///
 /// `process_due_payment` is **permissionless**: any caller can submit.
-/// The function is gated by:
-///
-/// 1. The global pause flag (a kill switch flipped by `pause` /
-///    `unpause`; production hardening will gate these behind
-///    `Auth<PLATFORM_GLOBAL_ADMIN_ROLE>`).
-/// 2. The platform's `PLATFORM_SCHEDULER_ROLE` grant and the
-///    per-subscription schedule — both enforced downstream in
-///    `payment::process_due_payment`.
+/// The function is gated by the platform's `PLATFORM_SCHEDULER_ROLE`
+/// grant and the per-subscription schedule — both enforced downstream
+/// in `payment::process_due_payment`.
 ///
 /// The platform's role check is **deferred to a future hardening
 /// pass** (the role is declared in `access_control.move` but the
 /// per-Platform `AccessControl<AC>` is not yet wired in;
 /// see `account.move` and `platform.move` for the bootstrap admin
 /// pattern).
-///
-/// ## `pause` / `unpause`
-///
-/// v2 ships `pause` and `unpause` **without an auth check** so any
-/// caller can flip the kill switch in an emergency. This is
-/// intentional: a v2.1 hardening pass will replace the
-/// `_ctx:&mut TxContext` placeholder with a multisig / OZ
-/// `Auth<PLATFORM_GLOBAL_ADMIN_ROLE>` check, matching the role
-/// declared in `access_control.move` §6.2.
 ///
 /// ## Error code range
 ///
@@ -52,36 +38,11 @@ module subscriptions::scheduler {
     use subscriptions::policies::{Self, PolicyLimiters};
     use subscriptions::payment;
 
-    // === Errors ===
-
-    /// `process_due_payment` was called while `pause_flag == true`.
-    /// A multisig (or, in v2, any caller) can flip it to halt all
-    /// payments across the protocol in an emergency.
-    const ESchedulerPaused: u64 = 0x0A002;
-
     // === Events ===
     //
     // All events carry a `v: u16 = 2` field for indexer discrimination
     // (architecture §8). The `v` field is bumped when the event *shape*
     // changes.
-
-    /// Emitted on every successful `pause`. `paused_by` is the
-    /// `ctx.sender()` of the caller that flipped the flag; in v2 this
-    /// is intentionally unconstrained, but the field is recorded so
-    /// off-chain indexers can attribute the action. Production
-    /// deployments will additionally gate the call behind the
-    /// multisig's `PLATFORM_GLOBAL_ADMIN_ROLE` grant.
-    public struct SchedulerPaused has copy, drop {
-        paused_by: address,
-        v: u16,
-    }
-
-    /// Emitted on every successful `unpause`. Mirror of
-    /// `SchedulerPaused` for the resume action.
-    public struct SchedulerResumed has copy, drop {
-        resumed_by: address,
-        v: u16,
-    }
 
     /// Emitted on every successful `process_due_payment`. The
     /// `account_id` and `platform_id` are the canonical handles; the
@@ -102,14 +63,8 @@ module subscriptions::scheduler {
     /// `init`; thereafter every due payment is submitted through it.
     /// The object is `key`-only — its `id` is the canonical handle
     /// off-chain indexers observe.
-    ///
-    /// `pause_flag` is the kill switch. When `true`,
-    /// `process_due_payment` aborts with `ESchedulerPaused`.
     public struct PaymentScheduler has key {
         id: object::UID,
-        /// Emergency kill switch. Flipped by `pause` / `unpause`.
-        /// v2: any caller; v2.1: `Auth<PLATFORM_GLOBAL_ADMIN_ROLE>`.
-        pause_flag: bool,
         /// Timestamp (ms) of the most recent successful
         /// `process_due_payment`. Useful for off-chain indexers
         /// that want to detect a stalled scheduler.
@@ -135,12 +90,6 @@ module subscriptions::scheduler {
     /// (E02003 forbids parameters other than the OTW + `&mut
     /// TxContext`).
     ///
-    /// The deployer (`ctx.sender()`) becomes the implicit owner of
-    /// the pause flag; production deployments must rotate pause
-    /// authority to the multisig by hardening `pause` /
-    /// `unpause` with `Auth<PLATFORM_GLOBAL_ADMIN_ROLE>` (deferred
-    /// to v2.1, see module docs).
-    ///
     /// The scheduler is shared so any PTB can take `&mut` on it
     /// (the same model as the protocol-wide `AccessControl` in
     /// `access_control.move` and the `CoinTypeRegistry` in
@@ -148,7 +97,6 @@ module subscriptions::scheduler {
     fun init(_otw: SCHEDULER, ctx: &mut TxContext) {
         let scheduler = PaymentScheduler {
             id: object::new(ctx),
-            pause_flag: false,
             last_processed_at: 0,
             version: 2,
         };
@@ -158,29 +106,20 @@ module subscriptions::scheduler {
     // === process_due_payment (permissionless entry point) ===
 
     /// Permissionless entry point. Anyone can call this; the
-    /// function is gated by the global pause flag and the
-    /// downstream checks in `payment::process_due_payment`
-    /// (schedule, denomination, amount, per-platform rate limiters,
-    /// per-account policy eval).
+    /// function is gated by the downstream checks in
+    /// `payment::process_due_payment` (schedule, amount,
+    /// per-platform rate limiters, per-account policy eval).
     ///
     /// Steps (architecture §6.9):
-    ///  1. `!pause_flag` (else `ESchedulerPaused`).
-    ///  2. Delegate to `payment::process_due_payment` (which runs the
-    ///     12-step billing flow per architecture §6.8).
-    ///  3. Stamp `last_processed_at = clock.timestamp_ms()`.
-    ///  4. Emit `DuePaymentSubmitted` with the post-state ids and
+    ///  1. Delegate to `payment::process_due_payment` (which runs the
+    ///     address-balance payment flow).
+    ///  2. Stamp `last_processed_at = clock.timestamp_ms()`.
+    ///  3. Emit `DuePaymentSubmitted` with the post-state ids and
     ///     the gas-paying sender.
     ///
-    /// The returned `Coin<T>` is a zero-value coin (see
-    /// `payment.move` for the forward-compat rationale); the caller
-    /// discards it. The scheduler is shared, so PTBs can compose
-    /// `process_due_payment` with downstream transfer / split steps
-    /// (a future variant) by binding the return.
-    ///
     /// #### Aborts
-    /// - `ESchedulerPaused` if `pause_flag == true`.
     /// - Any abort from `payment::process_due_payment` (e.g.
-    ///   `ENotDue`, `EPolicyViolation`, `EInsufficientBalance`).
+    ///   `ENotDue`, `EPolicyViolation`, `EZeroAmount`).
     public fun process_due_payment<T>(
         scheduler: &mut PaymentScheduler,
         platform: &mut Platform,
@@ -189,23 +128,18 @@ module subscriptions::scheduler {
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
-        assert!(!scheduler.pause_flag, ESchedulerPaused);
-
         let account_id = object::id(account);
         let platform_id = object::id(platform);
 
-        // Delegate to payment.move. The returned coin is a zero-value
-        // `Coin<T>` (forward-compat hook); the actual `tier_amount`
-        // transfer to the platform treasury already happened inside
-        // the function. We destroy the zero coin.
-        let zero_coin = payment::process_due_payment(
+        // Delegate to payment.move. The actual payment transfer
+        // happens inside that function using the address-balance model.
+        payment::process_due_payment(
             platform,
             account,
             policy_limiters,
             clock,
             ctx,
         );
-        sui::coin::destroy_zero(zero_coin);
 
         scheduler.last_processed_at = clock.timestamp_ms();
         event::emit(DuePaymentSubmitted {
@@ -216,47 +150,7 @@ module subscriptions::scheduler {
         });
     }
 
-    // === pause / unpause (kill switch) ===
-
-    /// Flip the kill switch to `true`. While paused, every
-    /// `process_due_payment` aborts with `ESchedulerPaused`.
-    ///
-    /// v2: any caller can pause — this is the emergency kill switch
-    /// and is intentionally open. v2.1 will replace `_ctx` with an
-    /// `Auth<PLATFORM_GLOBAL_ADMIN_ROLE>` check, matching the role
-    /// declared in `access_control.move` §6.2.
-    ///
-    /// Emits `SchedulerPaused`. Idempotent: pausing an already-paused
-    /// scheduler re-emits the event (the on-chain record is
-    /// append-only, which is the right shape for audit trails).
-    public fun pause(scheduler: &mut PaymentScheduler, ctx: &mut TxContext) {
-        scheduler.pause_flag = true;
-        event::emit(SchedulerPaused {
-            paused_by: ctx.sender(),
-            v: 2,
-        });
-    }
-
-    /// Flip the kill switch back to `false`. Idempotent: resuming an
-    /// already-resumed scheduler re-emits the event (same audit
-    /// rationale as `pause`).
-    ///
-    /// v2: any caller. v2.1: multisig-only, see `pause` doc.
-    public fun unpause(scheduler:&mut PaymentScheduler, ctx: &mut TxContext) {
-        scheduler.pause_flag = false;
-        event::emit(SchedulerResumed {
-            resumed_by: ctx.sender(),
-            v: 2,
-        });
-    }
-
     // === Accessors (view) ===
-
-    /// `true` iff the scheduler is currently paused. Read-only view;
-    /// safe to call from any context.
-    public fun is_paused(scheduler:&PaymentScheduler): bool {
-        scheduler.pause_flag
-    }
 
     /// Timestamp (ms) of the most recent successful
     /// `process_due_payment`. `0` if no payment has ever been
@@ -282,7 +176,6 @@ module subscriptions::scheduler {
     public fun new_scheduler_for_testing(ctx: &mut TxContext): PaymentScheduler {
         PaymentScheduler {
             id: object::new(ctx),
-            pause_flag: false,
             last_processed_at: 0,
             version: 2,
         }
@@ -305,7 +198,6 @@ module subscriptions::scheduler {
     public fun destroy_for_testing(scheduler: PaymentScheduler) {
         let PaymentScheduler {
             id,
-            pause_flag: _,
             last_processed_at: _,
             version: _,
         } = scheduler;

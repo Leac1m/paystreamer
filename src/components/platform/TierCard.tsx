@@ -13,7 +13,7 @@ import {
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { TierModal } from "./TierModal";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { V3_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierCardProps {
@@ -64,7 +64,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::deactivate_tier`,
+      target: `${V3_PACKAGE_ID}::platform::deactivate_tier`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

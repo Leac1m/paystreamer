@@ -9,10 +9,10 @@ import { parseMoveError } from "../../lib/errors";
 import { getDenominationDecimals } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import {
-  DEVNET_V2_PACKAGE_ID,
+  V3_PACKAGE_ID,
   DEVNET_COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
+  PUSD_TYPE_ARG,
 } from "../../constants";
 
 interface SetupSubscriptionModalProps {
@@ -49,13 +49,13 @@ export function SetupSubscriptionModal({
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   
-  const suiScale = Math.pow(10, getDenominationDecimals(SUI_TYPE_ARG));
-  const minDepositSui = Number(absoluteMinRequired) / suiScale;
-  const defaultDepositSui = Number(shortfall) / suiScale;
-  const currentBalanceSui = Number(currentBalance) / suiScale;
-  const tierAmountSui = Number(tierAmount) / suiScale;
+  const pusdScale = Math.pow(10, getDenominationDecimals(PUSD_TYPE_ARG));
+  const minDepositUsd = Number(absoluteMinRequired) / pusdScale;
+  const defaultDepositUsd = Number(shortfall) / pusdScale;
+  const currentBalanceUsd = Number(currentBalance) / pusdScale;
+  const tierAmountUsd = Number(tierAmount) / pusdScale;
 
-  const [depositAmount, setDepositAmount] = useState(defaultDepositSui.toString());
+  const [depositAmount, setDepositAmount] = useState(defaultDepositUsd.toString());
   const [step, setStep] = useState<"input" | "success">("input");
   
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
@@ -65,7 +65,7 @@ export function SetupSubscriptionModal({
   useEffect(() => {
     if (isOpen) {
       setStep("input");
-      setDepositAmount(defaultDepositSui.toString());
+      setDepositAmount(defaultDepositUsd.toString());
       setTxStatus("idle");
       setTxDigest(undefined);
     }
@@ -79,9 +79,9 @@ export function SetupSubscriptionModal({
 
   const handleSubscribe = async () => {
     const amountVal = parseFloat(depositAmount || "0");
-    if (amountVal < minDepositSui) {
+    if (amountVal < minDepositUsd) {
       setTxStatus("error");
-      setTxMessage(`Deposit must be at least ${minDepositSui} SUI to cover the first bill.`);
+      setTxMessage(`Deposit must be at least ${minDepositUsd.toFixed(2)} USD to cover the first bill.`);
       return;
     }
 
@@ -103,12 +103,12 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         const initialPolicies = tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
+          target: `${V3_PACKAGE_ID}::account::empty_policy_set`,
         });
 
         const [newAccountObj, newCap] = tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          target: `${V3_PACKAGE_ID}::account::create_account`,
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
             initialPolicies,
@@ -122,12 +122,12 @@ export function SetupSubscriptionModal({
         workingCap = tx.object(accountCapId!);
       }
 
-      const amountInMist = Math.floor(amountVal * suiScale);
+      const amountInMist = Math.floor(amountVal * pusdScale);
       if (amountInMist > 0) {
         const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::deposit`,
-          typeArguments: [SUI_TYPE_ARG],
+          target: `${V3_PACKAGE_ID}::account::deposit`,
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             workingCap,
             workingAccountObj,
@@ -137,14 +137,9 @@ export function SetupSubscriptionModal({
         });
       }
 
-      const accountType = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
-        arguments: [tx.pure.u8(0)],
-      });
-
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::create_subscription`,
-        typeArguments: [SUI_TYPE_ARG],
+        target: `${V3_PACKAGE_ID}::billing::create_subscription`,
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           workingCap,
           workingAccountObj,
@@ -152,15 +147,14 @@ export function SetupSubscriptionModal({
           tx.pure.u64(BigInt(tierIndex)),
           tx.pure.u64(tierAmount),
           tx.pure.u64(tierFrequencyMs),
-          accountType,
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
 
       if (!hasAccount) {
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          target: `${V3_PACKAGE_ID}::account::share_account`,
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingAccountObj, workingCap],
         });
       }
@@ -224,19 +218,19 @@ export function SetupSubscriptionModal({
                 <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Tier Amount</span>
-                    <span className="font-semibold">{tierAmountSui} SUI</span>
+                    <span className="font-semibold">{tierAmountUsd.toFixed(2)} USD</span>
                   </div>
                   {hasAccount && (
                     <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
                       <span className="text-muted-foreground">Current Balance</span>
-                      <span className="font-semibold text-primary">{currentBalanceSui} SUI</span>
+                      <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} USD</span>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {hasAccount ? "Additional Deposit (SUI)" : "Initial Deposit (SUI)"}
+                    {hasAccount ? "Additional Deposit (USD)" : "Initial Deposit (USD)"}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -244,8 +238,8 @@ export function SetupSubscriptionModal({
                     </div>
                     <input
                       type="number"
-                      min={minDepositSui}
-                      step="0.1"
+                      min={minDepositUsd}
+                      step="0.01"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       disabled={isPending}
@@ -254,8 +248,8 @@ export function SetupSubscriptionModal({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {minDepositSui > 0 
-                      ? `Minimum required: ${minDepositSui} SUI to cover the first cycle.`
+                    {minDepositUsd > 0 
+                      ? `Minimum required: ${minDepositUsd.toFixed(2)} USD to cover the first cycle.`
                       : "Your existing balance covers the first cycle."}
                     {" "}We recommend a buffer of at least 3 months to avoid interruptions.
                   </p>

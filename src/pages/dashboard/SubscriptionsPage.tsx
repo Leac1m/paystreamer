@@ -115,7 +115,9 @@ export function SubscriptionsPage() {
 
   const filteredSubscriptions = subscriptions.filter((sub) => {
     if (activeTab === "all") return true;
-    const symbol = sub.denomination.includes("usdc")
+    const symbol = sub.denomination.includes("pusd")
+      ? "USD"
+      : sub.denomination.includes("usdc")
       ? "USDC"
       : sub.denomination.includes("usdsui")
       ? "USDSui"
@@ -141,7 +143,7 @@ export function SubscriptionsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="SUI">SUI</TabsTrigger>
+          <TabsTrigger value="USD">USD</TabsTrigger>
         </TabsList>
       </Tabs>
 

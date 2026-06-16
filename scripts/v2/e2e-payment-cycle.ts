@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 
 /**
- * End-to-end payment cycle for the v2 subscription contract on Sui devnet.
+ * End-to-end payment cycle for the v3 subscription contract on Sui devnet.
  *
- * Walks the full 10-step flow described in the v2 spec:
+ * Walks the full 10-step flow described in the v3 spec:
  *   0. Setup (load keypair, addresses, config)
- *   1. register_coin_type<SUI>   (registry admin)
- *   2. register_platform
- *   3. create_tier
- *   4. create_account + share_account
- *   5. deposit
- *   6. create_subscription
- *   7. process_due_payment  (first cycle)
- *   8. process_due_payment  (second cycle — frequency=1ms is immediately due again)
- *   9. cancel_subscription
- *  10. snapshot: query events and save JSON summary
+ *   1. register_coin_type<PUSD>  (registry admin)
+ *   2. register_platform_with_tier (atomic platform + tier creation)
+ *   3. create_account + share_account
+ *   4. mint PUSD + deposit
+ *   5. create_subscription
+ *   6. process_due_payment  (first cycle)
+ *   7. process_due_payment  (second cycle — frequency=1ms is immediately due again)
+ *   8. cancel_subscription
+ *   9. snapshot: query events and save JSON summary
  *
  * Usage: pnpm exec ts-node --esm scripts/v2/e2e-payment-cycle.ts
  */
@@ -33,8 +32,6 @@ import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import {
   CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
-  V2_ACCESS_CONTROL_ID,
   V2_COIN_TYPE_REGISTRY_ID,
   V2_GRAPHQL_URL,
   V2_NETWORK,
@@ -42,9 +39,13 @@ import {
   V2_PAYMENT_SCHEDULER_ID,
 } from "./config.ts";
 
-const TIER_AMOUNT = 100_000_000n; // 0.1 SUI
+const PUSD_PACKAGE_ID = "0x000000000000000000000000000000000000000000000000000000000000000000"; // TODO: replace with actual PUSD package ID
+const PUSD_TYPE_ARG = `${PUSD_PACKAGE_ID}::pusd::PUSD`;
+const PUSD_TREASURY_CAP_ID = "0x000000000000000000000000000000000000000000000000000000000000000000"; // TODO: replace with actual PUSD TreasuryCap ID
+
+const TIER_AMOUNT = 1_000_000n; // 1 PUSD (6 decimals)
 const TIER_FREQUENCY_MS = 1n; // 1ms — due immediately each cycle
-const DEPOSIT_AMOUNT = 500_000_000n; // 0.5 SUI (reduced to avoid gas coin exhaustion)
+const DEPOSIT_AMOUNT = 5_000_000n; // 5 PUSD (6 decimals)
 const TIER_NAME = `Tier ${Date.now()}`; // unique per run to avoid EInvalidTier on re-run
 
 type Step = {
@@ -66,7 +67,6 @@ type Collected = {
     tierIndex?: number;
     accountId?: string;
     capId?: string;
-    suiDiscriminant?: number;
   };
   balanceAfter1stPayment?: string;
   balanceAfter2ndPayment?: string;
@@ -201,34 +201,6 @@ async function fetchBalanceMIST(
   return "0";
 }
 
-async function fetchCoinTypeDiscriminant(
-  client: SuiGraphQLClient,
-  sender: string,
-): Promise<number | undefined> {
-  const res = await client.query({
-    query: `
-            query GetSuiRegistration($type: String!) {
-                events(first: 5, filter: { type: $type }) {
-                    nodes {
-                        contents { json }
-                        sender { address }
-                    }
-                }
-            }
-        `,
-    variables: {
-      type: `${V2_PACKAGE_ID}::registry::CoinTypeRegistered`,
-    },
-  });
-  const nodes: any[] = (res.data as any)?.events?.nodes ?? [];
-  for (const n of nodes) {
-    if (n.sender?.address === sender) {
-      return Number(n.contents?.json?.discriminant);
-    }
-  }
-  return undefined;
-}
-
 async function fetchPlatformIdForSender(
   client: SuiGraphQLClient,
   sender: string,
@@ -264,7 +236,7 @@ async function fetchTreasuryCoinBalance(
                 }
             }
         `,
-    variables: { owner: treasuryAddress, type: SUI_TYPE_ARG },
+    variables: { owner: treasuryAddress, type: PUSD_TYPE_ARG },
   });
   return (res.data as any)?.owner?.balance?.totalBalance ?? "0";
 }
@@ -275,9 +247,6 @@ const SHARED_INIT_VERSION_SCHEDULER = 2889533;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
 
 function sharedObjectMut(id: string, initialVersion: number) {
-  // Wraps an Inputs.SharedObjectRef in a tx.object() call so the
-  // returned value is a TransactionArgument (not a CallArg). Per the
-  // SDK docs: `tx.object(Inputs.SharedObjectRef({...}))`.
   return (tx: Transaction) =>
     tx.object(
       Inputs.SharedObjectRef({
@@ -286,55 +255,6 @@ function sharedObjectMut(id: string, initialVersion: number) {
         initialSharedVersion: initialVersion,
       }),
     );
-}
-
-async function isSuiRegistered(client: SuiGraphQLClient): Promise<boolean> {
-  // Check the registry's on-chain state directly: a Table<TypeName, u8>
-  // doesn't have a clean GraphQL accessor, so use the discriminant-0
-  // event as a proxy: if SUI is the registered coin (slot 0), then
-  // there's an `AccountType::USDC` mapped from SUI's TypeName. We can
-  // confirm by checking that the registry object exists and reading
-  // its contents.
-  // Simpler proxy: query the registry object and inspect its fields.
-  try {
-    const res = await client.query({
-      query: `
-        query GetRegistry($id: SuiAddress!) {
-          object(address: $id) {
-            asMoveObject { contents { json } }
-          }
-        }
-      `,
-      variables: { id: V2_COIN_TYPE_REGISTRY_ID },
-    });
-    const j = (res.data as any)?.object?.asMoveObject?.contents?.json;
-    if (!j) return false;
-    // Field name in Move struct: coin_to_discriminant (a Table).
-    // The JSON projection may not include Table contents, but we can
-    // check the registry's `version` field which is bumped on each
-    // registration. If version > 1, *some* coin has been registered.
-    // We also need a positive signal that SUI itself is registered.
-    // The most reliable check: look for a `CoinTypeRegistered` event
-    // whose json contains a TypeName for SUI.
-    const eventRes = await client.query({
-      query: `
-        query GetSuiReg {
-          events(first: 50, filter: { type: "${V2_PACKAGE_ID}::registry::CoinTypeRegistered" }) {
-            nodes { contents { json } }
-          }
-        }
-      `,
-      variables: {},
-    });
-    const nodes: any[] = (eventRes.data as any)?.events?.nodes ?? [];
-    return nodes.some((n) => {
-      const t = n?.contents?.json?.type_name;
-      return typeof t === "string" && t.includes("sui::SUI");
-    });
-  } catch (e) {
-    console.log(`  [debug isSuiRegistered] error: ${e}`);
-    return false;
-  }
 }
 
 async function fetchEventCounts(
@@ -427,79 +347,62 @@ async function main() {
   const rpcClient = new SuiJsonRpcClient({ url: "https://fullnode.devnet.sui.io:443", network: "devnet" });
 
   console.log("======================================================");
-  console.log(" PayStreamer v2 — E2E Payment Cycle");
+  console.log(" PayStreamer v3 — E2E Payment Cycle");
   console.log("======================================================");
   console.log(`network:        ${V2_NETWORK}`);
   console.log(`package:        ${V2_PACKAGE_ID}`);
   console.log(`sender:         ${sender}`);
   console.log(`scheduler:      ${V2_PAYMENT_SCHEDULER_ID}`);
   console.log(`registry:       ${V2_COIN_TYPE_REGISTRY_ID}`);
-  console.log(`access control: ${V2_ACCESS_CONTROL_ID}`);
+  console.log(`PUSD type:      ${PUSD_TYPE_ARG}`);
 
   const results: StepResult[] = [];
 
-  // Incremental build+execute: each step builds its TX only after the
-  // prior step's effects are known. This is required because Step 3+
-  // depend on the platformId/accountId/capId discovered from Steps 1-4.
   // ------------------------------------------------------------------
-  // Step 1: register_coin_type<SUI> (idempotent — skip if already registered)
-  // ------------------------------------------------------------------
-  const suiAlreadyRegistered = await isSuiRegistered(graphqlClient);
-  if (suiAlreadyRegistered) {
-    console.log("\n=== Step 1: register_coin_type<SUI> ===");
-    console.log("  status: SKIP (SUI is already registered in the registry)");
-    const d = await fetchCoinTypeDiscriminant(graphqlClient, sender);
-    if (d !== undefined) summary.ids.suiDiscriminant = d;
-  } else {
-    const tx = newTx(keypair);
-    const info = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::new_account_type_info`,
-      arguments: [tx.pure.string("Sui"), tx.pure.u8(9), tx.pure.bool(false)],
-    });
-    tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::register_coin_type`,
-      typeArguments: [SUI_TYPE_ARG],
-      arguments: [sharedObjectMut(V2_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx), info],
-    });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 1: register_coin_type<SUI>", tx });
-    results.push(r);
-    if (r.status === "success") {
-      const d = await fetchCoinTypeDiscriminant(graphqlClient, sender);
-      if (d !== undefined) summary.ids.suiDiscriminant = d;
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // Step 2: register_platform
+  // Step 1: register_coin_type<PUSD> (idempotent — skip if already registered)
   // ------------------------------------------------------------------
   {
     const tx = newTx(keypair);
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::register_platform`,
+      target: `${V2_PACKAGE_ID}::registry::register_coin_type`,
+      typeArguments: [PUSD_TYPE_ARG],
+      arguments: [sharedObjectMut(V2_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
+    });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
+    results.push(r);
+  }
+
+  // ------------------------------------------------------------------
+  // Step 2: register_platform_with_tier (atomic platform + tier creation)
+  // ------------------------------------------------------------------
+  {
+    const tx = newTx(keypair);
+    const [platformId, tierIndex] = tx.moveCall({
+      target: `${V2_PACKAGE_ID}::platform::register_platform_with_tier`,
+      typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.pure.string("PayStreamer E2E"),
         tx.pure.string("End-to-end payment cycle test platform"),
         tx.pure.string("Test"),
         tx.pure.option("string", null),
+        tx.pure.string(TIER_NAME),
+        tx.pure.u64(TIER_AMOUNT),
+        tx.pure.u64(TIER_FREQUENCY_MS),
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 2: register_platform", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 2: register_platform_with_tier", tx });
     results.push(r);
     if (r.status === "success") {
-      const p = await fetchPlatformIdForSender(graphqlClient, sender);
-      if (p) {
-        summary.ids.platformId = p;
-        // Look up the platform object's initialSharedVersion
-        const objRes = await graphqlClient.query({
-          query: `query GetObj($id: SuiAddress!) {
-            object(address: $id) { asMoveObject { contents { json } }
-              owner { ... on Shared { initialSharedVersion } } } }`,
-          variables: { id: p },
-        });
-        const v = (objRes.data as any)?.object?.owner?.initialSharedVersion;
-        if (typeof v === "number") PLATFORM_INITIAL_VERSION = v;
-      }
+      summary.ids.platformId = platformId as string;
+      summary.ids.tierIndex = Number(tierIndex);
+      const objRes = await graphqlClient.query({
+        query: `query GetObj($id: SuiAddress!) {
+          object(address: $id) { owner { ... on Shared { initialSharedVersion } } } }`,
+        variables: { id: summary.ids.platformId },
+      });
+      const v = (objRes.data as any)?.object?.owner?.initialSharedVersion;
+      if (typeof v === "number") PLATFORM_INITIAL_VERSION = v;
     }
   }
 
@@ -508,43 +411,16 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 3: create_tier
+  // Step 3: create_account + share_account
   // ------------------------------------------------------------------
   {
-    const tx = newTx(keypair);
-    const accountType = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
-    });
-    tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::create_tier`,
-      arguments: [
-        sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
-        tx.pure.string(TIER_NAME),
-        tx.pure.u64(TIER_AMOUNT),
-        tx.pure.u64(TIER_FREQUENCY_MS),
-        accountType,
-      ],
-    });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 3: create_tier", tx });
-    results.push(r);
-  }
-
-  // ------------------------------------------------------------------
-  // Step 4: create_account + share_account
-  // ------------------------------------------------------------------
-  {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 4: create_account + share_account", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account", tx: (() => {
       const tx = newTx(keypair);
-      const initialPolicies = tx.moveCall({
-        target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
-      });
       const created = tx.moveCall({
         target: `${V2_PACKAGE_ID}::account::create_account`,
-        typeArguments: [SUI_TYPE_ARG],
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
-          tx.object(V2_COIN_TYPE_REGISTRY_ID),  // immutable (&CoinTypeRegistry in create_account)
-          initialPolicies,
+          tx.object(V2_COIN_TYPE_REGISTRY_ID),
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
@@ -552,25 +428,20 @@ async function main() {
       const cap = created[1];
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::account::share_account`,
-        typeArguments: [SUI_TYPE_ARG],
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [account, cap],
       });
       return tx;
     })() });
-    // Retry on gas coin version mismatch
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 4: create_account + share_account (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account (retry)", tx: (() => {
         const tx = newTx(keypair);
-        const initialPolicies = tx.moveCall({
-          target: `${V2_PACKAGE_ID}::account::empty_policy_set`,
-        });
         const created = tx.moveCall({
           target: `${V2_PACKAGE_ID}::account::create_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(V2_COIN_TYPE_REGISTRY_ID),
-            initialPolicies,
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
@@ -578,7 +449,7 @@ async function main() {
         const cap = created[1];
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::account::share_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [account, cap],
         });
         return tx;
@@ -586,9 +457,6 @@ async function main() {
     }
     results.push(r);
     if (r.status === "success") {
-      // Discover accountId and capId from the AccountCreated event.
-      // The GraphQL indexer can lag a few seconds behind the chain, so
-      // retry with a short backoff before giving up.
       for (let attempt = 0; attempt < 5; attempt++) {
         const evRes = await graphqlClient.query({
           query: `
@@ -613,41 +481,54 @@ async function main() {
   }
 
   if (!summary.ids.accountId || !summary.ids.capId) {
-    throw new Error("Cannot determine accountId/capId after Step 4");
+    throw new Error("Cannot determine accountId/capId after Step 3");
   }
 
   // ------------------------------------------------------------------
-  // Step 5: deposit
+  // Step 4: mint PUSD + deposit
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 5: deposit<SUI> (attempt 1)", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 4: mint PUSD + deposit", tx: (() => {
       const tx = newTx(keypair);
-      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(DEPOSIT_AMOUNT)]);
+      const minted = tx.moveCall({
+        target: `${PUSD_PACKAGE_ID}::pusd::mint`,
+        arguments: [
+          tx.object(PUSD_TREASURY_CAP_ID),
+          tx.pure.address(sender),
+          tx.pure.u64(DEPOSIT_AMOUNT),
+        ],
+      });
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::account::deposit`,
-        typeArguments: [SUI_TYPE_ARG],
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
           tx.object(summary.ids.accountId),
-          coin,
+          minted,
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
       return tx;
     })() });
-    // Retry on gas coin version mismatch
-    if (r.status === "failure" && r.error?.includes("Insufficient coin balance") || r.error?.includes("version")) {
+    if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 5: deposit<SUI> (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 4: mint PUSD + deposit (retry)", tx: (() => {
         const tx = newTx(keypair);
-        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(DEPOSIT_AMOUNT)]);
+        const minted = tx.moveCall({
+          target: `${PUSD_PACKAGE_ID}::pusd::mint`,
+          arguments: [
+            tx.object(PUSD_TREASURY_CAP_ID),
+            tx.pure.address(sender),
+            tx.pure.u64(DEPOSIT_AMOUNT),
+          ],
+        });
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::account::deposit`,
-          typeArguments: [SUI_TYPE_ARG],
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
             tx.object(summary.ids.accountId),
-            coin,
+            minted,
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
@@ -658,26 +539,21 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 6: create_subscription
+  // Step 5: create_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 6: create_subscription", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
       const tx = newTx(keypair);
-      const accountType = tx.moveCall({
-        target: `${V2_PACKAGE_ID}::registry::from_u8`,
-        arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
-      });
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::billing::create_subscription`,
-        typeArguments: [SUI_TYPE_ARG],
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
           tx.object(summary.ids.accountId),
           tx.pure.id(summary.ids.platformId!),
-          tx.pure.u64(0), // tier_index
+          tx.pure.u64(summary.ids.tierIndex ?? 0),
           tx.pure.u64(TIER_AMOUNT),
           tx.pure.u64(TIER_FREQUENCY_MS),
-          accountType,
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
@@ -685,23 +561,18 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  cap/account stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 6: create_subscription (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
-        const accountType = tx.moveCall({
-          target: `${V2_PACKAGE_ID}::registry::from_u8`,
-          arguments: [tx.pure.u8(summary.ids.suiDiscriminant ?? 0)],
-        });
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::billing::create_subscription`,
-          typeArguments: [SUI_TYPE_ARG],
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
             tx.object(summary.ids.accountId),
             tx.pure.id(summary.ids.platformId!),
-            tx.pure.u64(0),
+            tx.pure.u64(summary.ids.tierIndex ?? 0),
             tx.pure.u64(TIER_AMOUNT),
             tx.pure.u64(TIER_FREQUENCY_MS),
-            accountType,
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
@@ -712,7 +583,7 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 7: process_due_payment (1st cycle)
+  // Step 6: process_due_payment (1st cycle)
   // ------------------------------------------------------------------
   {
     const tx = newTx(keypair);
@@ -722,7 +593,7 @@ async function main() {
     });
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
-      typeArguments: [SUI_TYPE_ARG],
+      typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
         limiters,
@@ -731,7 +602,7 @@ async function main() {
     });
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::scheduler::process_due_payment`,
-      typeArguments: [SUI_TYPE_ARG],
+      typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         sharedObjectMut(V2_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
@@ -740,7 +611,7 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 7: process_due_payment (1st)", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 6: process_due_payment (1st)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
       const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
@@ -752,7 +623,7 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 8: process_due_payment (2nd cycle)
+  // Step 7: process_due_payment (2nd cycle)
   // ------------------------------------------------------------------
   {
     const tx = newTx(keypair);
@@ -762,7 +633,7 @@ async function main() {
     });
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
-      typeArguments: [SUI_TYPE_ARG],
+      typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
         limiters,
@@ -771,7 +642,7 @@ async function main() {
     });
     tx.moveCall({
       target: `${V2_PACKAGE_ID}::scheduler::process_due_payment`,
-      typeArguments: [SUI_TYPE_ARG],
+      typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         sharedObjectMut(V2_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
@@ -780,7 +651,7 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 8: process_due_payment (2nd)", tx });
+    const r = await executeStep(rpcClient, keypair, { name: "Step 7: process_due_payment (2nd)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
       const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
@@ -790,14 +661,14 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 9: cancel_subscription
+  // Step 8: cancel_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 9: cancel_subscription", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
         target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
-        typeArguments: [SUI_TYPE_ARG],
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
           tx.object(summary.ids.accountId),
@@ -809,11 +680,11 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 9: cancel_subscription (retry)", tx: (() => {
+      r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
           target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
-          typeArguments: [SUI_TYPE_ARG],
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
             tx.object(summary.ids.accountId),
@@ -827,8 +698,8 @@ async function main() {
     results.push(r);
   }
 
-  // Step 10: snapshot
-  console.log("\n=== Step 10: snapshot ===");
+  // Step 9: snapshot
+  console.log("\n=== Step 9: snapshot ===");
   summary.eventCounts = await fetchEventCounts(graphqlClient, sender);
 
   const out = {

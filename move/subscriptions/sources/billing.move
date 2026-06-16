@@ -42,7 +42,6 @@ module subscriptions::billing {
     use sui::tx_context::TxContext;
     use subscriptions::account::{Self, SubscriptionAccount};
     use subscriptions::ac::{Self, AccountCap};
-    use subscriptions::registry::AccountType;
 
     // === Errors ===
 
@@ -79,11 +78,6 @@ module subscriptions::billing {
     /// The account is closed; no subscription operations are permitted.
     const EAccountClosed: u64 = 0x06007;
 
-    /// The `denomination` passed to `create_subscription` does not match
-    /// the account's `account_type`. Prevents v1's "platform can bill any
-    /// stablecoin account" bug (BUG FIX #3 in the architecture doc).
-    const EDenominationMismatch: u64 = 0x06008;
-
     /// The cap is bound to this account but lacks the OWNER permission.
     /// A DEPOSITOR or AGENT cap cannot mutate subscription state.
     const EUnauthorized: u64 = 0x06009;
@@ -91,16 +85,15 @@ module subscriptions::billing {
     // === Events ===
 
     /// Emitted on every successful `create_subscription`. `tier_index`,
-    /// `tier_amount`, `tier_frequency_ms`, and `denomination` are the
-    /// schedule snapshot at creation time, so indexers can reconstruct
-    /// the schedule without re-reading the subscription.
+    /// `tier_amount`, and `tier_frequency_ms` are the schedule snapshot
+    /// at creation time, so indexers can reconstruct the schedule
+    /// without re-reading the subscription.
     public struct SubscriptionCreated has copy, drop {
         account_id: ID,
         platform_id: ID,
         tier_index: u64,
         tier_amount: u64,
         tier_frequency_ms: u64,
-        denomination: AccountType,
         v: u16,
     }
 
@@ -151,7 +144,6 @@ module subscriptions::billing {
     /// - `EAccountPaused` if the account is paused.
     /// - `EAccountClosed` if the account is closed.
     /// - `ESubscriptionAlreadyExists` if the platform already has a sub.
-    /// - `EDenominationMismatch` if `denomination != account.account_type`.
     public fun create_subscription<T>(
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
@@ -159,7 +151,6 @@ module subscriptions::billing {
         tier_index: u64,
         tier_amount: u64,
         tier_frequency_ms: u64,
-        denomination: AccountType,
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
@@ -181,10 +172,6 @@ module subscriptions::billing {
                 ESubscriptionAlreadyExists,
             );
         };
-        assert!(
-            registry_account_type_eq(account::account_type(account), &denomination),
-            EDenominationMismatch,
-        );
 
         let now = clock.timestamp_ms();
         let sub = account::new_subscription_v1(
@@ -192,7 +179,6 @@ module subscriptions::billing {
             tier_index,
             tier_amount,
             tier_frequency_ms,
-            denomination,
             0,                       // status: active
             tier_frequency_ms,       // schedule_frequency_ms
             now + tier_frequency_ms, // next_billing_time
@@ -214,7 +200,6 @@ module subscriptions::billing {
             tier_index,
             tier_amount,
             tier_frequency_ms,
-            denomination,
             v: 2,
         });
     }
@@ -482,26 +467,20 @@ module subscriptions::billing {
         account::sub_next_billing_time(vec_map::get(account::subscriptions(account), &platform_id))
     }
 
-    /// Subscription `denomination` (the `AccountType` the sub is priced
-    /// in). Returned by value to keep the public surface tidy.
+    /// Subscription denomination (the `TypeName` of `T`). Returned by value.
     public fun subscription_denomination<T>(
-        account: &SubscriptionAccount<T>,
-        platform_id: ID,
-    ): AccountType {
-        *account::sub_denomination(vec_map::get(account::subscriptions(account), &platform_id))
+        _account: &SubscriptionAccount<T>,
+        _platform_id: ID,
+    ): std::type_name::TypeName {
+        account::account_type<T>()
     }
 
     // === Module-local helpers ===
     //
-    // We route the `access_control::account_id` and `registry::account_type_eq`
-    // lookups through local helpers so the import block stays narrow and the
-    // call sites read cleanly.
+    // We route the `access_control::account_id` lookups through local helpers
+    // so the import block stays narrow and the call sites read cleanly.
 
     fun access_control_account_id(cap: &AccountCap): ID {
         subscriptions::ac::account_id(cap)
-    }
-
-    fun registry_account_type_eq(a: &AccountType, b: &AccountType): bool {
-        subscriptions::registry::account_type_eq(a, b)
     }
 }

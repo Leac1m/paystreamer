@@ -25,7 +25,7 @@ export interface SubscriptionAccountObject {
   owner: string;
   paused: boolean;
   closed: boolean;
-  balance: { value: string };
+  address_balance: string;
 }
 
 export interface CoinTypeRegistryObject {

@@ -18,11 +18,11 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
 import {
-  DEVNET_V2_PACKAGE_ID,
+  V3_PACKAGE_ID,
   DEVNET_PAYMENT_SCHEDULER_ID,
   DEVNET_PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
+  PUSD_TYPE_ARG,
 } from "../../constants";
 
 interface SubscriptionCardProps {
@@ -115,7 +115,7 @@ export function SubscriptionCard({
   const nextBillingRaw = (subscription as any).next_billing_ts ?? (subscription as any).next_billing_time;
   const nextBillingMs = nextBillingRaw != null ? Number(nextBillingRaw) : null;
   const isDue = statusVariant === 0 && nextBillingMs != null && nextBillingMs <= Date.now();
-  const isSui = denomination === SUI_TYPE_ARG;
+  const isPusd = denomination === PUSD_TYPE_ARG;
 
   async function pauseSubscription() {
     if (!account) return;
@@ -127,7 +127,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::pause_subscription`,
+        target: `${V3_PACKAGE_ID}::billing::pause_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -166,7 +166,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::resume_subscription`,
+        target: `${V3_PACKAGE_ID}::billing::resume_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -205,7 +205,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -250,16 +250,16 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       const limiters = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::policies::empty_limiters`,
+        target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
         arguments: [tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::policies::ensure_initialized`,
+        target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
         typeArguments: [denomination],
         arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::scheduler::process_due_payment`,
+        target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [denomination],
         arguments: [
           tx.sharedObjectRef({
@@ -419,11 +419,11 @@ export function SubscriptionCard({
                   e.stopPropagation();
                   processPayment();
                 }}
-                disabled={isPending || !isDue || !isSui || platformInitVersion == null || platformInitVersion === undefined}
+                disabled={isPending || !isDue || !isPusd || platformInitVersion == null || platformInitVersion === undefined}
                 loading={isPending}
                 title={
-                  !isSui
-                    ? "Demo only supports SUI denominations."
+                  !isPusd
+                    ? "Only USD denominations are supported."
                     : !isDue
                     ? "This subscription isn't due yet."
                     : undefined

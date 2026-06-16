@@ -11,7 +11,7 @@ import {
 } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { V2_PACKAGE_ID, V2_PAYMENT_SCHEDULER_ID } from "../../constants";
+import { V3_PACKAGE_ID, V2_PAYMENT_SCHEDULER_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface SchedulerControlsProps {
@@ -46,7 +46,7 @@ export function SchedulerControls({ isPaused, initialSharedVersion, lastProcesse
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::scheduler::pause`,
+      target: `${V3_PACKAGE_ID}::scheduler::pause`,
       arguments: [
         tx.sharedObjectRef({
           objectId: V2_PAYMENT_SCHEDULER_ID,
@@ -78,7 +78,7 @@ export function SchedulerControls({ isPaused, initialSharedVersion, lastProcesse
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::scheduler::unpause`,
+      target: `${V3_PACKAGE_ID}::scheduler::unpause`,
       arguments: [
         tx.sharedObjectRef({
           objectId: V2_PAYMENT_SCHEDULER_ID,

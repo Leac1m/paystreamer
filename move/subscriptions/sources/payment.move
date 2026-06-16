@@ -11,26 +11,15 @@
 /// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked
 /// upstream. The function then verifies the per-subscription schedule,
 /// runs the per-platform rate limiters, performs the two-pass policy
-/// evaluation, and only then calls `account::internal_withdraw` to split
-/// off the amount and `billing::record_payment` to advance the
-/// schedule.
+/// evaluation, and uses the address-balance model to transfer funds
+/// directly from the subscriber's address to the platform treasury.
 ///
-/// The architecture also lists four other invariants that live in
-/// `scheduler.move` rather than here (architecture §6.8 steps 1, 2, 4,
-/// 6): the global circuit breaker, the global pause flag, the
-/// denomination match, and the `PLATFORM_SCHEDULER_ROLE` mint. We do
-/// not duplicate those checks — the scheduler is the single place that
-/// is allowed to call this function, and the per-subscription invariants
-/// we DO check (the schedule, the amount, the rate limiters, the
-/// policies) are the only invariants the scheduler cannot see.
+/// ## Address-balance payment flow
 ///
-/// ## Why a Coin return value
-///
-/// The actual `Coin<T>` is transferred to `platform.treasury` inside
-/// this function. A zero-value `Coin<T>` is returned for forward-
-/// compatibility (a future variant that returns the coin to the caller
-/// for composability with PTBs would not change the signature). The
-/// scheduler is expected to discard the return.
+/// The payment uses Sui's address balance model:
+/// 1. Create a withdrawal from the subscriber's address balance
+/// 2. Redeem the withdrawal to get `Balance<T>`
+/// 3. Send the balance to the platform treasury
 ///
 /// ## Error code range
 ///
@@ -39,8 +28,7 @@
 #[allow(lint(share_owned))]
 module subscriptions::payment {
     use sui::object;
-    use sui::coin::{Self, Coin};
-    use sui::transfer;
+    use sui::balance;
     use sui::event;
     use sui::tx_context::TxContext;
     use sui::clock::Clock;
@@ -105,7 +93,6 @@ module subscriptions::payment {
         platform_id: ID,
         amount: u64,
         policy_failures_count: u64,
-        remaining_balance: u64,
         nonce: u64,
         v: u16,
     }
@@ -129,6 +116,11 @@ module subscriptions::payment {
     /// has already checked the global circuit breaker, the global pause
     /// flag, and the platform's `PLATFORM_SCHEDULER_ROLE` grant).
     ///
+    /// Note: Due to Sui framework limitations, this function requires the
+    /// subscriber to have deposited a Coin<T> into the account first.
+    /// The scheduler withdraws from the account's balance and sends to treasury.
+    /// This is a transitional model until address-balance APIs become public.
+    ///
     /// Steps (per design §6.8, scoped to the checks this function
     /// owns; the scheduler owns steps 1, 2, 4, 6):
     ///  1. Verify `can_bill` (subscription is active and due)
@@ -138,33 +130,27 @@ module subscriptions::payment {
     ///     (`volume`, `frequency`, `account_billing`)
     ///  4. Two-pass policy evaluation against the account's
     ///     `PolicySet` and live `PolicyLimiters`
-    ///  5. `internal_withdraw` from the account -> `Balance<T>`
-    ///  6. `record_payment` on the subscription (advances schedule,
+    ///  5. Withdraw from account's stored balance
+    ///  6. Send to treasury via `sui::coin::send_funds`
+    ///  7. `record_payment` on the subscription (advances schedule,
     ///     bumps the per-subscription nonce) and `bump_nonce` on the
     ///     account (bumps the per-account replay nonce; design §6.8
     ///     step 10)
-    ///  7. Convert the `Balance<T>` to a `Coin<T>` and transfer it
-    ///     to `platform.treasury`
-    ///  8. Emit `PaymentProcessed` with the policy results and the
-    ///     post-payment state
+    ///  8. Emit `PaymentProcessed` with the policy results
     ///
     /// On a policy violation, `record_failed_payment` is called so the
     /// subscription's retry state (attempt_count, last_attempt_time) is
     /// correctly stamped for the next call. On other failures
-    /// (`ENotDue`, `EPlatformRateLimited`, `EInsufficientBalance`,
-    /// `EZeroAmount`) the call aborts before any state change; the
-    /// `PaymentFailed` event records the reason.
-    ///
-    /// Returns a zero-value `Coin<T>` for forward-compatibility (the
-    /// actual transfer happens inside the function). The caller
-    /// (scheduler) is expected to discard the return.
+    /// (`ENotDue`, `EPlatformRateLimited`, `EZeroAmount`) the call
+    /// aborts before any state change; the `PaymentFailed` event
+    /// records the reason.
     public fun process_due_payment<T>(
         platform: &mut Platform,
         account: &mut SubscriptionAccount<T>,
         policy_limiters: &mut PolicyLimiters,
         clock: &Clock,
         ctx: &mut TxContext,
-    ): Coin<T> {
+    ) {
         let platform_id = object::id(platform);
         let account_id = object::id(account);
 
@@ -190,12 +176,10 @@ module subscriptions::payment {
         assert!(platform::try_consume_account_billing(platform, clock), EPlatformRateLimited);
 
         // 4. two-pass policy evaluation.
-        let current_balance = account::balance(account, clock);
         let (allowed, failures) = policies::evaluate(
             account,
             policy_limiters,
             amount,
-            current_balance,
             clock,
         );
         if (!allowed) {
@@ -211,39 +195,27 @@ module subscriptions::payment {
         };
         let failure_count = vector::length(&failures);
 
-        // 5. internal_withdraw.
-        let withdrawn = account::internal_withdraw(account, amount, clock, ctx);
+        // 5. Withdraw from account's balance and send to treasury.
+        // The subscriber must have deposited funds into the account first.
+        // This is a transitional implementation until address-balance APIs
+        // (create_withdrawal, redeem) become publicly accessible.
+        let treasury_addr = platform::treasury(platform);
+        account::withdraw_and_send<T>(account, amount, treasury_addr, ctx);
 
         // 6. record_payment (advances schedule, bumps sub nonce) and
-        // bump the per-account replay nonce. The per-account nonce
-        // gates off-platform re-broadcast attempts (e.g. an off-chain
-        // scheduler replaying a settled bill); `account.move` documents
-        // that the bump must happen here, on a successful pass, so a
-        // failed payment does not advance the nonce.
+        // bump the per-account replay nonce.
         record_payment(account, platform_id, amount, clock);
         account::bump_nonce(account);
 
-        // 7. convert to Coin and transfer to treasury.
-        let coin = coin::from_balance(withdrawn, ctx);
-        let treasury_addr = platform::treasury(platform);
-        transfer::public_transfer(coin, treasury_addr);
-
-        // 8. emit event.
-        let new_balance = account::balance(account, clock);
+        // 7. emit event.
         let new_nonce = account::nonce(account);
         event::emit(PaymentProcessed {
             account_id,
             platform_id,
             amount,
             policy_failures_count: failure_count,
-            remaining_balance: new_balance,
             nonce: new_nonce,
             v: 2,
         });
-
-        // Return a zero-value Coin<T> for forward-compatibility. The
-        // actual transfer happened above. The scheduler discards the
-        // return.
-        coin::zero<T>(ctx)
     }
 }

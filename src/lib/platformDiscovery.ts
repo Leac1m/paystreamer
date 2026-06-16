@@ -3,6 +3,8 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { GRAPHQL_URL } from "../constants";
 import { queryPlatformsByOwner } from "./graphql";
 
+const E2E_TEST_NAME_PREFIX = "Demo";
+
 export interface PlatformObject {
   objectId: string;
   initialSharedVersion: number;
@@ -175,7 +177,8 @@ export async function discoverAllPlatforms(): Promise<PlatformObject[]> {
         tiers: parsedTiers,
       },
     };
-  }) as PlatformObject[];
+  })
+  .filter((p) => !p.json.name?.startsWith(E2E_TEST_NAME_PREFIX)) as PlatformObject[];
 }
 
 export function useAllPlatforms() {

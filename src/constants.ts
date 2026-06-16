@@ -1,3 +1,7 @@
+export const DEVNET_V3_PACKAGE_ID = ""; // TODO: fill after v3 deployment
+export const V3_PACKAGE_ID = DEVNET_V3_PACKAGE_ID;
+export const TESTNET_V3_PACKAGE_ID = ""; // TODO: fill after testnet deployment
+export const MAINNET_V3_PACKAGE_ID = undefined;
 export const DEVNET_V2_PACKAGE_ID = "0xebe2028a1ebc2608f3968a5ef33533377f9284e007afb9f5267c0fd96de603b3";
 export const V2_PACKAGE_ID = DEVNET_V2_PACKAGE_ID;
 export const TESTNET_V2_PACKAGE_ID = "0xc1973975ba135ad9c1be3d36c518726e8bd61d06ecf4a06a5278171a35c240f1";
@@ -23,18 +27,14 @@ export const GRAPHQL_URL = "https://fullnode.devnet.sui.io:443/graphql";
 export const SUI_TYPE_ARG = "0x2::sui::SUI";
 export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
 
-// USDC and USDSui are not yet registered on this network — selecting them
-// will abort with ECoinTypeNotRegistered. Hidden in the UI for the demo.
-// To re-enable: register the coin type via registry::register_coin_type<USDC>
-// and replace the hex strings below with the real package::module::Type.
-export const USDC_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdc::USDC"; // PLACEHOLDER — not registered
-export const USDSUI_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdsui::USDSui"; // PLACEHOLDER — not registered
+// PUSD stablecoin — deployed from move/stablecoin
+// TODO: fill PUSD_PACKAGE_ID after deployment
+export const PUSD_PACKAGE_ID = ""; // TODO: fill after stablecoin deployment
+export const PUSD_TYPE_ARG = `${PUSD_PACKAGE_ID}::pusd::PUSD`;
 
 // Demo-only: the set of denominations the UI is allowed to render.
-// USDC and USDSui are excluded because they are not registered on the
-// target network (see comment above). To re-enable them, add their
-// type-arg constants to this list once they are registered on chain.
-export const DEMO_DENOMINATIONS: string[] = [SUI_TYPE_ARG];
+// PUSD is the only payment denomination in v3.
+export const DEMO_DENOMINATIONS: string[] = [PUSD_TYPE_ARG];
 
 export const DEVNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
 export const TESTNET_COUNTER_PACKAGE_ID: string | undefined = "0xb36f813e3c9f2b3d25461a9f0695dc44922cd99f94ca519c244778bbc75ec0c1";

@@ -275,11 +275,15 @@ module subscriptions::policies {
     /// Returns `(allowed, failures)`. The caller (typically
     /// `payment.move`) is responsible for asserting `allowed` before
     /// proceeding to the money-moving path.
+    ///
+    /// Note: `min_balance` policy is no longer enforced at evaluation
+    /// time since the subscriber's address balance is not accessible
+    /// in the address-balance model. Insufficient balance failures
+    /// are surfaced by the withdrawal/redeem operations at payment time.
     public fun evaluate<T>(
         account: &SubscriptionAccount<T>,
         limiters: &mut PolicyLimiters,
         amount: u64,
-        current_balance: u64,
         clock: &Clock,
     ): (bool, vector<PolicyFailure>) {
         let ps: &PolicySet = account::policies(account);
@@ -303,20 +307,6 @@ module subscriptions::policies {
             vector::push_back(
                 &mut failures,
                 failure_monthly(amount, monthly_avail),
-            );
-        };
-
-        // min_balance: direct arithmetic. `current_balance - amount`
-        // must remain `>= min_balance`. The amount_available field on
-        // the failure is `max(0, current_balance - min_balance)` —
-        // saturating subtraction, never underflows.
-        if (account::policy_min_balance(ps) > 0 && current_balance < amount + account::policy_min_balance(ps)) {
-            let slack = if (current_balance >= account::policy_min_balance(ps))
-                current_balance - account::policy_min_balance(ps)
-            else 0;
-            vector::push_back(
-                &mut failures,
-                failure_min_balance(amount, slack),
             );
         };
 

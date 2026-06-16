@@ -13,7 +13,7 @@ import { Badge } from "../components/ui/badge";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
 import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
-import { DEMO_PLATFORM_ID } from "../constants";
+import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -119,7 +119,7 @@ export default function SubscribePage() {
     .map((e) => ({
       accountId: e.account_id,
       capId: e.cap_id,
-      denomination: (e as any).denomination || "0x2::sui::SUI",
+      denomination: (e as any).denomination || PUSD_TYPE_ARG,
     }));
 
   const accountId = uniqueAccounts[0]?.accountId;
@@ -444,7 +444,7 @@ export default function SubscribePage() {
           tierFrequencyMs={selectedTierParams.frequencyMs}
           accountId={accountId ?? undefined}
           accountCapId={accountCapId ?? undefined}
-          currentBalance={accountJson?.balance?.value ? BigInt(accountJson.balance.value) : 0n}
+          currentBalance={accountJson?.address_balance ? BigInt(accountJson.address_balance) : 0n}
           onSuccess={() => {
             setIsSetupModalOpen(false);
             setSubscriptionSuccess(true);

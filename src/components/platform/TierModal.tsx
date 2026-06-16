@@ -12,7 +12,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID } from "../../constants";
+import { V3_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierModalProps {
@@ -59,7 +59,6 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
   );
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [customSeconds, setCustomSeconds] = useState("30");
-  const [denomination, setDenomination] = useState("SUI");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 60-second frequency exists specifically so the "Process Now" button (Phase 1.1)
@@ -89,7 +88,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       : BILLING_CYCLE_SECONDS[billingCycle] * 1000;
 
   const previewAmount = amount
-    ? `$${parseFloat(amount).toFixed(2)} ${denomination}/${BILLING_CYCLE_LABELS[billingCycle].toLowerCase()}`
+    ? `$${parseFloat(amount).toFixed(2)} USD/${BILLING_CYCLE_LABELS[billingCycle].toLowerCase()}`
     : "";
 
   async function handleSubmit() {
@@ -104,13 +103,8 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     const tx = new Transaction();
     const amountU64 = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
 
-    const accountType = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
-    });
-
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::create_tier`,
+      target: `${V3_PACKAGE_ID}::platform::create_tier`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -120,7 +114,6 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
         tx.pure.string(name),
         tx.pure.u64(amountU64),
         tx.pure.u64(frequencySeconds),
-        accountType,
       ],
     });
 
@@ -146,7 +139,6 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     setAmount("");
     setBillingCycle("monthly");
     setCustomSeconds("30");
-    setDenomination("SUI");
     setUseDemoDefaults(false);
   }
 
@@ -226,21 +218,11 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Denomination</label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={denomination}
-              onChange={(e) => setDenomination(e.target.value)}
-            >
-              <option value="SUI">SUI</option>
-            </select>
-          </div>
 
           {previewAmount && (
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">Live Preview</p>
-              <p className="text-lg font-semibold">{previewAmount}</p>
+              <p className="text-lg font-semibold">{previewAmount.replace("SUI", "USD")}</p>
             </div>
           )}
 

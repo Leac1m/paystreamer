@@ -18,7 +18,7 @@ import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
 import { getDenominationDecimals } from "../../lib/format";
 import {
-  DEVNET_V2_PACKAGE_ID,
+  V3_PACKAGE_ID,
   DEVNET_COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";
@@ -80,11 +80,11 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       const tx = new Transaction();
 
       const initialPolicies = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
+        target: `${V3_PACKAGE_ID}::account::empty_policy_set`,
       });
 
       const [accountObj, cap] = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
+        target: `${V3_PACKAGE_ID}::account::create_account`,
         typeArguments: [selectedDenomination],
         arguments: [tx.object(DEVNET_COIN_TYPE_REGISTRY_ID), initialPolicies, tx.object(CLOCK_OBJECT_ID)],
       });
@@ -94,14 +94,14 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         const scale = Math.pow(10, getDenominationDecimals(selectedDenomination));
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * scale))]);
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::deposit`,
+          target: `${V3_PACKAGE_ID}::account::deposit`,
           typeArguments: [selectedDenomination],
           arguments: [cap, accountObj, coin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
 
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
+        target: `${V3_PACKAGE_ID}::account::share_account`,
         typeArguments: [selectedDenomination],
         arguments: [accountObj, cap],
       });
@@ -167,7 +167,9 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
     resetForm();
   }
 
-  const denominationSymbol = selectedDenomination?.includes("usdc")
+  const denominationSymbol = selectedDenomination?.includes("pusd")
+    ? "USD"
+    : selectedDenomination?.includes("usdc")
     ? "USDC"
     : selectedDenomination?.includes("usdsui")
     ? "USDSui"

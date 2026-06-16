@@ -43,6 +43,9 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 
 import {
   CLOCK_OBJECT_ID,
+  PUSD_PACKAGE_ID,
+  PUSD_TREASURY_CAP_ID,
+  PUSD_TYPE_ARG,
   SUI_TYPE_ARG,
   V2_COIN_TYPE_REGISTRY_ID,
   V2_COIN_TYPE_REGISTRY_INIT_VERSION,
@@ -52,14 +55,15 @@ import {
 } from "./config.ts";
 import { loadKeypair, newTx, sharedObjectMut } from "./test-utils.ts";
 
-// Fixed demo inputs — the idempotency contract relies on these being stable.
 const DEMO_PLATFORM_NAME = "Demo SaaS";
 const DEMO_PLATFORM_DESCRIPTION =
   "A demo platform for the PayStreamer hackathon. Subscribe for a few minutes of test billing.";
 const DEMO_PLATFORM_CATEGORY = "SaaS";
 const DEMO_TIER_NAME = "Demo Tier (1-minute billing)";
-const DEMO_TIER_AMOUNT_MIST = 1_000_000n; // 0.001 SUI per cycle
-const DEMO_TIER_FREQUENCY_MS = 60_000n; // 60 seconds
+const DEMO_TIER_AMOUNT_MIST = 1_000_000n;
+const DEMO_TIER_FREQUENCY_MS = 60_000n;
+
+const DEMO_USER_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 // Shared-object initial versions are discovered dynamically from the
 // on-chain object (see `fetchPlatformObjectVersion`). We don't need a
@@ -81,6 +85,7 @@ type SeedResult = {
   tierAmountMist: string;
   tierFrequencyMs: string;
   suiDiscriminant: number;
+  pusdDiscriminant: number;
 };
 
 async function fetchPlatformObjectVersion(
@@ -162,21 +167,14 @@ async function discoverDemoPlatform(
   };
 }
 
-/**
- * Look up the on-chain discriminant assigned to `SUI` in the
- * `CoinTypeRegistry`. Returns `undefined` if SUI is not yet registered.
- *
- * Reads the most recent `CoinTypeRegistered` event whose
- * `contents.json.type_name` matches `0x2::sui::SUI` and returns its
- * `discriminant`. The registry may assign 0, 1, 2, or higher depending
- * on the registration order — we just use whatever SUI actually got.
- */
-async function fetchSuiDiscriminant(
+async function fetchDiscriminant(
   client: SuiGraphQLClient,
+  packageId: string,
+  typeArg: string,
 ): Promise<number | undefined> {
   const res = await client.query({
     query: `
-      query GetSuiRegistrations($type: String!) {
+      query GetCoinTypeRegistrations($type: String!) {
         events(first: 50, filter: { type: $type }) {
           nodes {
             contents { json }
@@ -184,14 +182,12 @@ async function fetchSuiDiscriminant(
         }
       }
     `,
-    variables: { type: `${V2_PACKAGE_ID}::registry::CoinTypeRegistered` },
+    variables: { type: `${packageId}::registry::CoinTypeRegistered` },
   });
   const nodes: any[] = (res.data as any)?.events?.nodes ?? [];
-  // Find the most recent event for the SUI type. Events come back
-  // newest-first, so the first match is what we want.
   for (const n of nodes) {
     const json = n?.contents?.json;
-    if (json && typeof json.type_name === "string" && json.type_name.endsWith("::sui::SUI")) {
+    if (json && typeof json.coin_type === "string" && json.coin_type.endsWith(typeArg)) {
       if (typeof json.discriminant === "number") return json.discriminant;
       if (typeof json.discriminant === "string") return Number(json.discriminant);
     }
@@ -199,57 +195,78 @@ async function fetchSuiDiscriminant(
   return undefined;
 }
 
-/**
- * Register `SUI` as a coin type in the `CoinTypeRegistry`. Idempotent:
- * returns the existing discriminant if SUI is already registered.
- */
-async function registerSuiCoinType(
+async function fetchSuiDiscriminant(
+  client: SuiGraphQLClient,
+): Promise<number | undefined> {
+  return fetchDiscriminant(client, V2_PACKAGE_ID, "::sui::SUI");
+}
+
+async function registerCoinType<T extends string>(
   client: SuiGraphQLClient,
   keypair: ReturnType<typeof loadKeypair>,
+  typeArg: T,
+  displayName: string,
+  registryId: string,
+  registryInitVersion: number,
+  packageId: string,
 ): Promise<number> {
-  const existing = await fetchSuiDiscriminant(client);
+  const existing = await fetchDiscriminant(client, packageId, typeArg.split("::").slice(-2).join("::"));
   if (existing !== undefined) {
-    console.log("\n=== Step 0: register_coin_type<SUI> ===");
-    console.log(`  status: SKIP (SUI already registered, discriminant=${existing})`);
+    console.log(`\n=== register_coin_type<${displayName}> ===`);
+    console.log(`  status: SKIP (${displayName} already registered, discriminant=${existing})`);
     return existing;
   }
 
   const tx = newTx(keypair);
-  const info = tx.moveCall({
-    target: `${V2_PACKAGE_ID}::registry::new_account_type_info`,
-    arguments: [tx.pure.string("Sui"), tx.pure.u8(9), tx.pure.bool(false)],
-  });
   tx.moveCall({
-    target: `${V2_PACKAGE_ID}::registry::register_coin_type`,
-    typeArguments: [SUI_TYPE_ARG],
+    target: `${packageId}::registry::register_coin_type`,
+    typeArguments: [typeArg],
     arguments: [
       tx.object(
         Inputs.SharedObjectRef({
-          objectId: V2_COIN_TYPE_REGISTRY_ID,
+          objectId: registryId,
           mutable: true,
-          initialSharedVersion: V2_COIN_TYPE_REGISTRY_INIT_VERSION,
+          initialSharedVersion: registryInitVersion,
         }),
       ),
-      info,
     ],
   });
-  const r = await executeOrSkip(client, keypair, "Step 0: register_coin_type<SUI>", tx, []);
+  const r = await executeOrSkip(client, keypair, `register_coin_type<${displayName}>`, tx, []);
   if (r.status === "failure") {
-    throw new Error(`register_coin_type<SUI> failed: ${r.error ?? "unknown"}`);
+    throw new Error(`register_coin_type<${displayName}> failed: ${r.error ?? "unknown"}`);
   }
-  // Discover the discriminant we were just assigned. The GraphQL
-  // indexer can lag a few seconds behind the chain, so we retry with a
-  // short backoff.
   let d: number | undefined;
   for (let attempt = 0; attempt < 5; attempt++) {
-    d = await fetchSuiDiscriminant(client);
+    d = await fetchDiscriminant(client, packageId, typeArg.split("::").slice(-2).join("::"));
     if (d !== undefined) break;
     await new Promise((r) => setTimeout(r, 1500));
   }
   if (d === undefined) {
-    throw new Error("register_coin_type<SUI> succeeded but no discriminant was discovered");
+    throw new Error(`register_coin_type<${displayName}> succeeded but no discriminant was discovered`);
   }
   return d;
+}
+
+async function mintPusdToDemoUser(
+  client: SuiGraphQLClient,
+  keypair: ReturnType<typeof loadKeypair>,
+  treasuryCapId: string,
+  amount: bigint,
+): Promise<void> {
+  const tx = newTx(keypair);
+  tx.moveCall({
+    target: `${PUSD_PACKAGE_ID}::pusd::mint`,
+    typeArguments: [PUSD_TYPE_ARG],
+    arguments: [
+      tx.object(treasuryCapId),
+      tx.pure.address(DEMO_USER_ADDRESS),
+      tx.pure.u64(amount),
+    ],
+  });
+  const r = await executeOrSkip(client, keypair, `mint PUSD to ${DEMO_USER_ADDRESS}`, tx, []);
+  if (r.status === "failure") {
+    throw new Error(`PUSD mint failed: ${r.error ?? "unknown"}`);
+  }
 }
 
 async function findExistingTier(
@@ -360,34 +377,35 @@ async function executeOrSkip(
   }
 }
 
-async function registerPlatform(
+async function registerPlatformWithTier(
   client: SuiGraphQLClient,
   keypair: ReturnType<typeof loadKeypair>,
+  denominationType: string,
 ): Promise<DiscoveredPlatform> {
   const tx = newTx(keypair);
   tx.moveCall({
-    target: `${V2_PACKAGE_ID}::platform::register_platform`,
+    target: `${V2_PACKAGE_ID}::platform::register_platform_with_tier`,
+    typeArguments: [denominationType],
     arguments: [
       tx.pure.string(DEMO_PLATFORM_NAME),
       tx.pure.string(DEMO_PLATFORM_DESCRIPTION),
       tx.pure.string(DEMO_PLATFORM_CATEGORY),
       tx.pure.option("string", null),
+      tx.pure.string(DEMO_TIER_NAME),
+      tx.pure.u64(DEMO_TIER_AMOUNT_MIST),
+      tx.pure.u64(DEMO_TIER_FREQUENCY_MS),
       tx.object(CLOCK_OBJECT_ID),
     ],
   });
   const r = await executeOrSkip(
     client,
     keypair,
-    "Step 1: register_platform(\"Demo SaaS\")",
+    "register_platform_with_tier",
     tx,
   );
   if (r.status === "failure") {
-    throw new Error(`register_platform failed: ${r.error ?? "unknown"}`);
+    throw new Error(`register_platform_with_tier failed: ${r.error ?? "unknown"}`);
   }
-  // The platform was just shared in this tx (or already existed from a
-  // prior run). Discover it by name and capture the version. Retry
-  // with backoff because the GraphQL indexer can lag a few seconds
-  // behind the chain after a fresh publish.
   let discovered: Awaited<ReturnType<typeof discoverDemoPlatform>>;
   for (let attempt = 0; attempt < 5; attempt++) {
     discovered = await discoverDemoPlatform(client);
@@ -396,7 +414,7 @@ async function registerPlatform(
   }
   if (!discovered) {
     throw new Error(
-      "register_platform reported success but no \"Demo SaaS\" PlatformRegistered event was found",
+      "register_platform_with_tier reported success but no \"Demo SaaS\" PlatformRegistered event was found",
     );
   }
   return discovered;
@@ -407,20 +425,20 @@ async function createDemoTier(
   keypair: ReturnType<typeof loadKeypair>,
   platformId: string,
   platformInitVersion: number,
-  suiDiscriminant: number,
+  denominationType: string,
 ): Promise<{ tierIndex: number; amount: string; frequencyMs: string; created: boolean }> {
-  // Check first whether the tier already exists.
   const existing = await findExistingTier(client, platformId);
   if (existing) {
-    console.log(`\n=== Step 2: create_tier("${DEMO_TIER_NAME}") ===`);
+    console.log(`\n=== create_tier("${DEMO_TIER_NAME}") ===`);
     console.log(`  status: SKIP (tier already exists at index ${existing.tierIndex})`);
     return { ...existing, created: false };
   }
 
   const tx = newTx(keypair);
-  const accountType = tx.moveCall({
-    target: `${V2_PACKAGE_ID}::registry::from_u8`,
-    arguments: [tx.pure.u8(suiDiscriminant)],
+  const typeNameArg = tx.moveCall({
+    target: "0x1::type_name::get",
+    typeArguments: [],
+    arguments: [tx.pure.string(denominationType)],
   });
   tx.moveCall({
     target: `${V2_PACKAGE_ID}::platform::create_tier`,
@@ -429,21 +447,19 @@ async function createDemoTier(
       tx.pure.string(DEMO_TIER_NAME),
       tx.pure.u64(DEMO_TIER_AMOUNT_MIST),
       tx.pure.u64(DEMO_TIER_FREQUENCY_MS),
-      accountType,
+      typeNameArg,
     ],
   });
   const r = await executeOrSkip(
     client,
     keypair,
-    `Step 2: create_tier("${DEMO_TIER_NAME}")`,
+    `create_tier("${DEMO_TIER_NAME}")`,
     tx,
-    [32770], // EInvalidTier (0x8002) — a previous run already created it
+    [32770],
   );
   if (r.status === "failure") {
     throw new Error(`create_tier failed: ${r.error ?? "unknown"}`);
   }
-  // Re-discover: the tier should now be present. The GraphQL indexer
-  // can lag behind the chain, so retry with a short backoff.
   let after: Awaited<ReturnType<typeof findExistingTier>>;
   for (let attempt = 0; attempt < 5; attempt++) {
     after = await findExistingTier(client, platformId);
@@ -521,46 +537,50 @@ async function main() {
   });
 
   console.log("======================================================");
-  console.log(" PayStreamer v2 — Demo Platform Seeder");
+  console.log(" PayStreamer — Demo Platform Seeder (v3 migration)");
   console.log("======================================================");
   console.log(`network:   ${V2_NETWORK}`);
   console.log(`package:   ${V2_PACKAGE_ID}`);
   console.log(`sender:    ${sender}`);
   console.log(`name:      "${DEMO_PLATFORM_NAME}"`);
   console.log(`tier:      "${DEMO_TIER_NAME}" (${DEMO_TIER_AMOUNT_MIST} MIST / ${DEMO_TIER_FREQUENCY_MS} ms)`);
+  console.log(`denomination: PUSD (${PUSD_TYPE_ARG})`);
 
-  // ----------------------------------------------------------------
-  // Step 1: discover or create the platform
-  // ----------------------------------------------------------------
-  // ----------------------------------------------------------------
-  // Step 0: ensure SUI is registered in CoinTypeRegistry (idempotent)
-  // ----------------------------------------------------------------
-  const suiDiscriminant = await registerSuiCoinType(client, keypair);
-  console.log(`  SUI discriminant: ${suiDiscriminant}`);
+  console.log("\n=== Step 0: register_coin_type<PUSD> ===");
+  const pusdDiscriminant = await registerCoinType(
+    client,
+    keypair,
+    PUSD_TYPE_ARG,
+    "PUSD",
+    V2_COIN_TYPE_REGISTRY_ID,
+    V2_COIN_TYPE_REGISTRY_INIT_VERSION,
+    V2_PACKAGE_ID,
+  );
+  console.log(`  PUSD discriminant: ${pusdDiscriminant}`);
 
-  // ----------------------------------------------------------------
-  // Step 1: discover or create the platform
-  // ----------------------------------------------------------------
   let platform: DiscoveredPlatform;
   const existing = await discoverDemoPlatform(client);
   if (existing) {
-    console.log("\n=== Step 1: discover platform ===");
+    console.log("\n=== discover platform ===");
     console.log(`  status: FOUND existing "Demo SaaS" platform`);
     console.log(`  platformId:           ${existing.platformId}`);
     console.log(`  initialSharedVersion: ${existing.initialSharedVersion}`);
     platform = existing;
   } else {
-    platform = await registerPlatform(client, keypair);
+    console.log("\n=== register_platform_with_tier ===");
+    platform = await registerPlatformWithTier(client, keypair, PUSD_TYPE_ARG);
   }
 
-  // ----------------------------------------------------------------
-  // Step 2: discover or create the tier
-  // ----------------------------------------------------------------
-  const tier = await createDemoTier(client, keypair, platform.platformId, platform.initialSharedVersion, suiDiscriminant);
+  if (!platform.foundExisting) {
+    console.log("\n=== mint PUSD to demo user ===");
+    await mintPusdToDemoUser(client, keypair, PUSD_TREASURY_CAP_ID, 10_000_000_000n);
+  }
 
-  // ----------------------------------------------------------------
-  // Step 3: print the result
-  // ----------------------------------------------------------------
+  const tier = await findExistingTier(client, platform.platformId);
+  if (!tier) {
+    throw new Error("tier not found after platform registration");
+  }
+
   const result: SeedResult = {
     platformId: platform.platformId,
     platformInitVersion: platform.initialSharedVersion,
@@ -568,19 +588,15 @@ async function main() {
     tierName: DEMO_TIER_NAME,
     tierAmountMist: tier.amount,
     tierFrequencyMs: tier.frequencyMs,
-    suiDiscriminant,
+    suiDiscriminant: 0,
+    pusdDiscriminant,
   };
 
   console.log("\n======================================================");
   console.log(" Demo platform ready");
   console.log("======================================================");
-  // Print a single JSON object on stdout so the result is easy to pipe
-  // (e.g. `pnpm seed:demo | jq .`).
   process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 
-  // ----------------------------------------------------------------
-  // Step 4: patch src/constants.ts so the frontend picks it up
-  // ----------------------------------------------------------------
   const patch = patchConstants(result);
   if (patch.patched) {
     console.log(`\nPatched src/constants.ts (${patch.reason})`);
