@@ -32,16 +32,17 @@ import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import {
   CLOCK_OBJECT_ID,
-  V2_COIN_TYPE_REGISTRY_ID,
+  V3_COIN_TYPE_REGISTRY_ID,
+  V3_COIN_TYPE_REGISTRY_INIT_VERSION,
+  V3_PACKAGE_ID,
+  V3_PAYMENT_SCHEDULER_ID,
+  V3_PAYMENT_SCHEDULER_INIT_VERSION,
   V2_GRAPHQL_URL,
   V2_NETWORK,
-  V2_PACKAGE_ID,
-  V2_PAYMENT_SCHEDULER_ID,
+  PUSD_PACKAGE_ID,
+  PUSD_TYPE_ARG,
+  PUSD_TREASURY_CAP_ID,
 } from "./config.ts";
-
-const PUSD_PACKAGE_ID = "0x000000000000000000000000000000000000000000000000000000000000000000"; // TODO: replace with actual PUSD package ID
-const PUSD_TYPE_ARG = `${PUSD_PACKAGE_ID}::pusd::PUSD`;
-const PUSD_TREASURY_CAP_ID = "0x000000000000000000000000000000000000000000000000000000000000000000"; // TODO: replace with actual PUSD TreasuryCap ID
 
 const TIER_AMOUNT = 1_000_000n; // 1 PUSD (6 decimals)
 const TIER_FREQUENCY_MS = 1n; // 1ms — due immediately each cycle
@@ -216,7 +217,7 @@ async function fetchPlatformIdForSender(
             }
         `,
     variables: {
-      type: `${V2_PACKAGE_ID}::platform::PlatformRegistered`,
+      type: `${V3_PACKAGE_ID}::platform::PlatformRegistered`,
       sender,
     },
   });
@@ -242,8 +243,8 @@ async function fetchTreasuryCoinBalance(
 }
 
 // Shared object initial versions captured at publish time.
-const SHARED_INIT_VERSION_REGISTRY = 2889533;
-const SHARED_INIT_VERSION_SCHEDULER = 2889533;
+const SHARED_INIT_VERSION_REGISTRY = V3_COIN_TYPE_REGISTRY_INIT_VERSION;
+const SHARED_INIT_VERSION_SCHEDULER = V3_PAYMENT_SCHEDULER_INIT_VERSION;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
 
 function sharedObjectMut(id: string, initialVersion: number) {
@@ -276,7 +277,7 @@ async function fetchEventCounts(
   const counts: Record<string, number> = {};
   for (const name of eventTypes) {
     const module = eventModule(name);
-    const type = `${V2_PACKAGE_ID}::${module}::${name}`;
+    const type = `${V3_PACKAGE_ID}::${module}::${name}`;
     let total = 0;
     let cursor: string | null = null;
     let hasNextPage = true;
@@ -350,10 +351,10 @@ async function main() {
   console.log(" PayStreamer v3 — E2E Payment Cycle");
   console.log("======================================================");
   console.log(`network:        ${V2_NETWORK}`);
-  console.log(`package:        ${V2_PACKAGE_ID}`);
+  console.log(`package:        ${V3_PACKAGE_ID}`);
   console.log(`sender:         ${sender}`);
-  console.log(`scheduler:      ${V2_PAYMENT_SCHEDULER_ID}`);
-  console.log(`registry:       ${V2_COIN_TYPE_REGISTRY_ID}`);
+  console.log(`scheduler:      ${V3_PAYMENT_SCHEDULER_ID}`);
+  console.log(`registry:       ${V3_COIN_TYPE_REGISTRY_ID}`);
   console.log(`PUSD type:      ${PUSD_TYPE_ARG}`);
 
   const results: StepResult[] = [];
@@ -364,9 +365,9 @@ async function main() {
   {
     const tx = newTx(keypair);
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::register_coin_type`,
+      target: `${V3_PACKAGE_ID}::registry::register_coin_type`,
       typeArguments: [PUSD_TYPE_ARG],
-      arguments: [sharedObjectMut(V2_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
+      arguments: [sharedObjectMut(V3_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
     });
     const r = await executeStep(rpcClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
     results.push(r);
@@ -378,7 +379,7 @@ async function main() {
   {
     const tx = newTx(keypair);
     const [platformId, tierIndex] = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::register_platform_with_tier`,
+      target: `${V3_PACKAGE_ID}::platform::register_platform_with_tier`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.pure.string("PayStreamer E2E"),
@@ -394,8 +395,44 @@ async function main() {
     const r = await executeStep(rpcClient, keypair, { name: "Step 2: register_platform_with_tier", tx });
     results.push(r);
     if (r.status === "success") {
-      summary.ids.platformId = platformId as string;
-      summary.ids.tierIndex = Number(tierIndex);
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const evRes = await graphqlClient.query({
+          query: `
+            query GetPlatformCreated($sender: SuiAddress!) {
+              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::platform::PlatformRegistered", sender: $sender }) {
+                nodes { contents { json } }
+              }
+            }
+          `,
+          variables: { sender },
+        });
+        const nodes: any[] = (evRes.data as any)?.events?.nodes ?? [];
+        const latest = nodes[0]?.contents?.json;
+        if (latest && typeof latest.platform_id === "string") {
+          summary.ids.platformId = latest.platform_id;
+        }
+        if (summary.ids.platformId) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const tierRes = await graphqlClient.query({
+          query: `
+            query GetTierCreated($sender: SuiAddress!, $platformId: SuiAddress!) {
+              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::platform::TierCreated", sender: $sender }) {
+                nodes { contents { json } }
+              }
+            }
+          `,
+          variables: { sender, platformId: summary.ids.platformId },
+        });
+        const tierNodes: any[] = (tierRes.data as any)?.events?.nodes ?? [];
+        const latestTier = tierNodes[0]?.contents?.json;
+        if (latestTier && typeof latestTier.tier_index === "number") {
+          summary.ids.tierIndex = latestTier.tier_index;
+        }
+        if (summary.ids.tierIndex !== undefined) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
       const objRes = await graphqlClient.query({
         query: `query GetObj($id: SuiAddress!) {
           object(address: $id) { owner { ... on Shared { initialSharedVersion } } } }`,
@@ -417,17 +454,17 @@ async function main() {
     let r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account", tx: (() => {
       const tx = newTx(keypair);
       const created = tx.moveCall({
-        target: `${V2_PACKAGE_ID}::account::create_account`,
+        target: `${V3_PACKAGE_ID}::account::create_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
-          tx.object(V2_COIN_TYPE_REGISTRY_ID),
+          tx.object(V3_COIN_TYPE_REGISTRY_ID),
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
       const account = created[0];
       const cap = created[1];
       tx.moveCall({
-        target: `${V2_PACKAGE_ID}::account::share_account`,
+        target: `${V3_PACKAGE_ID}::account::share_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [account, cap],
       });
@@ -438,17 +475,17 @@ async function main() {
       r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account (retry)", tx: (() => {
         const tx = newTx(keypair);
         const created = tx.moveCall({
-          target: `${V2_PACKAGE_ID}::account::create_account`,
+          target: `${V3_PACKAGE_ID}::account::create_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
-            tx.object(V2_COIN_TYPE_REGISTRY_ID),
+            tx.object(V3_COIN_TYPE_REGISTRY_ID),
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
         const account = created[0];
         const cap = created[1];
         tx.moveCall({
-          target: `${V2_PACKAGE_ID}::account::share_account`,
+          target: `${V3_PACKAGE_ID}::account::share_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [account, cap],
         });
@@ -461,7 +498,7 @@ async function main() {
         const evRes = await graphqlClient.query({
           query: `
             query GetAcctCreated($sender: SuiAddress!) {
-              events(first: 5, filter: { type: "${V2_PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
+              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
                 nodes { contents { json } }
               }
             }
@@ -485,12 +522,12 @@ async function main() {
   }
 
   // ------------------------------------------------------------------
-  // Step 4: mint PUSD + deposit
+  // Step 4a: mint PUSD to sender
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 4: mint PUSD + deposit", tx: (() => {
+    let r = await executeStep(rpcClient, keypair, { name: "Step 4a: mint PUSD", tx: (() => {
       const tx = newTx(keypair);
-      const minted = tx.moveCall({
+      tx.moveCall({
         target: `${PUSD_PACKAGE_ID}::pusd::mint`,
         arguments: [
           tx.object(PUSD_TREASURY_CAP_ID),
@@ -498,44 +535,36 @@ async function main() {
           tx.pure.u64(DEPOSIT_AMOUNT),
         ],
       });
-      tx.moveCall({
-        target: `${V2_PACKAGE_ID}::account::deposit`,
-        typeArguments: [PUSD_TYPE_ARG],
-        arguments: [
-          tx.object(summary.ids.capId),
-          tx.object(summary.ids.accountId),
-          minted,
-          tx.object(CLOCK_OBJECT_ID),
-        ],
-      });
       return tx;
     })() });
-    if (r.status === "failure" && r.error?.includes("version")) {
-      console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 4: mint PUSD + deposit (retry)", tx: (() => {
-        const tx = newTx(keypair);
-        const minted = tx.moveCall({
-          target: `${PUSD_PACKAGE_ID}::pusd::mint`,
-          arguments: [
-            tx.object(PUSD_TREASURY_CAP_ID),
-            tx.pure.address(sender),
-            tx.pure.u64(DEPOSIT_AMOUNT),
-          ],
-        });
-        tx.moveCall({
-          target: `${V2_PACKAGE_ID}::account::deposit`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [
-            tx.object(summary.ids.capId),
-            tx.object(summary.ids.accountId),
-            minted,
-            tx.object(CLOCK_OBJECT_ID),
-          ],
-        });
-        return tx;
-      })() });
-    }
     results.push(r);
+    if (r.status === "failure") {
+      console.log("  mint failed, skipping deposit");
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const coinsResp: any = await (rpcClient as any).getCoins({ owner: sender, coinType: PUSD_TYPE_ARG });
+      const coins = coinsResp?.data ?? [];
+      if (coins.length === 0) {
+        console.log("  WARNING: no PUSD coins found after mint, skipping deposit");
+      } else {
+        const mintedCoinId = coins[0].coinObjectId;
+        let r2 = await executeStep(rpcClient, keypair, { name: "Step 4b: deposit PUSD", tx: (() => {
+          const tx = newTx(keypair);
+          tx.moveCall({
+            target: `${V3_PACKAGE_ID}::account::deposit`,
+            typeArguments: [PUSD_TYPE_ARG],
+            arguments: [
+              tx.object(summary.ids.capId),
+              tx.object(summary.ids.accountId),
+              tx.object(mintedCoinId),
+              tx.object(CLOCK_OBJECT_ID),
+            ],
+          });
+          return tx;
+        })() });
+        results.push(r2);
+      }
+    }
   }
 
   // ------------------------------------------------------------------
@@ -545,7 +574,7 @@ async function main() {
     let r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${V2_PACKAGE_ID}::billing::create_subscription`,
+        target: `${V3_PACKAGE_ID}::billing::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -564,7 +593,7 @@ async function main() {
       r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${V2_PACKAGE_ID}::billing::create_subscription`,
+          target: `${V3_PACKAGE_ID}::billing::create_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
@@ -588,11 +617,11 @@ async function main() {
   {
     const tx = newTx(keypair);
     const limiters = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::policies::empty_limiters`,
+      target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
       arguments: [tx.object(CLOCK_OBJECT_ID)],
     });
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
+      target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
@@ -601,10 +630,10 @@ async function main() {
       ],
     });
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::scheduler::process_due_payment`,
+      target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
-        sharedObjectMut(V2_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
+        sharedObjectMut(V3_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         tx.object(summary.ids.accountId!),
         limiters,
@@ -628,11 +657,11 @@ async function main() {
   {
     const tx = newTx(keypair);
     const limiters = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::policies::empty_limiters`,
+      target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
       arguments: [tx.object(CLOCK_OBJECT_ID)],
     });
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::policies::ensure_initialized`,
+      target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
@@ -641,10 +670,10 @@ async function main() {
       ],
     });
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::scheduler::process_due_payment`,
+      target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
-        sharedObjectMut(V2_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
+        sharedObjectMut(V3_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         tx.object(summary.ids.accountId!),
         limiters,
@@ -667,7 +696,7 @@ async function main() {
     let r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -683,7 +712,7 @@ async function main() {
       r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${V2_PACKAGE_ID}::billing::cancel_subscription`,
+          target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
@@ -704,7 +733,7 @@ async function main() {
 
   const out = {
     network: V2_NETWORK,
-    packageId: V2_PACKAGE_ID,
+    packageId: V3_PACKAGE_ID,
     sender,
     ids: summary.ids,
     digests: summary.digests,

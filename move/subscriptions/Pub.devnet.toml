@@ -7,9 +7,9 @@ chain-id = "5ea2c653"
 
 [[published]]
 source = { local = "/home/leac1m/paystreamer/move/subscriptions" }
-published-at = "0xebe2028a1ebc2608f3968a5ef33533377f9284e007afb9f5267c0fd96de603b3"
-original-id = "0xebe2028a1ebc2608f3968a5ef33533377f9284e007afb9f5267c0fd96de603b3"
+published-at = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473"
+original-id = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473"
 version = 1
 toolchain-version = "1.73.1"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0x37eddd96cd423ae401eeb99962dd12bcd8a030c9736fc1843451895bb53f4945"
+upgrade-capability = "0xf4d236449dae2a87b3b353fb3bbfc6aac93873b288a35050082e61665309c594"

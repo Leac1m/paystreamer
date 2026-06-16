@@ -1,4 +1,4 @@
-export const DEVNET_V3_PACKAGE_ID = ""; // TODO: fill after v3 deployment
+export const DEVNET_V3_PACKAGE_ID = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473";
 export const V3_PACKAGE_ID = DEVNET_V3_PACKAGE_ID;
 export const TESTNET_V3_PACKAGE_ID = ""; // TODO: fill after testnet deployment
 export const MAINNET_V3_PACKAGE_ID = undefined;
@@ -28,8 +28,7 @@ export const SUI_TYPE_ARG = "0x2::sui::SUI";
 export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
 
 // PUSD stablecoin — deployed from move/stablecoin
-// TODO: fill PUSD_PACKAGE_ID after deployment
-export const PUSD_PACKAGE_ID = ""; // TODO: fill after stablecoin deployment
+export const PUSD_PACKAGE_ID = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa";
 export const PUSD_TYPE_ARG = `${PUSD_PACKAGE_ID}::pusd::PUSD`;
 
 // Demo-only: the set of denominations the UI is allowed to render.
@@ -46,5 +45,5 @@ export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
 
 // Populated by `pnpm seed:demo` (Phase 2.1). When undefined, the demo CTAs
 // on the landing and explore pages are hidden.
-export const DEMO_PLATFORM_ID: string | undefined = "0xbacdef263862483c96eaafc38441d892e49d8ac3ee40557523e52a90c71f7ee0"; // populated by pnpm seed:demo // populated by pnpm seed:demo
-export const DEMO_PLATFORM_INIT_VERSION: number | undefined = 254751; // populated by pnpm seed:demo // populated by pnpm seed:demo
+export const DEMO_PLATFORM_ID: string | undefined = "0xb84f8a6d57a20e605581a29342124762f2ac10c8c6d9f305a83edca5e7440aec"; // populated by pnpm seed:demo // populated by pnpm seed:demo // populated by pnpm seed:demo
+export const DEMO_PLATFORM_INIT_VERSION: number | undefined = 1491862; // populated by pnpm seed:demo // populated by pnpm seed:demo // populated by pnpm seed:demo

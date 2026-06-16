@@ -47,11 +47,11 @@ import {
   PUSD_TREASURY_CAP_ID,
   PUSD_TYPE_ARG,
   SUI_TYPE_ARG,
-  V2_COIN_TYPE_REGISTRY_ID,
-  V2_COIN_TYPE_REGISTRY_INIT_VERSION,
+  V3_COIN_TYPE_REGISTRY_ID,
+  V3_COIN_TYPE_REGISTRY_INIT_VERSION,
+  V3_PACKAGE_ID,
   V2_GRAPHQL_URL,
   V2_NETWORK,
-  V2_PACKAGE_ID,
 } from "./config.ts";
 import { loadKeypair, newTx, sharedObjectMut } from "./test-utils.ts";
 
@@ -123,7 +123,7 @@ async function fetchPlatformObjectVersion(
 async function discoverDemoPlatform(
   client: SuiGraphQLClient,
 ): Promise<DiscoveredPlatform | undefined> {
-  const eventType = `${V2_PACKAGE_ID}::platform::PlatformRegistered`;
+  const eventType = `${V3_PACKAGE_ID}::platform::PlatformRegistered`;
   let cursor: string | null = null;
   let hasNextPage = true;
   let match: { platformId: string } | undefined;
@@ -384,7 +384,7 @@ async function registerPlatformWithTier(
 ): Promise<DiscoveredPlatform> {
   const tx = newTx(keypair);
   tx.moveCall({
-    target: `${V2_PACKAGE_ID}::platform::register_platform_with_tier`,
+    target: `${V3_PACKAGE_ID}::platform::register_platform_with_tier`,
     typeArguments: [denominationType],
     arguments: [
       tx.pure.string(DEMO_PLATFORM_NAME),
@@ -441,7 +441,7 @@ async function createDemoTier(
     arguments: [tx.pure.string(denominationType)],
   });
   tx.moveCall({
-    target: `${V2_PACKAGE_ID}::platform::create_tier`,
+    target: `${V3_PACKAGE_ID}::platform::create_tier`,
     arguments: [
       sharedObjectMut(platformId, platformInitVersion)(tx),
       tx.pure.string(DEMO_TIER_NAME),
@@ -540,10 +540,10 @@ async function main() {
   console.log(" PayStreamer — Demo Platform Seeder (v3 migration)");
   console.log("======================================================");
   console.log(`network:   ${V2_NETWORK}`);
-  console.log(`package:   ${V2_PACKAGE_ID}`);
+  console.log(`package:   ${V3_PACKAGE_ID}`);
   console.log(`sender:    ${sender}`);
   console.log(`name:      "${DEMO_PLATFORM_NAME}"`);
-  console.log(`tier:      "${DEMO_TIER_NAME}" (${DEMO_TIER_AMOUNT_MIST} MIST / ${DEMO_TIER_FREQUENCY_MS} ms)`);
+  console.log(`tier:      "${DEMO_TIER_NAME}" (${DEMO_TIER_AMOUNT_MIST} PUSC / ${DEMO_TIER_FREQUENCY_MS} ms)`);
   console.log(`denomination: PUSD (${PUSD_TYPE_ARG})`);
 
   console.log("\n=== Step 0: register_coin_type<PUSD> ===");
@@ -552,9 +552,9 @@ async function main() {
     keypair,
     PUSD_TYPE_ARG,
     "PUSD",
-    V2_COIN_TYPE_REGISTRY_ID,
-    V2_COIN_TYPE_REGISTRY_INIT_VERSION,
-    V2_PACKAGE_ID,
+    V3_COIN_TYPE_REGISTRY_ID,
+    V3_COIN_TYPE_REGISTRY_INIT_VERSION,
+    V3_PACKAGE_ID,
   );
   console.log(`  PUSD discriminant: ${pusdDiscriminant}`);
 
