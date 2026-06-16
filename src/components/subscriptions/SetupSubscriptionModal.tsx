@@ -85,12 +85,6 @@ export function SetupSubscriptionModal({
       return;
     }
 
-    if (hasAccount && (!accountId || !accountCapId)) {
-      setTxStatus("error");
-      setTxMessage("No account found. Please create an account first.");
-      return;
-    }
-
     if (hasAccount && accountId && !isValidSuiAddress(accountId)) {
       setTxStatus("error");
       setTxMessage("Invalid account reference. Please refresh and try again.");
