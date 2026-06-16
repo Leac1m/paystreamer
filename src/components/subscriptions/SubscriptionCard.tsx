@@ -146,7 +146,7 @@ export function SubscriptionCard({
       setTxMessage("Subscription paused");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to pause");
@@ -185,7 +185,7 @@ export function SubscriptionCard({
       setTxMessage("Subscription resumed");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to resume");
@@ -224,7 +224,7 @@ export function SubscriptionCard({
       setTxMessage("Subscription cancelled");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to cancel");
@@ -236,7 +236,7 @@ export function SubscriptionCard({
 
   async function processPayment() {
     if (!account) return;
-    if (!platformInitVersion) {
+    if (platformInitVersion == null) {
       setTxStatus("error");
       setTxMessage("Platform version unavailable");
       setError("Could not load the platform's shared-object version. Please refresh and try again.");
@@ -304,7 +304,7 @@ export function SubscriptionCard({
               setTxStatus("success");
               setTxMessage("Payment processed");
               setTxDigest(digest);
-              await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+              await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
               await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
               setIsPending(false);
               return;
@@ -327,7 +327,7 @@ export function SubscriptionCard({
       setTxMessage("Payment processed");
       setTxDigest(digest);
       await client.core.waitForTransaction({ digest: digest! });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
       await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
     } catch (err) {
       setTxStatus("error");
@@ -419,7 +419,7 @@ export function SubscriptionCard({
                   e.stopPropagation();
                   processPayment();
                 }}
-                disabled={isPending || !isDue || !isSui || !platformInitVersion}
+                disabled={isPending || !isDue || !isSui || platformInitVersion == null}
                 loading={isPending}
                 title={
                   !isSui
