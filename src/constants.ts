@@ -21,6 +21,8 @@ export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000
 
 export const PUSD_DEVNET_PACKAGE_ID = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa";
 export const PUSD_TYPE_ARG = `${PUSD_DEVNET_PACKAGE_ID}::pusd::PUSD`;
+export const PUSD_TREASURY_CAP_ID = "0xdfbececa1253c80994b65a7d2f8e2b1697d28e64e6a7e5eeca559fe043ac90e0";
+export const PUSD_TREASURY_CAP_INIT_VERSION = 254753;
 
 // Demo-only: the set of denominations the UI is allowed to render.
 export const DEMO_DENOMINATIONS: string[] = [PUSD_TYPE_ARG];

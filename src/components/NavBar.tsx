@@ -2,18 +2,54 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogOut } from 'lucide-react';
 import { ConnectModal } from '@mysten/dapp-kit-react/ui';
-import { useCurrentAccount, useDAppKit, useWalletConnection } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit, useWalletConnection, useCurrentClient } from '@mysten/dapp-kit-react';
 import { Button } from './ui/button';
 import NetworkSelector from './NetworkSelector';
+import { useMintPusd } from '../hooks/useMintPusd';
+import { NETWORK } from '../constants';
+import { TxStatusToast, TxStatus } from './TxStatusToast';
+import { parseMoveError } from '../lib/errors';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [txStatus, setTxStatus] = useState<TxStatus>("idle");
+  const [txMessage, setTxMessage] = useState("");
+  const [txDigest, setTxDigest] = useState("");
+  
   const modalRef = useRef<any>(null);
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const client = useCurrentClient();
+  const queryClient = useQueryClient();
   const { isConnecting } = useWalletConnection();
+  const { mintPusd } = useMintPusd();
   const disconnect = () => dAppKit.disconnectWallet();
+  const isPending = txStatus === "pending";
+
+  const handleMintPusd = async () => {
+    setTxStatus("pending");
+    setTxMessage("Minting Test PUSD...");
+    try {
+      const result = await mintPusd();
+      if (!result.Transaction) throw new Error("Transaction failed");
+      const txDigest = result.Transaction.digest;
+      
+      await client.core.waitForTransaction({ digest: txDigest });
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getAllBalances"] });
+        setTxStatus("success");
+        setTxMessage("Successfully minted 1,000 PUSD!");
+        setTxDigest(txDigest);
+      }, 1000);
+    } catch (err) {
+      console.error("Mint Error:", err);
+      setTxStatus("error");
+      setTxMessage(parseMoveError(err));
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,6 +107,18 @@ export default function NavBar() {
             {/* Wallet Button */}
             <div className="hidden md:flex items-center gap-3">
               <NetworkSelector />
+              {account && NETWORK === "devnet" && (
+                <Button
+                  onClick={handleMintPusd}
+                  disabled={isPending}
+                  loading={isPending}
+                  variant="outline"
+                  className="flex items-center gap-2 text-sm px-4 py-2 border-[#6c63ff]/50 text-[#6c63ff] hover:bg-[#6c63ff]/10"
+                  title="Get 1000 PUSD"
+                >
+                  Mint PUSD
+                </Button>
+              )}
               {account ? (
                 <Button
                   onClick={() => disconnect()}
@@ -176,6 +224,13 @@ export default function NavBar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TxStatusToast
+        status={txStatus}
+        message={txMessage}
+        digest={txDigest}
+        onClose={() => setTxStatus("idle")}
+      />
     </>
   );
 }

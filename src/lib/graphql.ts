@@ -340,3 +340,24 @@ export async function querySubscriptionUpdatedEventsByPlatform(
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionUpdatedEvent)
     .filter((e) => e.platform_id === platformId);
 }
+
+export async function queryCoins(owner: string, coinType: string): Promise<Array<{ balance: string }>> {
+  const query = `
+    query getCoins($owner: SuiAddress!, $type: String!) {
+      address(address: $owner) {
+        coins(type: $type) {
+          nodes {
+            contents {
+              json
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await executeQuery<any>(query, { owner, type: coinType });
+  const nodes = data.address?.coins?.nodes || [];
+  return nodes.map((node: any) => ({
+    balance: node.contents?.json?.balance || "0"
+  }));
+}

@@ -8,6 +8,8 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { getDenominationDecimals } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
+import { useMintPusd } from "../../hooks/useMintPusd";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
   COIN_TYPE_REGISTRY_ID,
@@ -25,6 +27,7 @@ interface SetupSubscriptionModalProps {
   accountId?: string;
   accountCapId?: string;
   currentBalance?: bigint;
+  walletBalanceUsd?: number;
   onSuccess: (txDigest: string) => void;
 }
 
@@ -38,11 +41,14 @@ export function SetupSubscriptionModal({
   accountId,
   accountCapId,
   currentBalance = 0n,
+  walletBalanceUsd = 0,
   onSuccess,
 }: SetupSubscriptionModalProps) {
   const client = useCurrentClient();
   const dAppKit = useDAppKit();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { mintPusd } = useMintPusd();
   
   const hasAccount = !!accountId && !!accountCapId;
   const recommendedBuffer = tierAmount * 3n;
@@ -134,17 +140,19 @@ export function SetupSubscriptionModal({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
+      if (result.$kind === "FailedTransaction" || !result.Transaction) {
+        throw new Error((result.FailedTransaction as any)?.effects?.status?.error ?? "Transaction failed");
       }
 
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      const txDigest = result.Transaction.digest;
+
+      await client.core.waitForTransaction({ digest: txDigest });
       
-      setTxDigest(result.Transaction.digest);
+      setTxDigest(txDigest);
       setTxStatus("success");
       setTxMessage("Subscription active!");
       
-      onSuccess(result.Transaction.digest);
+      onSuccess(txDigest);
       setStep("success");
     } catch (err) {
       console.error("Subscription Error:", err);
@@ -153,7 +161,33 @@ export function SetupSubscriptionModal({
     }
   };
 
+  const handleMintPusd = async () => {
+    setTxStatus("pending");
+    setTxMessage("Minting Test PUSD...");
+    try {
+      const result = await mintPusd();
+      if (!result.Transaction) throw new Error("Transaction failed");
+      const txDigest = result.Transaction.digest;
+      
+      await client.core.waitForTransaction({ digest: txDigest });
+      
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getAllBalances"] });
+        setTxStatus("success");
+        setTxMessage("Successfully minted 1,000 PUSD!");
+        setTxDigest(txDigest);
+      }, 1000);
+    } catch (err) {
+      console.error("Mint Error:", err);
+      setTxStatus("error");
+      setTxMessage(parseMoveError(err));
+    }
+  };
+
   const isPending = txStatus === "pending";
+  const requiredDeposit = Math.max(minDepositUsd, parseFloat(depositAmount || "0"));
+  const hasInsufficientWalletBalance = walletBalanceUsd < requiredDeposit;
 
   return (
     <AnimatePresence>
@@ -199,6 +233,10 @@ export function SetupSubscriptionModal({
                       <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} USD</span>
                     </div>
                   )}
+                  <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
+                    <span className="text-muted-foreground">Wallet Balance (PUSD)</span>
+                    <span className="font-semibold">{walletBalanceUsd.toFixed(2)} USD</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -228,9 +266,25 @@ export function SetupSubscriptionModal({
                   </p>
                 </div>
 
+                {hasInsufficientWalletBalance && (
+                  <div className="p-4 bg-red-50/50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-lg space-y-3">
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                      Insufficient PUSD in your wallet to fund this deposit.
+                    </p>
+                    <Button 
+                      onClick={handleMintPusd} 
+                      disabled={isPending}
+                      variant="outline" 
+                      className="w-full border-red-200 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                    >
+                      Mint 1,000 Test PUSD
+                    </Button>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleSubscribe}
-                  disabled={isPending}
+                  disabled={isPending || hasInsufficientWalletBalance}
                   loading={isPending}
                   variant="gradient"
                   className="w-full py-6 text-lg"

@@ -12,8 +12,9 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
-import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
+import { queryAccountCreatedEvents, queryAccount, queryCoins } from "../lib/graphql";
 import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
+import { getDenominationDecimals } from "../lib/format";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -153,6 +154,18 @@ export default function SubscribePage() {
     const key = s.key || s.platform_id || (s.value && s.value.platform_id);
     return key === platformId;
   });
+
+  const { data: pusdCoins } = useQuery({
+    queryKey: ["getCoins", account?.address, PUSD_TYPE_ARG],
+    queryFn: async () => {
+      return await queryCoins(account?.address as string, PUSD_TYPE_ARG);
+    },
+    enabled: !!account?.address,
+  });
+
+  const walletBalance = pusdCoins?.reduce((sum: bigint, coin: any) => sum + BigInt(coin.balance), 0n) || 0n;
+  const pusdScale = Math.pow(10, getDenominationDecimals(PUSD_TYPE_ARG));
+  const walletBalanceUsd = Number(walletBalance) / pusdScale;
 
   const handleSubscribeClick = (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
@@ -445,6 +458,7 @@ export default function SubscribePage() {
           accountId={accountId ?? undefined}
           accountCapId={accountCapId ?? undefined}
           currentBalance={accountJson?.address_balance ? BigInt(accountJson.address_balance) : 0n}
+          walletBalanceUsd={walletBalanceUsd}
           onSuccess={() => {
             setIsSetupModalOpen(false);
             setSubscriptionSuccess(true);
