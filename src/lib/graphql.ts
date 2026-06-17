@@ -104,7 +104,10 @@ export interface DepositEvent {
 
 async function executeQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const result = await graphqlClient.query({ query, variables });
-  return result.data as T;
+  if (result.errors && result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
+  }
+  return (result.data || {}) as T;
 }
 
 export async function queryPlatform(platformId: string): Promise<PlatformObject> {
@@ -341,12 +344,14 @@ export async function querySubscriptionUpdatedEventsByPlatform(
     .filter((e) => e.platform_id === platformId);
 }
 
-export async function queryCoins(owner: string, coinType: string): Promise<Array<{ balance: string }>> {
+export async function queryCoins(owner: string, coinType: string): Promise<Array<{ id: string, balance: string }>> {
+  const fullCoinType = `0x2::coin::Coin<${coinType}>`;
   const query = `
     query getCoins($owner: SuiAddress!, $type: String!) {
       address(address: $owner) {
-        coins(type: $type) {
+        objects(filter: { type: $type }) {
           nodes {
+            address
             contents {
               json
             }
@@ -355,9 +360,10 @@ export async function queryCoins(owner: string, coinType: string): Promise<Array
       }
     }
   `;
-  const data = await executeQuery<any>(query, { owner, type: coinType });
-  const nodes = data.address?.coins?.nodes || [];
+  const data = await executeQuery<any>(query, { owner, type: fullCoinType });
+  const nodes = data.address?.objects?.nodes || [];
   return nodes.map((node: any) => ({
+    id: node.address,
     balance: node.contents?.json?.balance || "0"
   }));
 }

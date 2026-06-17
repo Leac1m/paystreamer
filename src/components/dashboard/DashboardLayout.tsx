@@ -5,6 +5,7 @@ import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "../ui/button";
 import { NetworkBanner } from "./NetworkBanner";
 import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink } from "lucide-react";
+import { NETWORK } from "../../constants";
 
 const NAV_ITEMS = [
   { path: "/dashboard/accounts", label: "Accounts", icon: Wallet },
@@ -40,7 +41,7 @@ export function DashboardLayout() {
             <p className="text-sm text-muted-foreground mb-6 -mt-3">
               Need test SUI for gas?{" "}
               <a
-                href="https://faucet.sui.io/?network=devnet"
+                href={`https://faucet.sui.io/?network=${NETWORK}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 font-medium hover:underline"

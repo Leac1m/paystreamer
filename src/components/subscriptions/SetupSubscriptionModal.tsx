@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, CheckCircle } from "lucide-react";
-import { useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useDAppKit, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
@@ -16,6 +16,7 @@ import {
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
 } from "../../constants";
+import { queryCoins } from "../../lib/graphql";
 
 interface SetupSubscriptionModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export function SetupSubscriptionModal({
 }: SetupSubscriptionModalProps) {
   const client = useCurrentClient();
   const dAppKit = useDAppKit();
+  const account = useCurrentAccount();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { mintPusd } = useMintPusd();
@@ -94,6 +96,24 @@ export function SetupSubscriptionModal({
     setTxMessage(hasAccount ? "Subscribing..." : "Setting up account and subscribing...");
 
     try {
+      const depositParsed = parseFloat(depositAmount || "0");
+      const depositMist = BigInt(Math.floor(depositParsed * 1_000_000_000));
+      let coinsToUse: string[] = [];
+
+      if (depositMist > 0n) {
+        if (!account) throw new Error("Wallet not connected");
+        const availableCoins = await queryCoins(account.address, PUSD_TYPE_ARG);
+        let total = 0n;
+        for (const coin of availableCoins) {
+          total += BigInt(coin.balance);
+          coinsToUse.push(coin.id);
+          if (total >= depositMist) break;
+        }
+        if (total < depositMist) {
+          throw new Error("Insufficient PUSD balance for deposit.");
+        }
+      }
+
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
@@ -114,6 +134,20 @@ export function SetupSubscriptionModal({
       } else {
         workingAccountObj = tx.object(accountId!);
         workingCap = tx.object(accountCapId!);
+      }
+
+      if (depositMist > 0n && coinsToUse.length > 0) {
+        const coinObjs = coinsToUse.map(id => tx.object(id));
+        if (coinObjs.length > 1) {
+           tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
+        }
+        const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
+        
+        tx.moveCall({
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+          typeArguments: [PUSD_TYPE_ARG],
+          arguments: [workingCap, workingAccountObj, splitCoin, tx.object(CLOCK_OBJECT_ID)],
+        });
       }
 
       tx.moveCall({

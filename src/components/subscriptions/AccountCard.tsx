@@ -39,7 +39,7 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
     queryFn: async () => {
       const { object } = await client.core.getObject({
         objectId: accountId,
-        include: { json: true },
+        include: { json: true, type: true },
       });
       return object;
     },
@@ -47,11 +47,26 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
   });
 
   const fields = account?.json as Record<string, unknown> | undefined;
-  const balance = fields?.balance as number | undefined;
-  const subscriptions = fields?.subscriptions as Array<{ key: string; value: unknown }> | undefined;
+  const rawBalance = fields?.address_balance ?? fields?.balance;
+  
+  const subscriptionsRaw = fields?.subscriptions as any;
+  let subscriptionsCount = 0;
+  if (subscriptionsRaw && typeof subscriptionsRaw === "object") {
+    const contents = Array.isArray(subscriptionsRaw.contents) 
+      ? subscriptionsRaw.contents 
+      : (Array.isArray(subscriptionsRaw) ? subscriptionsRaw : Object.entries(subscriptionsRaw));
+    subscriptionsCount = contents.length;
+  }
+  
   const status = (fields?.status as { variant?: number })?.variant;
 
-  const symbol = symbolFor(denomination);
+  let actualDenomination = denomination;
+  if (account?.type) {
+    const match = account.type.match(/<([^>]+)>/);
+    if (match) actualDenomination = match[1];
+  }
+
+  const symbol = symbolFor(actualDenomination);
 
   return (
     <Card>
@@ -76,11 +91,11 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           <div>
             <p className="text-sm text-muted-foreground">Balance</p>
             <p className="text-2xl font-bold">
-              {isPending ? "..." : balance ? formatAmount(normalizeBalance(balance), denomination) : `0 ${symbol}`}
+              {isPending ? "..." : rawBalance !== undefined ? formatAmount(normalizeBalance(rawBalance), actualDenomination) : `0 ${symbol}`}
             </p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
-            <p>Subscriptions: {subscriptions?.length || 0}</p>
+            <p>Subscriptions: {subscriptionsCount}</p>
           </div>
         </div>
 
@@ -88,7 +103,7 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
             {expanded ? (
               <>
- Hide Details <ChevronUp className="h-4 w-4 ml-1" />
+                Hide Details <ChevronUp className="h-4 w-4 ml-1" />
               </>
             ) : (
               <>

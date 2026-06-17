@@ -21,6 +21,7 @@ import {
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";
+import { queryCoins } from "../../lib/graphql";
 
 type Step = "denomination" | "deposit" | "confirm";
 
@@ -76,6 +77,23 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
     setError(null);
 
     try {
+      const depositParsed = parseFloat(depositAmount || "0");
+      const depositMist = BigInt(Math.floor(depositParsed * 1_000_000_000));
+      let coinsToUse: string[] = [];
+
+      if (depositMist > 0n) {
+        const availableCoins = await queryCoins(account.address, selectedDenomination);
+        let total = 0n;
+        for (const coin of availableCoins) {
+          total += BigInt(coin.balance);
+          coinsToUse.push(coin.id);
+          if (total >= depositMist) break;
+        }
+        if (total < depositMist) {
+          throw new Error(`Insufficient ${selectedDenomination.split('::').pop()} balance for deposit.`);
+        }
+      }
+
       const tx = new Transaction();
 
       const [accountObj, cap] = tx.moveCall({
@@ -83,6 +101,27 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         typeArguments: [selectedDenomination],
         arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
       });
+
+      if (depositMist > 0n && coinsToUse.length > 0) {
+        let primaryCoin: any;
+        if (selectedDenomination === "0x2::sui::SUI") {
+          const [splitCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(depositMist)]);
+          primaryCoin = splitCoin;
+        } else {
+          const coinObjs = coinsToUse.map(id => tx.object(id));
+          if (coinObjs.length > 1) {
+             tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
+          }
+          const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
+          primaryCoin = splitCoin;
+        }
+        
+        tx.moveCall({
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+          typeArguments: [selectedDenomination],
+          arguments: [cap, accountObj, primaryCoin, tx.object(CLOCK_OBJECT_ID)],
+        });
+      }
 
       tx.moveCall({
         target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,

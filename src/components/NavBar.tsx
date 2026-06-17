@@ -6,7 +6,6 @@ import { useCurrentAccount, useDAppKit, useWalletConnection, useCurrentClient } 
 import { Button } from './ui/button';
 import NetworkSelector from './NetworkSelector';
 import { useMintPusd } from '../hooks/useMintPusd';
-import { NETWORK } from '../constants';
 import { TxStatusToast, TxStatus } from './TxStatusToast';
 import { parseMoveError } from '../lib/errors';
 import { useQueryClient } from '@tanstack/react-query';
@@ -107,7 +106,7 @@ export default function NavBar() {
             {/* Wallet Button */}
             <div className="hidden md:flex items-center gap-3">
               <NetworkSelector />
-              {account && NETWORK === "devnet" && (
+              {account && (
                 <Button
                   onClick={handleMintPusd}
                   disabled={isPending}
