@@ -23,7 +23,7 @@ import {
   Download,
   AlertTriangle,
 } from "lucide-react";
-import { formatAmount } from "../../lib/format";
+import { formatMistToPUSD } from "../../lib/format";
 
 type FilterTab = "all" | "payments" | "deposits" | "alerts";
 
@@ -242,7 +242,7 @@ export function ActivityFeed() {
                     </td>
                     <td className={`py-3 px-2 text-right font-mono ${row.type === "deposit" ? "text-blue-600" : "text-foreground"}`}>
                       {row.type === "deposit" ? "+" : "-"}
-                      {formatAmount(row.amount, "SUI")}
+                      {formatMistToPUSD(row.amount)}
                     </td>
                     <td className="py-3 px-2 text-center">
                       <Badge variant={row.status === "success" ? "default" : "destructive"}>

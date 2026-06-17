@@ -6,7 +6,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
-import { getDenominationDecimals } from "../../lib/format";
+import { APP_COIN_DECIMALS, parsePUSDToMist } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import { useMintPusd } from "../../hooks/useMintPusd";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,7 +57,7 @@ export function SetupSubscriptionModal({
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   
-  const pusdScale = Math.pow(10, getDenominationDecimals(PUSD_TYPE_ARG));
+  const pusdScale = Math.pow(10, APP_COIN_DECIMALS);
   const minDepositUsd = Number(absoluteMinRequired) / pusdScale;
   const defaultDepositUsd = Number(shortfall) / pusdScale;
   const currentBalanceUsd = Number(currentBalance) / pusdScale;
@@ -97,7 +97,7 @@ export function SetupSubscriptionModal({
 
     try {
       const depositParsed = parseFloat(depositAmount || "0");
-      const depositMist = BigInt(Math.floor(depositParsed * 1_000_000_000));
+      const depositMist = depositParsed > 0 ? parsePUSDToMist(depositAmount || "0") : 0n;
       let coinsToUse: string[] = [];
 
       if (depositMist > 0n) {

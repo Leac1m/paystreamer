@@ -6,7 +6,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
-import { getDenominationDecimals } from "../../lib/format";
+import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
@@ -64,8 +64,7 @@ export function WithdrawModal({
       const withdrawParsed = parseFloat(withdrawAmount || "0");
       if (withdrawParsed <= 0) throw new Error("Please enter a valid amount.");
 
-      const decimals = getDenominationDecimals(denomination);
-      const withdrawMist = BigInt(Math.floor(withdrawParsed * Math.pow(10, decimals)));
+      const withdrawMist = parsePUSDToMist(withdrawAmount || "0");
 
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);

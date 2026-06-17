@@ -6,7 +6,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
-import { getDenominationDecimals } from "../../lib/format";
+import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
@@ -65,8 +65,7 @@ export function DepositModal({
       const depositParsed = parseFloat(depositAmount || "0");
       if (depositParsed <= 0) throw new Error("Please enter a valid amount.");
 
-      const decimals = getDenominationDecimals(denomination);
-      const depositMist = BigInt(Math.floor(depositParsed * Math.pow(10, decimals)));
+      const depositMist = parsePUSDToMist(depositAmount || "0");
       
       const availableCoins = await queryCoins(account.address, denomination);
       let total = 0n;

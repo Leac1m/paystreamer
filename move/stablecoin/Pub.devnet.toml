@@ -2,14 +2,14 @@
 # this file contains metadata from ephemeral publications
 # this file should not be committed to source control
 
-build-env = "testnet"
+build-env = "devnet"
 chain-id = "5ea2c653"
 
 [[published]]
-source = { local = "/home/leac1m/paystreamer/move/stablecoin" }
-published-at = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa"
-original-id = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa"
+source = { local = "/home/michael/projects/sui-next-demo/move/stablecoin" }
+published-at = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160"
+original-id = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160"
 version = 1
-toolchain-version = "1.73.1"
+toolchain-version = "1.72.2"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0x4d957761166e8ec778f31e3a073fbf6dc0af767f37ae8daa6d619205b3805aee"
+upgrade-capability = "0x75e1974800b7fba317cd98e8c000da5f0173fe6c815218c93214f325fa5c1147"

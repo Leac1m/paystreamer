@@ -8,6 +8,7 @@ import {
 } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { formatMistToPUSD } from "../../lib/format";
 
 interface Subscriber {
   wallet: string;
@@ -44,10 +45,7 @@ function formatDate(timestamp: number): string {
   });
 }
 
-function formatAmount(amount: string): string {
-  const num = Number(amount);
-  return `$${(num / 1_000_000_000).toFixed(2)} SUI`;
-}
+
 
 export function SubscriberTable({ platformId, subscribers }: SubscriberTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -59,7 +57,7 @@ export function SubscriberTable({ platformId, subscribers }: SubscriberTableProp
       sub.tier,
       sub.status,
       formatDate(sub.since),
-      formatAmount(sub.totalPaid),
+      formatMistToPUSD(sub.totalPaid),
     ]);
 
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -146,7 +144,7 @@ export function SubscriberTable({ platformId, subscribers }: SubscriberTableProp
                       </div>
                     </td>
                     <td className="px-4 py-3">{formatDate(subscriber.since)}</td>
-                    <td className="px-4 py-3">{formatAmount(subscriber.totalPaid)}</td>
+                    <td className="px-4 py-3">{formatMistToPUSD(subscriber.totalPaid)}</td>
                     <td className="px-4 py-3">
                       {expandedRow === subscriber.wallet ? (
                         <ChevronDown className="h-4 w-4" />
@@ -164,7 +162,7 @@ export function SubscriberTable({ platformId, subscribers }: SubscriberTableProp
                             {subscriber.paymentHistory.map((payment, i) => (
                               <div key={i} className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">{payment.date}</span>
-                                <span>{formatAmount(payment.amount)}</span>
+                                <span>{formatMistToPUSD(payment.amount)}</span>
                                 <Badge
                                   variant={payment.status === "success" ? "default" : "destructive"}
                                 >

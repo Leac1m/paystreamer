@@ -12,7 +12,7 @@ import {
 } from "../ui/card";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import { formatAmount, symbolFor } from "../../lib/format";
+import { formatMistToPUSD } from "../../lib/format";
 
 interface SubscriptionDetailProps {
   accountId: string;
@@ -135,7 +135,7 @@ export function SubscriptionDetail({
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="font-medium">
-                {formatAmount((subscription as any).amount || (subscription as any).tier_amount, denomination)}
+                {formatMistToPUSD((subscription as any).amount || (subscription as any).tier_amount)}
               </p>
             </div>
             <div className="space-y-1">
@@ -156,8 +156,8 @@ export function SubscriptionDetail({
               <p className="text-sm text-muted-foreground">Total Paid</p>
               <p className="font-medium">
                 {subscription.total_paid
-                  ? formatAmount(subscription.total_paid, denomination)
-                  : `0 ${symbolFor(denomination)}`}
+                  ? formatMistToPUSD(subscription.total_paid)
+                  : "$0.00 PUSD"}
               </p>
             </div>
             <div className="space-y-1">
@@ -185,7 +185,7 @@ export function SubscriptionDetail({
                   <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
                     <div>
                       <p className="font-medium">
-                        {formatAmount(event.amount, denomination)}
+                        {formatMistToPUSD(event.amount)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(Number(event.timestamp)).toLocaleString()}

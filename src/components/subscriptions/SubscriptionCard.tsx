@@ -13,7 +13,7 @@ import {
 } from "../ui/card";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "../ui/modal";
 import { parseMoveError, isRetryableError } from "../../lib/errors";
-import { formatAmount } from "../../lib/format";
+import { formatMistToPUSD } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
@@ -115,7 +115,6 @@ export function SubscriptionCard({
   const nextBillingRaw = (subscription as any).next_billing_ts ?? (subscription as any).next_billing_time;
   const nextBillingMs = nextBillingRaw != null ? Number(nextBillingRaw) : null;
   const isDue = statusVariant === 0 && nextBillingMs != null && nextBillingMs <= Date.now();
-  const isPusd = denomination === PUSD_TYPE_ARG;
 
   async function pauseSubscription() {
     if (!account) return;
@@ -355,7 +354,7 @@ export function SubscriptionCard({
             <div>
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="text-lg font-semibold">
-                {formatAmount((subscription as any).amount || (subscription as any).tier_amount, denomination)}
+                {formatMistToPUSD((subscription as any).amount || (subscription as any).tier_amount)}
               </p>
             </div>
             <div>
@@ -419,12 +418,10 @@ export function SubscriptionCard({
                   e.stopPropagation();
                   processPayment();
                 }}
-                disabled={isPending || !isDue || !isPusd || platformInitVersion == null || platformInitVersion === undefined}
+                disabled={isPending || !isDue || platformInitVersion == null || platformInitVersion === undefined}
                 loading={isPending}
                 title={
-                  !isPusd
-                    ? "Only USD denominations are supported."
-                    : !isDue
+                  !isDue
                     ? "This subscription isn't due yet."
                     : undefined
                 }

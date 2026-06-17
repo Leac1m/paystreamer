@@ -5,8 +5,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "../ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { getDenominationDecimals } from "../../lib/format";
-import { SUI_TYPE_ARG } from "../../constants";
+import { parsePUSDToMist } from "../../lib/format";
 
 interface PolicyValues {
   maxPerTransaction: string;
@@ -26,9 +25,8 @@ export function PolicyEditor({ values, onChange, depositAmount }: PolicyEditorPr
 
   useEffect(() => {
     const newErrors: Record<string, string> = {};
-    const scale = Math.pow(10, getDenominationDecimals(SUI_TYPE_ARG));
-    const deposit = parseFloat(depositAmount || "0") * scale;
-    const minBalanceVal = parseFloat(values.minBalance || "0") * scale;
+    const deposit = parsePUSDToMist(depositAmount || "0");
+    const minBalanceVal = parsePUSDToMist(values.minBalance || "0");
 
     if (minBalanceVal > 0 && deposit > 0 && minBalanceVal >= deposit) {
       newErrors.minBalance = "Minimum balance cannot exceed deposit amount";

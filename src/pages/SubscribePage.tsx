@@ -14,14 +14,10 @@ import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
 import { queryAccountCreatedEvents, queryAccount, queryCoins } from "../lib/graphql";
 import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
-import { getDenominationDecimals } from "../lib/format";
+import { formatMistToPUSD, APP_COIN_DECIMALS } from "../lib/format";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
-function formatAmount(amount: bigint, decimals: number = 9): string {
-  const value = Number(amount) / Math.pow(10, decimals);
-  return value.toFixed(2);
-}
 
 interface TierInfo {
   name: string;
@@ -164,8 +160,7 @@ export default function SubscribePage() {
   });
 
   const walletBalance = pusdCoins?.reduce((sum: bigint, coin: any) => sum + BigInt(coin.balance), 0n) || 0n;
-  const pusdScale = Math.pow(10, getDenominationDecimals(PUSD_TYPE_ARG));
-  const walletBalanceUsd = Number(walletBalance) / pusdScale;
+  const walletBalanceUsd = Number(walletBalance) / Math.pow(10, APP_COIN_DECIMALS);
 
   const handleSubscribeClick = (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
@@ -335,7 +330,7 @@ export default function SubscribePage() {
                           <td className="py-3 px-4 text-[#94a3b8] text-sm">Price</td>
                           {activeTiers.map((tier: any, index: number) => (
                             <td key={index} className="py-3 px-4 text-center text-white font-medium">
-                              ${formatAmount(BigInt(tier.amount))}/{formatFrequency(tier)}
+                              {formatMistToPUSD(tier.amount)}/{formatFrequency(tier)}
                             </td>
                           ))}
                         </tr>
@@ -375,7 +370,7 @@ export default function SubscribePage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="text-2xl font-bold text-white">
-                            ${formatAmount(BigInt(tier.amount))}
+                            {formatMistToPUSD(tier.amount)}
                             <span className="text-sm font-normal text-[#94a3b8]">
                               {" "}/ {formatFrequency(tier)}
                             </span>
