@@ -12,6 +12,8 @@ import {
 } from "../ui/card";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import { formatAmount, symbolFor } from "../../lib/format";
+import { DepositModal } from "./DepositModal";
+import { WithdrawModal } from "./WithdrawModal";
 
 interface AccountCardProps {
   accountId: string;
@@ -33,6 +35,8 @@ function normalizeBalance(rawBalance: any): number {
 export function AccountCard({ accountId, capId, denomination, onManage }: AccountCardProps) {
   const client = useCurrentClient();
   const [expanded, setExpanded] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const { data: account, isPending } = useQuery({
     queryKey: ["subscription-account", accountId],
@@ -100,6 +104,12 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setDepositOpen(true)}>
+            Deposit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setWithdrawOpen(true)}>
+            Withdraw
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
             {expanded ? (
               <>
@@ -137,6 +147,20 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           </div>
         )}
       </CardContent>
+      <DepositModal
+        isOpen={depositOpen}
+        onClose={() => setDepositOpen(false)}
+        accountId={accountId}
+        capId={capId}
+        denomination={actualDenomination}
+      />
+      <WithdrawModal
+        isOpen={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        accountId={accountId}
+        capId={capId}
+        denomination={actualDenomination}
+      />
     </Card>
   );
 }

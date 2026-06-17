@@ -474,6 +474,34 @@ module subscriptions::account {
         });
     }
 
+    // === withdraw ===
+
+    /// Withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
+    /// match the account; the cap's `permissions` bitfield must include `permission_owner()`.
+    /// The account must not be closed.
+    ///
+    /// #### Aborts
+    /// - `EInvalidCap` if `cap.account_id != object::id(account)`.
+    /// - `EAccountClosed` if the account is closed.
+    /// - `EUnauthorized` if the cap lacks the OWNER permission.
+    /// - `EZeroAmount` if the requested amount is zero.
+    /// - `EInsufficientBalance` if the account balance is less than the requested amount.
+    public fun withdraw<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        amount: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
+        assert!(!is_closed(&account.status), EAccountClosed);
+        assert!(has_permission(cap, permission_owner()), EUnauthorized);
+        assert!(amount > 0, EZeroAmount);
+        assert!(account.balance.value() >= amount, EInsufficientBalance);
+
+        let b = account.balance.split(amount);
+        coin::from_balance(b, ctx)
+    }
+
     // === pause / resume / close ===
 
     /// Pause the account. Cascades to all active subscriptions

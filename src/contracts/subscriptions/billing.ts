@@ -38,8 +38,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-import * as registry from './registry.js';
+import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/subscriptions::billing';
 export const SubscriptionCreated = new MoveStruct({ name: `${$moduleName}::SubscriptionCreated`, fields: {
         account_id: bcs.Address,
@@ -47,7 +46,6 @@ export const SubscriptionCreated = new MoveStruct({ name: `${$moduleName}::Subsc
         tier_index: bcs.u64(),
         tier_amount: bcs.u64(),
         tier_frequency_ms: bcs.u64(),
-        denomination: registry.AccountType,
         v: bcs.u16()
     } });
 export const SubscriptionUpdated = new MoveStruct({ name: `${$moduleName}::SubscriptionUpdated`, fields: {
@@ -79,7 +77,6 @@ export interface CreateSubscriptionArguments {
     tierIndex: RawTransactionArgument<number | bigint>;
     tierAmount: RawTransactionArgument<number | bigint>;
     tierFrequencyMs: RawTransactionArgument<number | bigint>;
-    denomination: TransactionArgument;
 }
 export interface CreateSubscriptionOptions {
     package?: string;
@@ -89,8 +86,7 @@ export interface CreateSubscriptionOptions {
         platformId: RawTransactionArgument<string>,
         tierIndex: RawTransactionArgument<number | bigint>,
         tierAmount: RawTransactionArgument<number | bigint>,
-        tierFrequencyMs: RawTransactionArgument<number | bigint>,
-        denomination: TransactionArgument
+        tierFrequencyMs: RawTransactionArgument<number | bigint>
     ];
     typeArguments: [
         string
@@ -108,7 +104,6 @@ export interface CreateSubscriptionOptions {
  * - `EAccountPaused` if the account is paused.
  * - `EAccountClosed` if the account is closed.
  * - `ESubscriptionAlreadyExists` if the platform already has a sub.
- * - `EDenominationMismatch` if `denomination != account.account_type`.
  */
 export function createSubscription(options: CreateSubscriptionOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -119,10 +114,9 @@ export function createSubscription(options: CreateSubscriptionOptions) {
         'u64',
         'u64',
         'u64',
-        null,
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "denomination"];
+    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'billing',
@@ -515,30 +509,27 @@ export function subscriptionNextBillingTime(options: SubscriptionNextBillingTime
     });
 }
 export interface SubscriptionDenominationArguments {
-    account: RawTransactionArgument<string>;
-    platformId: RawTransactionArgument<string>;
+    Account: RawTransactionArgument<string>;
+    PlatformId: RawTransactionArgument<string>;
 }
 export interface SubscriptionDenominationOptions {
     package?: string;
     arguments: SubscriptionDenominationArguments | [
-        account: RawTransactionArgument<string>,
-        platformId: RawTransactionArgument<string>
+        Account: RawTransactionArgument<string>,
+        PlatformId: RawTransactionArgument<string>
     ];
     typeArguments: [
         string
     ];
 }
-/**
- * Subscription `denomination` (the `AccountType` the sub is priced in). Returned
- * by value to keep the public surface tidy.
- */
+/** Subscription denomination (the `TypeName` of `T`). Returned by value. */
 export function subscriptionDenomination(options: SubscriptionDenominationOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
         '0x2::object::ID'
     ] satisfies (string | null)[];
-    const parameterNames = ["account", "platformId"];
+    const parameterNames = ["Account", "PlatformId"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'billing',

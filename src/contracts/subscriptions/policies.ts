@@ -103,7 +103,7 @@ export function emptyLimiters(options: EmptyLimitersOptions = {}) {
     const argumentsTypes = [
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames: string[] = [];
+    const parameterNames = [];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'policies',
@@ -331,15 +331,13 @@ export interface EvaluateArguments {
     account: RawTransactionArgument<string>;
     limiters: TransactionArgument;
     amount: RawTransactionArgument<number | bigint>;
-    currentBalance: RawTransactionArgument<number | bigint>;
 }
 export interface EvaluateOptions {
     package?: string;
     arguments: EvaluateArguments | [
         account: RawTransactionArgument<string>,
         limiters: TransactionArgument,
-        amount: RawTransactionArgument<number | bigint>,
-        currentBalance: RawTransactionArgument<number | bigint>
+        amount: RawTransactionArgument<number | bigint>
     ];
     typeArguments: [
         string
@@ -361,6 +359,11 @@ export interface EvaluateOptions {
  *
  * Returns `(allowed, failures)`. The caller (typically `payment.move`) is
  * responsible for asserting `allowed` before proceeding to the money-moving path.
+ *
+ * Note: `min_balance` policy is no longer enforced at evaluation time since the
+ * subscriber's address balance is not accessible in the address-balance model.
+ * Insufficient balance failures are surfaced by the withdrawal/redeem operations
+ * at payment time.
  */
 export function evaluate(options: EvaluateOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -368,10 +371,9 @@ export function evaluate(options: EvaluateOptions) {
         null,
         null,
         'u64',
-        'u64',
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["account", "limiters", "amount", "currentBalance"];
+    const parameterNames = ["account", "limiters", "amount"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'policies',
