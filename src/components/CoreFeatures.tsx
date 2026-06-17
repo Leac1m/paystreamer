@@ -141,26 +141,6 @@ tx.moveCall({
         </motion.div>
         </div>
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16"
-        >
-          {[
-            { value: '2,500+', label: 'Platforms Integrated' },
-            { value: '99.9%', label: 'Collection Success Rate' },
-            { value: '<$0.01', label: 'Transaction Fee' },
-            { value: '300ms', label: 'Settlement Time' }
-          ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="text-3xl font-bold gradient-text mb-2">{stat.value}</div>
-              <div className="text-sm text-[#94a3b8]">{stat.label}</div>
-            </div>
-          ))}
-        </motion.div>
       </div>
     </section>
   );

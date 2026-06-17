@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, Users, Zap, Shield, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle, Zap, Shield, Sparkles } from 'lucide-react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { Button } from './ui/button';
 import { OnboardModal } from './OnboardModal';
@@ -187,7 +187,7 @@ export default function HeroSection() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: '#ffffff10' }}>
                         <div className="w-full h-full rounded-lg flex items-center justify-center text-white">
-                          <Users size={14} />
+                          {/* <Users size={14} /> */}
                         </div>
                       </div>
                       <div>
@@ -201,12 +201,12 @@ export default function HeroSection() {
               </div>
 
               {/* Trust Badge */}
-              <div className="absolute -bottom-4 -right-4 glass-card px-4 py-2">
+              {/* <div className="absolute -bottom-4 -right-4 glass-card px-4 py-2">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-[#6c63ff]" />
                   <span className="text-xs text-[#94a3b8]">Smart contract audited</span>
                 </div>
-              </div>
+              </div> */}
             </div>
           </motion.div>
         </div>

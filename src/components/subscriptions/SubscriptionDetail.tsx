@@ -48,7 +48,7 @@ export function SubscriptionDetail({
   accountId,
   platformId,
   subscription,
-  denomination,
+  denomination: _denomination,
 }: SubscriptionDetailProps) {
   const client = useCurrentClient();
   const account = useCurrentAccount();

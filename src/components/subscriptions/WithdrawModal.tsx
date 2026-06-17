@@ -10,7 +10,6 @@ import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
-  CLOCK_OBJECT_ID,
 } from "../../constants";
 
 interface WithdrawModalProps {

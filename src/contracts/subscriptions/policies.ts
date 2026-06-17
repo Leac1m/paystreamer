@@ -103,7 +103,7 @@ export function emptyLimiters(options: EmptyLimitersOptions = {}) {
     const argumentsTypes = [
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = [];
+    const parameterNames: string[] = [];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'policies',

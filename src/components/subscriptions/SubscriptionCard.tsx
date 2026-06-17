@@ -22,7 +22,6 @@ import {
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
-  PUSD_TYPE_ARG,
 } from "../../constants";
 
 interface SubscriptionCardProps {
