@@ -1,14 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Wallet,
-  Coins,
-  CheckCircle,
   Building2,
-  XCircle,
   Zap,
   Lock,
-  X
 } from 'lucide-react';
 
 interface StepProps {
@@ -83,8 +78,6 @@ function FlowStep({ number, icon, title, description, code, delay }: StepProps) 
 }
 
 export default function IntegrationFlow() {
-  const [showTraditional, setShowTraditional] = useState(false);
-
   const steps = [
     {
       icon: <Building2 size={28} className="text-[#6c63ff]" />,

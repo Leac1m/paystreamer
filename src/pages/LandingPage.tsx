@@ -13,7 +13,6 @@ import IntegrationFlow from "../components/IntegrationFlow";
 import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
-import GuidedDemoBanner from "../components/GuidedDemoBanner";
 import { Button } from "../components/ui/button";
 import { GRAPHQL_URL, SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
 
