@@ -63,7 +63,7 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-import * as registry from './registry.js';
+import * as type_name from './deps/std/type_name.js';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as rate_limiter from './deps/openzeppelin_utils/rate_limiter.js';
 const $moduleName = '@local-pkg/subscriptions::platform';
@@ -71,7 +71,7 @@ export const SubscriptionTier = new MoveStruct({ name: `${$moduleName}::Subscrip
         name: bcs.string(),
         amount: bcs.u64(),
         frequency_ms: bcs.u64(),
-        denomination: registry.AccountType,
+        denomination: type_name.TypeName,
         is_active: bcs.bool()
     } });
 export const PendingTreasuryChange = new MoveStruct({ name: `${$moduleName}::PendingTreasuryChange`, fields: {
@@ -151,7 +151,7 @@ export const TierCreated = new MoveStruct({ name: `${$moduleName}::TierCreated`,
         tier_name: bcs.string(),
         amount: bcs.u64(),
         frequency_ms: bcs.u64(),
-        denomination: registry.AccountType,
+        denomination: type_name.TypeName,
         v: bcs.u16()
     } });
 export const TierDeactivated = new MoveStruct({ name: `${$moduleName}::TierDeactivated`, fields: {
@@ -295,7 +295,7 @@ export interface TierDenominationOptions {
         t: TransactionArgument
     ];
 }
-/** Coin denomination (`USDC` or `USDSui`). */
+/** Coin denomination (`TypeName` of the billing token). */
 export function tierDenomination(options: TierDenominationOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
@@ -450,6 +450,62 @@ export function registerPlatform(options: RegisterPlatformOptions) {
         module: 'platform',
         function: 'register_platform',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface RegisterPlatformWithTierArguments {
+    name: RawTransactionArgument<string>;
+    description: RawTransactionArgument<string>;
+    category: RawTransactionArgument<string>;
+    webhookUrl: RawTransactionArgument<string | null>;
+    tierName: RawTransactionArgument<string>;
+    tierAmount: RawTransactionArgument<number | bigint>;
+    tierFrequencyMs: RawTransactionArgument<number | bigint>;
+}
+export interface RegisterPlatformWithTierOptions {
+    package?: string;
+    arguments: RegisterPlatformWithTierArguments | [
+        name: RawTransactionArgument<string>,
+        description: RawTransactionArgument<string>,
+        category: RawTransactionArgument<string>,
+        webhookUrl: RawTransactionArgument<string | null>,
+        tierName: RawTransactionArgument<string>,
+        tierAmount: RawTransactionArgument<number | bigint>,
+        tierFrequencyMs: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/**
+ * Register a new platform and create its first tier atomically. Both operations
+ * succeed or both abort — the tier is only appended if the platform registration
+ * succeeds.
+ *
+ * Returns `(platform_id, tier_index = 0)`. Emits both `PlatformRegistered` and
+ * `TierCreated`.
+ *
+ * The tier's `denomination` is derived from the generic type `T` via
+ * `type_name::with_original_ids<T>()`.
+ */
+export function registerPlatformWithTier(options: RegisterPlatformWithTierOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        '0x1::string::String',
+        '0x1::string::String',
+        '0x1::string::String',
+        '0x1::option::Option<0x1::string::String>',
+        '0x1::string::String',
+        'u64',
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["name", "description", "category", "webhookUrl", "tierName", "tierAmount", "tierFrequencyMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'platform',
+        function: 'register_platform_with_tier',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
     });
 }
 export interface UpdatePlatformArguments {

@@ -1,14 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Wallet,
-  Coins,
-  CheckCircle,
   Building2,
-  XCircle,
   Zap,
   Lock,
-  X
 } from 'lucide-react';
 
 interface StepProps {
@@ -83,8 +78,6 @@ function FlowStep({ number, icon, title, description, code, delay }: StepProps) 
 }
 
 export default function IntegrationFlow() {
-  const [showTraditional, setShowTraditional] = useState(false);
-
   const steps = [
     {
       icon: <Building2 size={28} className="text-[#6c63ff]" />,
@@ -132,93 +125,8 @@ export default function IntegrationFlow() {
           </p>
         </motion.div>
 
-        {/* Comparison Toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex justify-center mb-12"
-        >
-          <div className="glass-card p-1 inline-flex">
-            <button
-              onClick={() => setShowTraditional(false)}
-              className={`px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                !showTraditional ? 'bg-gradient-to-r from-[#6c63ff] to-[#3b82f6] text-white' : 'text-[#94a3b8]'
-              }`}
-            >
-              Sui Infrastructure
-            </button>
-            <button
-              onClick={() => setShowTraditional(true)}
-              className={`px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                showTraditional ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-[#94a3b8]'
-              }`}
-            >
-              Legacy Providers
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Comparison Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="grid md:grid-cols-2 gap-6 mb-16 max-w-4xl mx-auto"
-        >
-          {/* Traditional Problems */}
-          <div className="glass-card p-6 border-red-500/20">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <XCircle size={20} className="text-red-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">Legacy Payment Gateways</h3>
-            </div>
-            <ul className="space-y-3">
-              {[
-                'High processing fees (2.9% + 30¢)',
-                'Chargebacks and disputes',
-                'Holding user funds creates liability',
-                'Vendor lock-in and opaque data',
-                'Slow international payouts'
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-[#94a3b8]">
-                  <X size={16} className="text-red-400 flex-shrink-0" />
-                  <span className="text-sm">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Sui Benefits */}
-          <div className="glass-card p-6 border-[#10b981]/20">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 flex items-center justify-center">
-                <CheckCircle size={20} className="text-[#10b981]" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">Sui Web3 Infrastructure</h3>
-            </div>
-            <ul className="space-y-3">
-              {[
-                'Fractions of a cent per transaction',
-                'Cryptographic finality, zero chargebacks',
-                'Trustless execution limits liability',
-                'Fully composable and open-source',
-                'Global, instant treasury settlement'
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-[#94a3b8]">
-                  <CheckCircle size={16} className="text-[#10b981] flex-shrink-0" />
-                  <span className="text-sm">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </motion.div>
-
         {/* Flow Steps */}
-        <div className="flex flex-col lg:flex-row gap-6 justify-between items-stretch lg:items-center">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between items-stretch lg:items-center max-w-6xl mx-auto mt-16">
           {steps.map((step, index) => (
             <FlowStep
               key={index}
@@ -231,37 +139,6 @@ export default function IntegrationFlow() {
             />
           ))}
         </div>
-
-        {/* Visual Flow Diagram */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-20 glass-card p-8 max-w-4xl mx-auto"
-        >
-          <h3 className="text-xl font-semibold text-white text-center mb-8">The Complete Flow</h3>
-          <div className="flex flex-wrap justify-center items-center gap-4">
-            {[
-              { icon: <Building2 size={20} />, label: 'API Integration', color: '#6c63ff' },
-              { icon: <Wallet size={20} />, label: 'Wallet Signature', color: '#3b82f6' },
-              { icon: <Lock size={20} />, label: 'Limits Approved', color: '#10b981' },
-              { icon: <Zap size={20} />, label: 'Automated Billing', color: '#f59e0b' },
-              { icon: <Coins size={20} />, label: 'Treasury Settled', color: '#10b981' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: item.color + '20', color: item.color }}
-                >
-                  {item.icon}
-                </div>
-                <span className="text-sm text-[#94a3b8] hidden sm:inline">{item.label}</span>
-                {i < 4 && <span className="text-[#6c63ff] ml-2 hidden sm:inline">→</span>}
-              </div>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </section>
   );

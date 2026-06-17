@@ -1,6 +1,11 @@
+// TODO(v2.1): PolicyEditor is currently unused — the create_account PTB
+// hardcodes empty_policy_set() regardless of the editor's output. Wire
+// account::update_policies into the editor once the v2.1 contract
+// changes ship.
 import { useState, useEffect } from "react";
 import { Input } from "../ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { parsePUSDToMist } from "../../lib/format";
 
 interface PolicyValues {
   maxPerTransaction: string;
@@ -20,8 +25,8 @@ export function PolicyEditor({ values, onChange, depositAmount }: PolicyEditorPr
 
   useEffect(() => {
     const newErrors: Record<string, string> = {};
-    const deposit = parseFloat(depositAmount || "0") * 1_000_000_000;
-    const minBalanceVal = parseFloat(values.minBalance || "0") * 1_000_000_000;
+    const deposit = parsePUSDToMist(depositAmount || "0");
+    const minBalanceVal = parsePUSDToMist(values.minBalance || "0");
 
     if (minBalanceVal > 0 && deposit > 0 && minBalanceVal >= deposit) {
       newErrors.minBalance = "Minimum balance cannot exceed deposit amount";

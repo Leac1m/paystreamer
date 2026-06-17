@@ -1,31 +1,31 @@
-export const DEVNET_V2_PACKAGE_ID = "0x146f09372f3735c16eb358a90504edd6dabb2b01bde4b7f6d03eb34e31a9194f";
-export const V2_PACKAGE_ID = DEVNET_V2_PACKAGE_ID;
-export const TESTNET_V2_PACKAGE_ID = "0xc1973975ba135ad9c1be3d36c518726e8bd61d06ecf4a06a5278171a35c240f1";
-export const MAINNET_V2_PACKAGE_ID = undefined;
+// PayStreamer v3 — Devnet deployment (2026-06-16)
+// All deployment-specific IDs live here. Update on every redeployment.
 
-export const DEVNET_PAYMENT_SCHEDULER_ID = "0x42238297b71f28b9054dd86f0165311df500f19590939cb57ee9db7ca300d6f7";
-export const V2_PAYMENT_SCHEDULER_ID = DEVNET_PAYMENT_SCHEDULER_ID;
-export const DEVNET_COIN_TYPE_REGISTRY_ID = "0x678f525faeb3491edf890efd54fef590cef8ab350dc1c9017e30d50f37b9f479";
-export const DEVNET_ACCESS_CONTROL_ID = "0xdac30d15141f3970ac27dbb272fbe622fa46b43b3b1b49a126e0b33f3f2361d0";
+export const SUBSCRIPTION_DEVNET_PACKAGE_ID = "0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb";
+export const SUBSCRIPTION_TESTNET_PACKAGE_ID = undefined;
+export const SUBSCRIPTION_MAINNET_PACKAGE_ID = undefined;
 
-export const TESTNET_PAYMENT_SCHEDULER_ID = "0x588b90fb769f96c086af23cfa6664c74396c63b3a9e5a2973e31ae97aca26be5";
-export const TESTNET_COIN_TYPE_REGISTRY_ID = "0xab372a141068d9677bcc14996e95948c4b9c85686e0c04232885333dfdc917b6";
-export const TESTNET_ACCESS_CONTROL_ID = "0xc47301608c8728efe3ba6b66eb719e0a780300dfcf83671e23d4bc4c577c88ad";
 
-export const MAINNET_PAYMENT_SCHEDULER_ID = undefined;
-export const MAINNET_COIN_TYPE_REGISTRY_ID = undefined;
-export const MAINNET_ACCESS_CONTROL_ID = undefined;
+export const COIN_TYPE_REGISTRY_ID = "0x076e62b38cbe903413cb7ee9a177eef0c593a9bac40d0dcdbc7d46315af65639";
+export const COIN_TYPE_REGISTRY_INIT_VERSION = 14;
 
+export const PAYMENT_SCHEDULER_ID = "0x09d3b621355da923e9076fa95a8ff253331b44b8a0f4fa61b0ca51878b1d1c4e";
+export const PAYMENT_SCHEDULER_INIT_VERSION = 14;
+
+export const ACCESS_CONTROL_ID = "0x938eebde0b5cab85934b0875b34b1854181ceb62437de22af177880abe312a97";
+
+export const NETWORK = "devnet";
 export const GRAPHQL_URL = "https://fullnode.devnet.sui.io:443/graphql";
 export const SUI_TYPE_ARG = "0x2::sui::SUI";
 export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
-export const USDC_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdc::USDC";
-export const USDSUI_TYPE_ARG = "0x5d4b5a3d8c9f7b6e4a1c3d9e8f2a4b7c6d8e1f3a5b7c9d2e4f6a8b1c3d5e7f9::usdsui::USDSui";
 
-export const DEVNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
-export const TESTNET_COUNTER_PACKAGE_ID: string | undefined = "0xb36f813e3c9f2b3d25461a9f0695dc44922cd99f94ca519c244778bbc75ec0c1";
-export const MAINNET_COUNTER_PACKAGE_ID: string | undefined = undefined;
+export const PUSD_DEVNET_PACKAGE_ID = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160";
+export const PUSD_TYPE_ARG = `${PUSD_DEVNET_PACKAGE_ID}::pusd::PUSD`;
+export const PUSD_TREASURY_CAP_ID = "0xf04e1201cc50fa5401c2d3c37ac7284873282e7bfd3c6a7885f6f6989aebb68a";
+export const PUSD_TREASURY_CAP_INIT_VERSION = 15;
 
-export const DEVNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = "0xd2ddd9bd521bde4137d6b27312c73216924b8661420b25c1c37737c4bc43b76e";
-export const TESTNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
-export const MAINNET_SUBSCRIPTIONS_PACKAGE_ID: string | undefined = undefined;
+// Demo-only: the set of denominations the UI is allowed to render.
+export const DEMO_DENOMINATIONS: string[] = [PUSD_TYPE_ARG];
+
+export const DEMO_PLATFORM_ID = "0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a9234193f5c0d9903d746";
+export const DEMO_PLATFORM_INIT_VERSION = 3233540;

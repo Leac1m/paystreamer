@@ -6,6 +6,8 @@ import { Transaction, Inputs } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
+import { V2_PACKAGE_ID, V2_COIN_TYPE_REGISTRY_ID, V2_COIN_TYPE_REGISTRY_INIT_VERSION } from './config.js';
+
 const client = new SuiGraphQLClient({
   url: 'https://fullnode.devnet.sui.io:443/graphql',
 });
@@ -37,9 +39,9 @@ function loadKeypair(): Ed25519Keypair {
 const keypair = loadKeypair();
 const sender = keypair.toSuiAddress();
 
-const PACKAGE_ID = '0xb3b43eed57120ead985d8bd77907e85cea747a11d58592ddbbb015f5426c0d85';
-const REGISTRY_ID = '0xb0fe5f8d4ebb882fbef5495b198fb02e535dab0d8ca1f4f30f472d609f167fa4';
-const REGISTRY_VERSION = 2716845;
+const PACKAGE_ID = V2_PACKAGE_ID;
+const REGISTRY_ID = V2_COIN_TYPE_REGISTRY_ID;
+const REGISTRY_VERSION = V2_COIN_TYPE_REGISTRY_INIT_VERSION;
 
 async function main() {
   console.log('Sender:', sender);

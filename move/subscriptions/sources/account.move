@@ -25,12 +25,9 @@
 ///
 /// Per the v2 design doc (§5.2, §6.4, §7.7), this module:
 ///
-/// - holds a `BalanceContainer<T>` (the CT seam; never a raw `Balance<T>`);
 /// - holds a `VecMap<ID, SubscriptionV1>` per the project rules
 ///   (CLAUDE.md: subscriptions remain embedded, not standalone objects);
 /// - cascades `pause_account` to all active subscriptions (BUG FIX #8);
-/// - exposes `internal_withdraw` as `public(package)` so only
-///   `payment.move` can call it (the only money-moving path);
 /// - emits `v: u16 = 2` on every event for indexer discrimination.
 ///
 /// ## Build-order note
@@ -42,23 +39,23 @@
 #[allow(lint(share_owned, custom_state_change))]
 module subscriptions::account {
     use sui::object;
+    use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
-    use sui::balance::Balance;
     use sui::clock::Clock;
     use sui::vec_map::{Self, VecMap};
     use sui::event;
     use sui::transfer;
     use sui::tx_context::TxContext;
+    use std::type_name::{Self, TypeName};
     use subscriptions::ac::{
         Self as ac,
         AccountCap,
         new_account_cap,
         has_permission,
         permission_owner,
+        permission_depositor,
     };
-    use subscriptions::asset::{Self, BalanceContainer};
-    use subscriptions::registry::{Self, CoinTypeRegistry, AccountType};
-    use subscriptions::version;
+    use subscriptions::registry::{Self, CoinTypeRegistry};
 
     // === SubscriptionV1 (declared here, augmented by billing.move) ===
 
@@ -77,7 +74,6 @@ module subscriptions::account {
         tier_index: u64,
         tier_amount: u64,
         tier_frequency_ms: u64,
-        denomination: AccountType,
         status: u8,
         schedule_frequency_ms: u64,
         next_billing_time: u64,
@@ -102,7 +98,6 @@ module subscriptions::account {
         tier_index: u64,
         tier_amount: u64,
         tier_frequency_ms: u64,
-        denomination: AccountType,
         status: u8,
         schedule_frequency_ms: u64,
         next_billing_time: u64,
@@ -121,7 +116,6 @@ module subscriptions::account {
             tier_index,
             tier_amount,
             tier_frequency_ms,
-            denomination,
             status,
             schedule_frequency_ms,
             next_billing_time,
@@ -148,8 +142,6 @@ module subscriptions::account {
     public fun sub_tier_amount(s: &SubscriptionV1): u64 { s.tier_amount }
     /// `tier_frequency_ms` between successful payments.
     public fun sub_tier_frequency_ms(s: &SubscriptionV1): u64 { s.tier_frequency_ms }
-    /// `denomination` (the `AccountType` the sub is priced in).
-    public fun sub_denomination(s: &SubscriptionV1): &AccountType { &s.denomination }
     /// `status` (0 active, 1 paused, 2 cancelled).
     public fun sub_status(s: &SubscriptionV1): u8 { s.status }
     /// True iff `status == 0`.
@@ -263,13 +255,9 @@ module subscriptions::account {
     /// `has_permission(cap, ...)` bitfield test.
     public struct SubscriptionAccount<phantom T> has key, store {
         id: object::UID,
-        /// Coin denomination. Set at creation from the registry; immutable
-        /// thereafter. Enforced at payment time (BUG FIX #3).
-        account_type: AccountType,
-        /// Pluggable balance. v2: public via `BalanceContainer<T>`. The
-        /// future confidential extension stores its state in
-        /// `extension_bytes` (variant 1).
-        balance: BalanceContainer<T>,
+        /// Stored balance for the account. Subscriber deposits funds via
+        /// `deposit` before payments are processed.
+        balance: Balance<T>,
         /// Per-platform subscriptions, keyed by `platform_id`. The
         /// project rules (CLAUDE.md) keep them embedded; the wrapper
         /// type `SubscriptionV1` enables in-place upgrade to V2.
@@ -333,7 +321,6 @@ module subscriptions::account {
         account_id: ID,
         cap_id: ID,
         owner: address,
-        account_type: AccountType,
         v: u16,
     }
 
@@ -396,12 +383,10 @@ module subscriptions::account {
     /// - `EInvalidDiscriminant` if the registry's `u8` does not map to
     ///   a built-in `AccountType` variant.
     public fun create_account<T>(
-        registry: &CoinTypeRegistry,
-        initial_policies: PolicySet,
+        _registry: &CoinTypeRegistry,
         clock: &Clock,
         ctx: &mut TxContext,
     ): (SubscriptionAccount<T>, AccountCap) {
-        let account_type = resolve_account_type<T>(registry);
         let now = clock.timestamp_ms();
 
         let acct_uid = object::new(ctx);
@@ -409,10 +394,9 @@ module subscriptions::account {
 
         let account = SubscriptionAccount<T> {
             id: acct_uid,
-            account_type,
-            balance: asset::new_public<T>(),
+            balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
-            policies: initial_policies,
+            policies: empty_policy_set(),
             status: account_status_active(),
             created_at: now,
             nonce: 0,
@@ -426,7 +410,6 @@ module subscriptions::account {
             account_id,
             cap_id,
             owner: ctx.sender(),
-            account_type,
             v: 2,
         });
 
@@ -468,26 +451,55 @@ module subscriptions::account {
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
         coin: Coin<T>,
-        clock: &Clock,
+        _clock: &Clock,
         ctx: &mut TxContext,
     ) {
         assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
         assert!(
             has_permission(cap, permission_owner()) ||
-                has_permission(cap, ac::permission_depositor()),
+                has_permission(cap, permission_depositor()),
             EUnauthorized,
         );
         let amt = coin::value(&coin);
         assert!(amt > 0, EZeroAmount);
-        asset::deposit<T>(&mut account.balance, coin, ctx);
+        let value = coin::into_balance(coin);
+        account.balance.join(value);
         event::emit(Deposit {
             account_id: object::id(account),
             depositor: ctx.sender(),
             amount: amt,
-            new_balance: asset::view_value(&account.balance, clock),
+            new_balance: account.balance.value(),
             v: 2,
         });
+    }
+
+    // === withdraw ===
+
+    /// Withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
+    /// match the account; the cap's `permissions` bitfield must include `permission_owner()`.
+    /// The account must not be closed.
+    ///
+    /// #### Aborts
+    /// - `EInvalidCap` if `cap.account_id != object::id(account)`.
+    /// - `EAccountClosed` if the account is closed.
+    /// - `EUnauthorized` if the cap lacks the OWNER permission.
+    /// - `EZeroAmount` if the requested amount is zero.
+    /// - `EInsufficientBalance` if the account balance is less than the requested amount.
+    public fun withdraw<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        amount: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
+        assert!(!is_closed(&account.status), EAccountClosed);
+        assert!(has_permission(cap, permission_owner()), EUnauthorized);
+        assert!(amount > 0, EZeroAmount);
+        assert!(account.balance.value() >= amount, EInsufficientBalance);
+
+        let b = account.balance.split(amount);
+        coin::from_balance(b, ctx)
     }
 
     // === pause / resume / close ===
@@ -641,32 +653,35 @@ module subscriptions::account {
     /// `payment.move`, user funds are protected against any
     /// non-payment-path code.
     ///
-    /// The replay nonce is NOT bumped here — `payment.move` calls
-    /// `bump_nonce` after the policy eval and `record_payment` both
-    /// succeed, so a failed payment does not advance the nonce.
-    ///
-    /// #### Aborts
-    /// - `EAccountClosed` if the account is closed.
-    /// - `EZeroAmount` if `amount == 0`.
-    /// - `EInsufficientBalance` if live headroom is below `amount`.
-    public(package) fun internal_withdraw<T>(
-        account: &mut SubscriptionAccount<T>,
-        amount: u64,
-        clock: &Clock,
-        ctx: &mut TxContext,
-    ): Balance<T> {
-        assert!(!is_closed(&account.status), EAccountClosed);
-        assert!(amount > 0, EZeroAmount);
-        let current = asset::view_value(&account.balance, clock);
-        assert!(current >= amount, EInsufficientBalance);
-        asset::try_withdraw<T>(&mut account.balance, amount, ctx)
-    }
-
     /// Bump the per-account replay nonce. Called by `payment.move`
     /// after a successful `process_due_payment`. `public(package)` to
     /// restrict the caller to same-package code.
     public(package) fun bump_nonce<T>(account: &mut SubscriptionAccount<T>) {
         account.nonce = account.nonce + 1;
+    }
+
+    /// Withdraw `amount` from the account's balance and send as Coin<T>
+    /// to the treasury address.
+    ///
+    /// `public(package)` ensures only `payment.move` (same package)
+    /// can call this.
+    ///
+    /// #### Aborts
+    /// - `EAccountClosed` if the account is closed.
+    /// - `EZeroAmount` if `amount == 0`.
+    /// - `EInsufficientBalance` if live headroom is below `amount`.
+    public(package) fun withdraw_and_send<T>(
+        account: &mut SubscriptionAccount<T>,
+        amount: u64,
+        treasury: address,
+        ctx: &mut TxContext,
+    ) {
+        assert!(!is_closed(&account.status), EAccountClosed);
+        assert!(amount > 0, EZeroAmount);
+        assert!(account.balance.value() >= amount, EInsufficientBalance);
+        let b = account.balance.split(amount);
+        let c = coin::from_balance(b, ctx);
+        transfer::public_transfer(c, treasury);
     }
 
     /// Read the subscription's `tier_amount` by `platform_id`. Used by
@@ -688,18 +703,17 @@ module subscriptions::account {
     /// Role: any caller (read-only view).
     public fun id<T>(account: &SubscriptionAccount<T>): ID { object::id(account) }
 
-    /// Coin denomination (immutable after creation).
+    /// Coin denomination (immutable after creation). Derived from `T`'s TypeName.
     /// Role: any caller (read-only view).
-    public fun account_type<T>(account: &SubscriptionAccount<T>): &AccountType {
-        &account.account_type
+    public fun account_type<T>(): TypeName {
+        type_name::with_original_ids<T>()
     }
 
     /// Live headroom in the smallest unit of `T`.
     /// Role: any caller (read-only view).
-    public fun balance<T>(
-        account: &SubscriptionAccount<T>,
-        clock: &Clock,
-    ): u64 { asset::view_value(&account.balance, clock) }
+    public fun balance<T>(account: &SubscriptionAccount<T>): u64 {
+        account.balance.value()
+    }
 
     /// Account lifecycle status.
     /// Role: any caller (read-only view).
@@ -828,21 +842,6 @@ module subscriptions::account {
         s.updated_at = now;
     }
 
-    // === Helper ===
-
-    /// Resolve the `AccountType` for `T` from the registry. Aborts with
-    /// `ECoinTypeNotRegistered` if `T` is unknown, or
-    /// `EInvalidDiscriminant` if the registry's discriminant does not
-    /// map to a built-in `AccountType` variant.
-    fun resolve_account_type<T>(registry: &CoinTypeRegistry): AccountType {
-        let disc_opt = registry::discriminant_of<T>(registry);
-        assert!(disc_opt.is_some(), ECoinTypeNotRegistered);
-        let disc = *disc_opt.borrow();
-        let acct_opt = registry::try_into_builtin(disc);
-        assert!(acct_opt.is_some(), EInvalidDiscriminant);
-        *acct_opt.borrow()
-    }
-
     // === Test-only helpers ===
 
     /// Test-only constructor for `SubscriptionAccount<T>`. Mirrors
@@ -851,17 +850,15 @@ module subscriptions::account {
     /// `new_registry_for_testing` pattern in `registry.move`.
     #[test_only]
     public fun new_account_for_testing<T>(
-        registry: &CoinTypeRegistry,
+        _registry: &CoinTypeRegistry,
         initial_policies: PolicySet,
         clock: &Clock,
         ctx: &mut TxContext,
     ): SubscriptionAccount<T> {
-        let account_type = resolve_account_type<T>(registry);
         let now = clock.timestamp_ms();
         SubscriptionAccount<T> {
             id: object::new(ctx),
-            account_type,
-            balance: asset::new_public<T>(),
+            balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
             policies: initial_policies,
             status: account_status_active(),
@@ -873,14 +870,12 @@ module subscriptions::account {
 
     /// Test-only destructor. `SubscriptionAccount<T>` has `key + store`
     /// but not `drop`, so unit tests need an explicit way to dispose of
-    /// accounts they constructed. The `BalanceContainer` is destroyed
-    /// via `asset::destroy_for_testing`; the `VecMap` is drained entry
-    /// by entry (its values are `SubscriptionV1` with `store + drop`).
+    /// accounts they constructed. The `VecMap` is drained entry by entry
+    /// (its values are `SubscriptionV1` with `store + drop`).
     #[test_only]
     public fun destroy_account_for_testing<T>(account: SubscriptionAccount<T>) {
         let SubscriptionAccount<T> {
             id,
-            account_type: _,
             balance,
             mut subscriptions,
             policies: _,
@@ -890,7 +885,7 @@ module subscriptions::account {
             version: _,
         } = account;
         object::delete(id);
-        asset::destroy_for_testing(balance);
+        balance::destroy_zero(balance);
         // Drain subscriptions: pop the last entry until empty. Each value
         // is destructured and dropped. `VecMap::pop` is the right call:
         // it returns `(K, V)` and is the canonical way to walk a `VecMap`
@@ -902,7 +897,6 @@ module subscriptions::account {
                 tier_index: _,
                 tier_amount: _,
                 tier_frequency_ms: _,
-                denomination: _,
                 status: _,
                 schedule_frequency_ms: _,
                 next_billing_time: _,

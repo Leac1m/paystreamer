@@ -13,11 +13,8 @@ import IntegrationFlow from "../components/IntegrationFlow";
 import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
-import CTASection from "../components/CTASection";
-import { SocialProof } from "../components/SocialProof";
-import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { Button } from "../components/ui/button";
-import { GRAPHQL_URL, DEVNET_V2_PACKAGE_ID } from "../constants";
+import { GRAPHQL_URL, SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
 
 const PLATFORM_FEE_PERCENT = 2.5;
 
@@ -54,7 +51,7 @@ export default function LandingPage() {
                 first: 50,
                 after: $after,
                 filter: {
-                  type: "${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered",
+                  type: "${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered",
                   timeRange: { startTime: "${thirtyDaysAgoTimestamp}" }
                 }
               ) {
@@ -92,8 +89,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <div className="noise" />
-      <NetworkBanner />
       <NavBar />
+      {/* <GuidedDemoBanner /> */}
 
       <main>
         <HeroSection />
@@ -136,6 +133,7 @@ export default function LandingPage() {
           </section>
         )}
 
+
         <IntegrationFlow />
 
         <section className="relative py-24 overflow-hidden">
@@ -177,7 +175,7 @@ export default function LandingPage() {
 
         <EndUserExperience />
         <CoreFeatures />
-        <SocialProof />
+
         <SecuritySection />
 
         <section className="relative py-24 overflow-hidden">
@@ -255,7 +253,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <CTASection />
       </main>
 
       <footer className="relative py-16 border-t border-white/10">
@@ -276,56 +273,15 @@ export default function LandingPage() {
                 Empowering users with full control over their subscription payments on the Sui blockchain.
               </p>
             </div>
-
-            <div className="flex flex-wrap gap-8 flex-1 justify-end">
-              <div>
-                <h4 className="text-white font-medium mb-4">Product</h4>
-                <ul className="space-y-2">
-                  <li><a href="#features" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Features</a></li>
-                  <li><a href="#how-it-works" className="text-sm text-[#94a3b8] hover:text-white transition-colors">How It Works</a></li>
-                  <li><a href="#pricing" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Pricing</a></li>
-                  <li><a href="#security" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Security</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-medium mb-4">Developers</h4>
-                <ul className="space-y-2">
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Documentation</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">API Reference</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">SDKs</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">GitHub</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-medium mb-4">Company</h4>
-                <ul className="space-y-2">
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">About</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Blog</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Careers</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Contact</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-medium mb-4">Resources</h4>
-                <ul className="space-y-2">
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Help Center</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Community</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Forum</a></li>
-                  <li><a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">Security Audit</a></li>
-                </ul>
-              </div>
-            </div>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/10 gap-4">
             <div className="text-sm text-[#94a3b8]">
-              © 2024 PayStreamer. Built on Sui Network.
+              © 2026 PayStreamer. Built on Sui Network.
             </div>
 
             <div className="flex items-center gap-4 text-sm">
-              <a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Contact</a>
+              <a href="https://github.com/paystreamer" target="_blank" rel="noopener noreferrer" className="text-[#94a3b8] hover:text-white transition-colors">GitHub</a>
             </div>
           </div>
         </div>

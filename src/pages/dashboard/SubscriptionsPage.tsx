@@ -16,6 +16,7 @@ interface SubscriptionInfo {
   accountId: string;
   capId: string;
   platformId: string;
+  platformInitVersion: number;
   subscription: {
     tier_index: number;
     tier_name: string;
@@ -29,7 +30,7 @@ interface SubscriptionInfo {
   denomination: string;
 }
 
-import { queryAccountCreatedEvents } from "../../lib/graphql";
+import { queryAccountCreatedEvents, queryPlatformInitialVersions } from "../../lib/graphql";
 
 export function SubscriptionsPage() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export function SubscriptionsPage() {
       const results = await Promise.all(
         accountIds.map(id => client.core.getObject({
           objectId: id,
-          include: { json: true },
+          include: { json: true, type: true },
         }))
       );
       
@@ -65,7 +66,7 @@ export function SubscriptionsPage() {
     enabled: !!account?.address,
   });
 
-  const subscriptions: SubscriptionInfo[] = [];
+  const subscriptionsRaw: SubscriptionInfo[] = [];
 
   if (accountObjects) {
     for (const item of accountObjects as any[]) {
@@ -78,24 +79,51 @@ export function SubscriptionsPage() {
           ? (subs as any).contents 
           : (Array.isArray(subs) ? subs : Object.entries(subs).map(([k, v]) => ({ key: k, value: v })));
           
+        let denomination = "0x2::sui::SUI";
+        if (obj.type) {
+          const match = obj.type.match(/<([^>]+)>/);
+          if (match) denomination = match[1];
+        }
+
         for (const contentItem of contents) {
           const platformId = contentItem.key;
           const sub = contentItem.value?.fields || contentItem.value;
-          subscriptions.push({
+          subscriptionsRaw.push({
             accountId: obj.objectId,
             capId: capId,
             platformId: String(platformId),
+            platformInitVersion: 0,
             subscription: sub as SubscriptionInfo["subscription"],
-            denomination: fields?.denomination as string || "0x2::sui::SUI",
+            denomination,
           });
         }
       }
     }
   }
 
+  const { data: platformVersions } = useQuery({
+    queryKey: ["platform-versions", subscriptionsRaw.map((s) => s.platformId).join(",")],
+    queryFn: async () => {
+      const ids = Array.from(new Set(subscriptionsRaw.map((s) => s.platformId).filter(Boolean)));
+      if (ids.length === 0) return new Map<string, number>();
+      const infos = await queryPlatformInitialVersions(ids);
+      return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
+    },
+    enabled: subscriptionsRaw.length > 0,
+  });
+
+  const subscriptions: SubscriptionInfo[] = platformVersions
+    ? subscriptionsRaw.map(sub => ({
+        ...sub,
+        platformInitVersion: platformVersions.get(sub.platformId) ?? 0,
+      }))
+    : subscriptionsRaw;
+
   const filteredSubscriptions = subscriptions.filter((sub) => {
     if (activeTab === "all") return true;
-    const symbol = sub.denomination.includes("usdc")
+    const symbol = sub.denomination.includes("pusd")
+      ? "USD"
+      : sub.denomination.includes("usdc")
       ? "USDC"
       : sub.denomination.includes("usdsui")
       ? "USDSui"
@@ -121,9 +149,7 @@ export function SubscriptionsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="SUI">SUI</TabsTrigger>
-          <TabsTrigger value="USDC">USDC</TabsTrigger>
-          <TabsTrigger value="USDSui">USDSui</TabsTrigger>
+          <TabsTrigger value="USD">USD</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -147,6 +173,7 @@ export function SubscriptionsPage() {
                 accountId={sub.accountId}
                 capId={sub.capId}
                 platformId={sub.platformId}
+                platformInitVersion={sub.platformInitVersion}
                 subscription={sub.subscription}
                 denomination={sub.denomination}
                 onExpand={() =>

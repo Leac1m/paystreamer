@@ -32,9 +32,12 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-import * as balance from './deps/sui/balance.js';
 import * as type_name from './deps/std/type_name.js';
+import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/subscriptions::asset';
+export const Asset = new MoveStruct({ name: `${$moduleName}::Asset<phantom T>`, fields: {
+        tag: type_name.TypeName
+    } });
 export const BalanceContainer = new MoveStruct({ name: `${$moduleName}::BalanceContainer<phantom T>`, fields: {
         /** Discriminant: 0 = public balance (v2), 1 = confidential (later). */
         variant: bcs.u8(),
@@ -48,9 +51,6 @@ export const BalanceContainer = new MoveStruct({ name: `${$moduleName}::BalanceC
         public_balance: balance.Balance,
         /** Reserved for the future confidential extension (variant 1). Empty for variant 0. */
         extension_bytes: bcs.vector(bcs.u8())
-    } });
-export const Asset = new MoveStruct({ name: `${$moduleName}::Asset<phantom T>`, fields: {
-        tag: type_name.TypeName
     } });
 export interface AssetOptions {
     package?: string;

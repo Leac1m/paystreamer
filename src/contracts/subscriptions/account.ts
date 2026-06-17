@@ -28,12 +28,9 @@
  * 
  * Per the v2 design doc (§5.2, §6.4, §7.7), this module:
  * 
- * - holds a `BalanceContainer<T>` (the CT seam; never a raw `Balance<T>`);
  * - holds a `VecMap<ID, SubscriptionV1>` per the project rules (CLAUDE.md:
  *   subscriptions remain embedded, not standalone objects);
  * - cascades `pause_account` to all active subscriptions (BUG FIX #8);
- * - exposes `internal_withdraw` as `public(package)` so only `payment.move` can
- *   call it (the only money-moving path);
  * - emits `v: u16 = 2` on every event for indexer discrimination.
  * 
  * ## Build-order note
@@ -47,8 +44,7 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-import * as registry from './registry.js';
-import * as asset from './asset.js';
+import * as balance_1 from './deps/sui/balance.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/subscriptions::account';
 export const SubscriptionV1 = new MoveStruct({ name: `${$moduleName}::SubscriptionV1`, fields: {
@@ -56,7 +52,6 @@ export const SubscriptionV1 = new MoveStruct({ name: `${$moduleName}::Subscripti
         tier_index: bcs.u64(),
         tier_amount: bcs.u64(),
         tier_frequency_ms: bcs.u64(),
-        denomination: registry.AccountType,
         status: bcs.u8(),
         schedule_frequency_ms: bcs.u64(),
         next_billing_time: bcs.u64(),
@@ -86,15 +81,10 @@ export const AccountStatus = new MoveStruct({ name: `${$moduleName}::AccountStat
 export const SubscriptionAccount = new MoveStruct({ name: `${$moduleName}::SubscriptionAccount<phantom T>`, fields: {
         id: bcs.Address,
         /**
-         * Coin denomination. Set at creation from the registry; immutable thereafter.
-         * Enforced at payment time (BUG FIX #3).
+         * Stored balance for the account. Subscriber deposits funds via `deposit` before
+         * payments are processed.
          */
-        account_type: registry.AccountType,
-        /**
-         * Pluggable balance. v2: public via `BalanceContainer<T>`. The future confidential
-         * extension stores its state in `extension_bytes` (variant 1).
-         */
-        balance: asset.BalanceContainer,
+        balance: balance_1.Balance,
         /**
          * Per-platform subscriptions, keyed by `platform_id`. The project rules
          * (CLAUDE.md) keep them embedded; the wrapper type `SubscriptionV1` enables
@@ -119,7 +109,6 @@ export const AccountCreated = new MoveStruct({ name: `${$moduleName}::AccountCre
         account_id: bcs.Address,
         cap_id: bcs.Address,
         owner: bcs.Address,
-        account_type: registry.AccountType,
         v: bcs.u16()
     } });
 export const Deposit = new MoveStruct({ name: `${$moduleName}::Deposit`, fields: {
@@ -153,7 +142,6 @@ export interface NewSubscriptionV1Arguments {
     tierIndex: RawTransactionArgument<number | bigint>;
     tierAmount: RawTransactionArgument<number | bigint>;
     tierFrequencyMs: RawTransactionArgument<number | bigint>;
-    denomination: TransactionArgument;
     status: RawTransactionArgument<number>;
     scheduleFrequencyMs: RawTransactionArgument<number | bigint>;
     nextBillingTime: RawTransactionArgument<number | bigint>;
@@ -174,7 +162,6 @@ export interface NewSubscriptionV1Options {
         tierIndex: RawTransactionArgument<number | bigint>,
         tierAmount: RawTransactionArgument<number | bigint>,
         tierFrequencyMs: RawTransactionArgument<number | bigint>,
-        denomination: TransactionArgument,
         status: RawTransactionArgument<number>,
         scheduleFrequencyMs: RawTransactionArgument<number | bigint>,
         nextBillingTime: RawTransactionArgument<number | bigint>,
@@ -203,7 +190,6 @@ export function newSubscriptionV1(options: NewSubscriptionV1Options) {
         'u64',
         'u64',
         'u64',
-        null,
         'u8',
         'u64',
         'u64',
@@ -217,7 +203,7 @@ export function newSubscriptionV1(options: NewSubscriptionV1Options) {
         'u64',
         'u64'
     ] satisfies (string | null)[];
-    const parameterNames = ["platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "denomination", "status", "scheduleFrequencyMs", "nextBillingTime", "lastBillingTime", "totalPaid", "paymentCount", "lastAttemptTime", "attemptCount", "maxAttempts", "nonce", "createdAt", "updatedAt"];
+    const parameterNames = ["platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "status", "scheduleFrequencyMs", "nextBillingTime", "lastBillingTime", "totalPaid", "paymentCount", "lastAttemptTime", "attemptCount", "maxAttempts", "nonce", "createdAt", "updatedAt"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
@@ -314,29 +300,6 @@ export function subTierFrequencyMs(options: SubTierFrequencyMsOptions) {
         package: packageAddress,
         module: 'account',
         function: 'sub_tier_frequency_ms',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubDenominationArguments {
-    s: TransactionArgument;
-}
-export interface SubDenominationOptions {
-    package?: string;
-    arguments: SubDenominationArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `denomination` (the `AccountType` the sub is priced in). */
-export function subDenomination(options: SubDenominationOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_denomination',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
@@ -964,14 +927,12 @@ export function isClosed(options: IsClosedOptions) {
     });
 }
 export interface CreateAccountArguments {
-    registry: RawTransactionArgument<string>;
-    initialPolicies: TransactionArgument;
+    Registry: RawTransactionArgument<string>;
 }
 export interface CreateAccountOptions {
     package?: string;
     arguments: CreateAccountArguments | [
-        registry: RawTransactionArgument<string>,
-        initialPolicies: TransactionArgument
+        Registry: RawTransactionArgument<string>
     ];
     typeArguments: [
         string
@@ -998,10 +959,9 @@ export function createAccount(options: CreateAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["registry", "initialPolicies"];
+    const parameterNames = ["Registry"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
@@ -1092,6 +1052,52 @@ export function deposit(options: DepositOptions) {
         package: packageAddress,
         module: 'account',
         function: 'deposit',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface WithdrawArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    amount: RawTransactionArgument<number | bigint>;
+}
+export interface WithdrawOptions {
+    package?: string;
+    arguments: WithdrawArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        amount: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/**
+ * Withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
+ * match the account; the cap's `permissions` bitfield must include
+ * `permission_owner()`. The account must not be closed.
+ *
+ * #### Aborts
+ *
+ * - `EInvalidCap` if `cap.account_id != object::id(account)`.
+ * - `EAccountClosed` if the account is closed.
+ * - `EUnauthorized` if the cap lacks the OWNER permission.
+ * - `EZeroAmount` if the requested amount is zero.
+ * - `EInsufficientBalance` if the account balance is less than the requested
+ *   amount.
+ */
+export function withdraw(options: WithdrawOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        'u64'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "amount"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'withdraw',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
@@ -1338,30 +1344,24 @@ export function id(options: IdOptions) {
         typeArguments: options.typeArguments
     });
 }
-export interface AccountTypeArguments {
-    account: RawTransactionArgument<string>;
-}
 export interface AccountTypeOptions {
     package?: string;
-    arguments: AccountTypeArguments | [
-        account: RawTransactionArgument<string>
+    arguments?: [
     ];
     typeArguments: [
         string
     ];
 }
-/** Coin denomination (immutable after creation). Role: any caller (read-only view). */
+/**
+ * Coin denomination (immutable after creation). Derived from `T`'s TypeName. Role:
+ * any caller (read-only view).
+ */
 export function accountType(options: AccountTypeOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["account"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
         function: 'account_type',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
 }
@@ -1381,8 +1381,7 @@ export interface BalanceOptions {
 export function balance(options: BalanceOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
     const parameterNames = ["account"];
     return (tx: Transaction) => tx.moveCall({

@@ -11,12 +11,16 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { parseMoveError } from "../../lib/errors";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "../ui/modal";
+import { parseMoveError, isRetryableError } from "../../lib/errors";
+import { formatMistToPUSD } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
-import { Pause, Play, X } from "lucide-react";
+import { Pause, Play, X, Zap } from "lucide-react";
 import {
-  DEVNET_V2_PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+  PAYMENT_SCHEDULER_ID,
+  PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
 } from "../../constants";
 
@@ -24,6 +28,7 @@ interface SubscriptionCardProps {
   accountId: string;
   capId: string;
   platformId: string;
+  platformInitVersion: number;
   subscription: {
     tier_index: number;
     tier_name: string;
@@ -35,19 +40,7 @@ interface SubscriptionCardProps {
     payment_count?: number;
   };
   denomination: string;
- onExpand?: () => void;
-}
-
-function formatAmount(amount: string | number, denomination: string): string {
-  const raw = typeof amount === "string" ? parseInt(amount) : amount;
-  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
-  const normalized = safeRaw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
+  onExpand?: () => void;
 }
 
 function getFrequencyLabel(ms: string | number): string {
@@ -67,6 +60,7 @@ export function SubscriptionCard({
   accountId,
   capId,
   platformId,
+  platformInitVersion,
   subscription,
   denomination,
   onExpand,
@@ -81,6 +75,7 @@ export function SubscriptionCard({
   const [txDigest, setTxDigest] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const { data: platform } = useQuery({
     queryKey: ["platform", platformId],
@@ -98,8 +93,8 @@ export function SubscriptionCard({
   const platformName = String(platformFields?.name ?? "Unknown Platform");
 
   const statusRaw = subscription?.status as any;
-  const statusVariant = typeof statusRaw === 'number' 
-    ? statusRaw 
+  const statusVariant = typeof statusRaw === 'number'
+    ? statusRaw
     : (statusRaw?.variant ?? 0);
 
   const statusType =
@@ -116,6 +111,10 @@ export function SubscriptionCard({
       ? "Paused"
       : "Cancelled";
 
+  const nextBillingRaw = (subscription as any).next_billing_ts ?? (subscription as any).next_billing_time;
+  const nextBillingMs = nextBillingRaw != null ? Number(nextBillingRaw) : null;
+  const isDue = statusVariant === 0 && nextBillingMs != null && nextBillingMs <= Date.now();
+
   async function pauseSubscription() {
     if (!account) return;
     setIsPending(true);
@@ -126,7 +125,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::pause_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::pause_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -138,14 +137,14 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
       setTxMessage("Subscription paused");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to pause");
@@ -165,7 +164,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::resume_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::resume_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -177,14 +176,14 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
       setTxMessage("Subscription resumed");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to resume");
@@ -204,7 +203,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -216,17 +215,121 @@ export function SubscriptionCard({
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
       setTxMessage("Subscription cancelled");
       setTxDigest(result.Transaction.digest);
       await client.core.waitForTransaction({ digest: result.Transaction.digest });
-      await queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
       setTxMessage("Failed to cancel");
+      setError(parseMoveError(err));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function processPayment() {
+    if (!account) return;
+    if (platformInitVersion === null || platformInitVersion === undefined) {
+      setTxStatus("error");
+      setTxMessage("Platform version unavailable");
+      setError("Could not load the platform's shared-object version. Please refresh and try again.");
+      return;
+    }
+    setIsPending(true);
+    setError(null);
+    setTxStatus("pending");
+    setTxMessage("Processing payment...");
+
+    try {
+      const tx = new Transaction();
+      const limiters = tx.moveCall({
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::empty_limiters`,
+        arguments: [tx.object(CLOCK_OBJECT_ID)],
+      });
+      tx.moveCall({
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::ensure_initialized`,
+        typeArguments: [denomination],
+        arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
+      });
+      tx.moveCall({
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::scheduler::process_due_payment`,
+        typeArguments: [denomination],
+        arguments: [
+          tx.sharedObjectRef({
+            objectId: PAYMENT_SCHEDULER_ID,
+            initialSharedVersion: PAYMENT_SCHEDULER_INIT_VERSION,
+            mutable: true,
+          }),
+          tx.sharedObjectRef({
+            objectId: platformId,
+            initialSharedVersion: platformInitVersion,
+            mutable: true,
+          }),
+          tx.object(accountId),
+          limiters,
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+
+      let digest: string | undefined;
+      try {
+        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+        if (result.$kind === "FailedTransaction") {
+          throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
+        }
+        digest = result.Transaction.digest;
+      } catch (primaryErr) {
+        const isTimeout =
+          primaryErr instanceof Error &&
+          (primaryErr.message.includes("504") ||
+            primaryErr.message.includes("Gateway Timeout") ||
+            primaryErr.message.includes("timeout") ||
+            primaryErr.message.includes("exceeded") ||
+            primaryErr.message.includes("network error"));
+
+        if (isTimeout && isRetryableError(primaryErr)) {
+          setTxStatus("pending");
+          setTxMessage("Transaction submitted — waiting for confirmation...");
+          setError("The request timed out but the transaction may still be processing on-chain. Waiting to confirm...");
+          if (digest) {
+            try {
+              await client.core.waitForTransaction({ digest, timeout: 60_000 });
+              setTxStatus("success");
+              setTxMessage("Payment processed");
+              setTxDigest(digest);
+              await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
+              await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
+              setIsPending(false);
+              return;
+            } catch {
+              // confirmation polling failed — fall through to error state
+            }
+          }
+          setTxStatus("error");
+          setTxMessage("Transaction submitted — confirmation timed out");
+          setError(
+            "Your transaction was submitted but confirmation took too long. Please check the Sui Explorer to verify the payment status before retrying."
+          );
+          setIsPending(false);
+          return;
+        }
+        throw primaryErr;
+      }
+
+      setTxStatus("success");
+      setTxMessage("Payment processed");
+      setTxDigest(digest);
+      await client.core.waitForTransaction({ digest: digest! });
+      await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
+      await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });
+    } catch (err) {
+      setTxStatus("error");
+      setTxMessage("Failed to process payment");
       setError(parseMoveError(err));
     } finally {
       setIsPending(false);
@@ -250,7 +353,7 @@ export function SubscriptionCard({
             <div>
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="text-lg font-semibold">
-                {formatAmount((subscription as any).amount || (subscription as any).tier_amount, denomination)}
+                {formatMistToPUSD((subscription as any).amount || (subscription as any).tier_amount)}
               </p>
             </div>
             <div>
@@ -265,7 +368,7 @@ export function SubscriptionCard({
             <div>
               <p className="text-sm text-muted-foreground">Next billing</p>
               <p className="text-sm">
-                {new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleDateString()}
+                {new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>
           )}
@@ -276,7 +379,7 @@ export function SubscriptionCard({
             </div>
           )}
 
-{statusVariant !== 2 && (
+          {statusVariant !== 2 && (
             <div className="flex flex-wrap gap-2 pt-2">
               {statusVariant === 0 ? (
                 <Button
@@ -308,11 +411,29 @@ export function SubscriptionCard({
                 </Button>
               ) : null}
               <Button
+                variant="default"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  processPayment();
+                }}
+                disabled={isPending || !isDue || platformInitVersion == null || platformInitVersion === undefined}
+                loading={isPending}
+                title={
+                  !isDue
+                    ? "This subscription isn't due yet."
+                    : undefined
+                }
+              >
+                <Zap className="h-4 w-4 mr-1" />
+                Process Now
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  cancelSubscription();
+                  setShowCancelDialog(true);
                 }}
                 disabled={isPending}
                 loading={isPending}
@@ -331,6 +452,32 @@ export function SubscriptionCard({
         digest={txDigest}
         onClose={() => setTxStatus("idle")}
       />
+
+      <Modal open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Cancel Subscription?</ModalTitle>
+            <ModalDescription>
+              Are you sure you want to cancel this subscription? This action cannot be undone.
+            </ModalDescription>
+          </ModalHeader>
+          <ModalFooter>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Keep Subscription
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                setShowCancelDialog(false);
+                cancelSubscription();
+              }}
+              disabled={isPending}
+            >
+              Yes, Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 }

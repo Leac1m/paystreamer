@@ -12,7 +12,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, PUSD_TYPE_ARG } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierModalProps {
@@ -59,11 +59,28 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
   );
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [customSeconds, setCustomSeconds] = useState("30");
-  const [denomination, setDenomination] = useState("SUI");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 60-second frequency exists specifically so the "Process Now" button (Phase 1.1)
+  // can be demoed end-to-end inside a 5-minute window for the live hackathon demo.
+  const [useDemoDefaults, setUseDemoDefaults] = useState(false);
 
   const isEditMode = !!tier;
+
+  function handleDemoToggle(checked: boolean) {
+    setUseDemoDefaults(checked);
+    if (checked) {
+      setName("Demo Tier (1-minute billing)");
+      setAmount("0.001");
+      setBillingCycle("custom");
+      setCustomSeconds("60");
+    } else {
+      setName("");
+      setAmount("");
+      setBillingCycle("monthly");
+      setCustomSeconds("30");
+    }
+  }
 
   const frequencySeconds =
     billingCycle === "custom"
@@ -71,7 +88,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       : BILLING_CYCLE_SECONDS[billingCycle] * 1000;
 
   const previewAmount = amount
-    ? `$${parseFloat(amount).toFixed(2)} ${denomination}/${BILLING_CYCLE_LABELS[billingCycle].toLowerCase()}`
+    ? `$${parseFloat(amount).toFixed(2)} USD/${BILLING_CYCLE_LABELS[billingCycle].toLowerCase()}`
     : "";
 
   async function handleSubmit() {
@@ -85,14 +102,14 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
 
     const tx = new Transaction();
     const amountU64 = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
-
-    const accountType = tx.moveCall({
-      target: `${V2_PACKAGE_ID}::registry::from_u8`,
-      arguments: [tx.pure.u8(0)],
+    const denominationTypeName = tx.moveCall({
+      target: "0x1::type_name::get",
+      typeArguments: [PUSD_TYPE_ARG],
+      arguments: [],
     });
 
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::create_tier`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::create_tier`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -102,7 +119,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
         tx.pure.string(name),
         tx.pure.u64(amountU64),
         tx.pure.u64(frequencySeconds),
-        accountType,
+        denominationTypeName,
       ],
     });
 
@@ -110,7 +127,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
@@ -128,7 +145,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     setAmount("");
     setBillingCycle("monthly");
     setCustomSeconds("30");
-    setDenomination("SUI");
+    setUseDemoDefaults(false);
   }
 
   return (
@@ -144,6 +161,23 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
         </ModalHeader>
 
         <div className="space-y-4">
+          {!isEditMode && (
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-[#6c63ff]/40 bg-[#6c63ff]/5 p-3">
+              <input
+                type="checkbox"
+                checked={useDemoDefaults}
+                onChange={(e) => handleDemoToggle(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium">Use demo defaults</span>
+                <p className="text-xs text-muted-foreground">
+                  Pre-fills a 60-second billing cycle so the live "Process Now" button can be demoed end-to-end in &lt;5 minutes.
+                </p>
+              </div>
+            </label>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Tier Name</label>
             <Input
@@ -190,22 +224,11 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Denomination</label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={denomination}
-              onChange={(e) => setDenomination(e.target.value)}
-            >
-              <option value="SUI">SUI</option>
-              <option value="USDC">USDC</option>
-            </select>
-          </div>
 
           {previewAmount && (
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">Live Preview</p>
-              <p className="text-lg font-semibold">{previewAmount}</p>
+              <p className="text-lg font-semibold">{previewAmount.replace("SUI", "USD")}</p>
             </div>
           )}
 

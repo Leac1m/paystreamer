@@ -69,7 +69,7 @@ module subscriptions::platform {
     use sui::tx_context::TxContext;
     use std::string::String;
     use openzeppelin_utils::rate_limiter::{Self, RateLimiter};
-    use subscriptions::registry::AccountType;
+    use std::type_name::{Self, TypeName};
 
     // === Errors ===
 
@@ -121,7 +121,7 @@ module subscriptions::platform {
         name: String,
         amount: u64,
         frequency_ms: u64,
-        denomination: AccountType,
+        denomination: TypeName,
         is_active: bool,
     }
 
@@ -133,7 +133,7 @@ module subscriptions::platform {
         name: String,
         amount: u64,
         frequency_ms: u64,
-        denomination: AccountType,
+        denomination: TypeName,
     ): SubscriptionTier {
         SubscriptionTier { name, amount, frequency_ms, denomination, is_active: true }
     }
@@ -144,8 +144,8 @@ module subscriptions::platform {
     public fun tier_amount(t: &SubscriptionTier): u64 { t.amount }
     /// Per-billing-cycle interval, in milliseconds.
     public fun tier_frequency_ms(t: &SubscriptionTier): u64 { t.frequency_ms }
-    /// Coin denomination (`USDC` or `USDSui`).
-    public fun tier_denomination(t: &SubscriptionTier): &AccountType { &t.denomination }
+    /// Coin denomination (`TypeName` of the billing token).
+    public fun tier_denomination(t: &SubscriptionTier): &TypeName { &t.denomination }
     /// True iff the tier is currently active (a deactivated tier
     /// remains in the map at its original index but is rejected by
     /// `payment.move`).
@@ -280,7 +280,7 @@ module subscriptions::platform {
         tier_name: String,
         amount: u64,
         frequency_ms: u64,
-        denomination: AccountType,
+        denomination: TypeName,
         v: u16,
     }
 
@@ -401,6 +401,102 @@ module subscriptions::platform {
         platform_id
     }
 
+    /// Register a new platform and create its first tier atomically.
+    /// Both operations succeed or both abort — the tier is only appended
+    /// if the platform registration succeeds.
+    ///
+    /// Returns `(platform_id, tier_index = 0)`. Emits both
+    /// `PlatformRegistered` and `TierCreated`.
+    ///
+    /// The tier's `denomination` is derived from the generic type `T` via
+    /// `type_name::with_original_ids<T>()`.
+    public fun register_platform_with_tier<T>(
+        name: String,
+        description: String,
+        category: String,
+        webhook_url: std::option::Option<String>,
+        tier_name: String,
+        tier_amount: u64,
+        tier_frequency_ms: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ): (ID, u64) {
+        let now = clock.timestamp_ms();
+        let platform_uid = object::new(ctx);
+        let platform_id = object::uid_to_inner(&platform_uid);
+
+        assert!(tier_amount > 0, EInvalidAmount);
+        assert!(tier_frequency_ms > 0, EInvalidFrequency);
+
+        let mut platform = Platform {
+            id: platform_uid,
+            owner: ctx.sender(),
+            treasury: ctx.sender(),
+            pending_treasury: std::option::none(),
+            name,
+            description,
+            category,
+            webhook_url,
+            is_verified: false,
+            subscriber_count: 0,
+            created_at: now,
+            tiers: vec_map::empty(),
+            volume_limiter: rate_limiter::new_fixed_window(
+                1_000_000_000_000,
+                30 * 24 * 60 * 60 * 1_000,
+                now,
+                1_000_000_000_000,
+                clock,
+            ),
+            frequency_limiter: rate_limiter::new_bucket(
+                1000,
+                100,
+                60 * 60 * 1_000,
+                now,
+                1000,
+                clock,
+            ),
+            account_billing_limiter: rate_limiter::new_bucket(
+                10_000,
+                1_000,
+                60 * 60 * 1_000,
+                now,
+                10_000,
+                clock,
+            ),
+            version: 2,
+        };
+
+        let tier_index = 0u64;
+        let tier = new_tier(
+            tier_name,
+            tier_amount,
+            tier_frequency_ms,
+            type_name::with_original_ids<T>(),
+        );
+        vec_map::insert(&mut platform.tiers, tier_index, tier);
+
+        event::emit(TierCreated {
+            platform_id,
+            tier_index,
+            tier_name,
+            amount: tier_amount,
+            frequency_ms: tier_frequency_ms,
+            denomination: type_name::with_original_ids<T>(),
+            v: 2,
+        });
+
+        transfer::share_object(platform);
+        event::emit(PlatformRegistered {
+            platform_id,
+            owner: ctx.sender(),
+            name,
+            v: 2,
+        });
+
+        (platform_id, tier_index)
+    }
+
     // === update_platform (owner only) ===
 
     /// Update platform metadata. Each parameter is a three-state
@@ -455,7 +551,7 @@ module subscriptions::platform {
         name: String,
         amount: u64,
         frequency_ms: u64,
-        denomination: AccountType,
+        denomination: TypeName,
         ctx: &mut TxContext,
     ) {
         assert!(ctx.sender() == platform.owner, EInvalidOwner);

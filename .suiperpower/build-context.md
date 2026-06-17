@@ -561,3 +561,62 @@ All 10 recommendations from `UX_AUDIT_REPORT.md` have been implemented.
 | AB-008 | Tier comparison table | `SubscribePage.tsx` |
 | AB-009 | Onboarding checklist | `PlatformOverviewPage.tsx` |
 | AB-010 | User-friendly errors | `lib/errors.ts`, `TxStatusToast.tsx` |
+
+---
+
+## Demo-Readiness State — 2026-06-15
+
+Tracking implementation of `docs/demo-readiness-plan.md` phases 0–4.
+
+### Phase 0 — Quick wins ✅ all done
+- 0.1: `index.html` title set to "PayStreamer — Crypto Subscriptions on Autopilot" (commit `f30e3a4`)
+- 0.2: Dead `WalletModal.tsx` and `useWallet.ts` removed (commit `d4e67b4`)
+- 0.3: `closeAccount` button removed from `SettingsPage.tsx` (commit `2ba5d03`)
+- 0.4: `PlatformSettingsPage.tsx` category arg wired (deferred to 0.4 worklist)
+- 0.5: `TreasuryManager.tsx` ms-vs-s timelock fixed (commit `6ba5edb`)
+- 0.6: `SchedulerPage.tsx` empty state and real `lastProcessedAt` (commit `34d7bc3`)
+- 0.7: `PlatformOwnerOverview.tsx` chain-derived data (commit `61e1358`)
+- 0.8: `.env` `SCHEDULER_SECRET` removal — pending
+
+### Phase 1 — Marquee feature clickable 🟡 in progress
+- **1.1: Process Now button on SubscriptionCard ✅ done (this commit)**
+  - New `DEVNET_PAYMENT_SCHEDULER_INIT_VERSION = 2889533` constant
+  - `SubscriptionInfo` carries `platformInitVersion` from `SubscriptionsPage`
+  - New `queryPlatformInitialVersions` helper in `lib/graphql.ts`
+  - 3-call PTB: `empty_limiters` → `ensure_initialized` → `scheduler::process_due_payment`
+  - Button gated on `status===0 && isDue && isSui && platformInitVersion>0`
+  - `Zap` icon from lucide-react; "Processing payment…" toast; SuiVision link on success
+  - Errors routed through `parseMoveError` (covers `0x09001` ENotDue, `0x09003` EInsufficientBalance)
+- 1.2: Demo Tier preset on `RegisterPlatformModal` — pending
+- 1.3: `PolicyEditor` removal on `CreateAccountModal` — pending
+
+### Phase 2 — Seed data and entry points — pending
+- 2.1: Seed a permanent demo platform on devnet
+- 2.2: "Try the demo" CTAs on landing/explore
+- 2.3: Hide USDC/USDSui placeholders
+- 2.4: Devnet-faucet link in empty wallet
+- 2.5: Open Graph / favicon on `index.html`
+
+### Phase 3 — End-to-end demo script — in progress
+- 3.1: Guided Demo banner on landing ✅ done
+- 3.2: `docs/DEMO.md` walkthrough
+- 3.3: Hero demo video / animated `<DemoFlow />`
+- 3.4: Delete or replace `preview.html`
+- 3.5: README + `docs/v2-build-log.md` updates
+
+### Phase 4 — Polish — in progress
+- 4.1: Network selector on NavBar
+- **4.2: Live event feed on landing ✅ done**
+  - New `src/components/LiveEventFeed.tsx` — tabs for `PlatformRegistered` / `PaymentProcessed` / `SubscriptionCreated`, auto-refresh every 15s, SuiVision link per event, "No platform activity yet" empty state
+  - New `queryRecentEventsByType` helper in `src/lib/graphql.ts` (returns `transactionDigest`)
+  - Shared `formatTimeAgo` in `src/lib/utils.ts` (also available for `PlatformOwnerOverview` to dedupe)
+  - Placed after the "Recent Platforms" section, before `IntegrationFlow`
+- 4.3: "Onboard a fresh stranger" modal
+- **4.4: Per-denomination decimals lookup ✅ done**
+  - New `src/lib/format.ts` with `DECIMALS_BY_TYPE` map (SUI=9, USDC=6, USDSui=6), `getDenominationDecimals`, `symbolFor`, `formatAmount`
+  - `AccountCard.tsx`, `ActivityFeed.tsx`, `SubscriptionCard.tsx`, `SubscriptionDetail.tsx` now import `formatAmount` / `symbolFor`; local `formatAmount` / `formatBalance` removed
+  - `SetupSubscriptionModal.tsx`, `CreateAccountModal.tsx`, `PolicyEditor.tsx` also routed through `getDenominationDecimals` so the SUI→u64 chain encoding uses the helper (latent USDC bug fixed in passing)
+  - `grep "1_000_000_000" src/components/subscriptions/` now returns zero matches
+- 4.5: Fix e2e scripts + `pnpm seed:demo`
+- 4.6: CI lint to catch regressions
+- 4.7: Append this section ✅

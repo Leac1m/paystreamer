@@ -12,14 +12,12 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
-import { queryAccountCreatedEvents, queryAccount } from "../lib/graphql";
+import { queryAccountCreatedEvents, queryAccount, queryCoins } from "../lib/graphql";
+import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
+import { formatMistToPUSD, APP_COIN_DECIMALS } from "../lib/format";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
-function formatAmount(amount: bigint, decimals: number = 9): string {
-  const value = Number(amount) / Math.pow(10, decimals);
-  return value.toFixed(2);
-}
 
 interface TierInfo {
   name: string;
@@ -118,7 +116,7 @@ export default function SubscribePage() {
     .map((e) => ({
       accountId: e.account_id,
       capId: e.cap_id,
-      denomination: (e as any).denomination || "0x2::sui::SUI",
+      denomination: (e as any).denomination || PUSD_TYPE_ARG,
     }));
 
   const accountId = uniqueAccounts[0]?.accountId;
@@ -152,6 +150,17 @@ export default function SubscribePage() {
     const key = s.key || s.platform_id || (s.value && s.value.platform_id);
     return key === platformId;
   });
+
+  const { data: pusdCoins } = useQuery({
+    queryKey: ["getCoins", account?.address, PUSD_TYPE_ARG],
+    queryFn: async () => {
+      return await queryCoins(account?.address as string, PUSD_TYPE_ARG);
+    },
+    enabled: !!account?.address,
+  });
+
+  const walletBalance = pusdCoins?.reduce((sum: bigint, coin: any) => sum + BigInt(coin.balance), 0n) || 0n;
+  const walletBalanceUsd = Number(walletBalance) / Math.pow(10, APP_COIN_DECIMALS);
 
   const handleSubscribeClick = (tierIndex: number, tierAmount: bigint, tierFrequency: bigint) => {
     if (!account) {
@@ -232,6 +241,11 @@ export default function SubscribePage() {
                     Verified
                   </Badge>
                 )}
+                {platformId && platformId === DEMO_PLATFORM_ID && (
+                  <Badge className="bg-[#6c63ff]/20 text-[#a78bfa] border-[#6c63ff]/30">
+                    Featured Demo
+                  </Badge>
+                )}
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
                 {platformJson.name ?? "Unnamed Platform"}
@@ -276,7 +290,7 @@ export default function SubscribePage() {
                     <CheckCircle className="h-16 w-16 text-[#10b981] mx-auto mb-4" />
                     <h2 className="text-2xl font-bold text-white mb-2">You're subscribed!</h2>
                     {nextBillingDate && (
-                      <p className="text-[#94a3b8] mb-6">Next billing date: {nextBillingDate}</p>
+                      <p className="text-[#94a3b8] mb-6">Next billing: {nextBillingDate}</p>
                     )}
                     <div className="flex flex-col gap-3">
                       <Button onClick={() => window.location.href = "/"} className="w-full">
@@ -316,7 +330,7 @@ export default function SubscribePage() {
                           <td className="py-3 px-4 text-[#94a3b8] text-sm">Price</td>
                           {activeTiers.map((tier: any, index: number) => (
                             <td key={index} className="py-3 px-4 text-center text-white font-medium">
-                              ${formatAmount(BigInt(tier.amount))}/{formatFrequency(tier)}
+                              {formatMistToPUSD(tier.amount)}/{formatFrequency(tier)}
                             </td>
                           ))}
                         </tr>
@@ -356,7 +370,7 @@ export default function SubscribePage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="text-2xl font-bold text-white">
-                            ${formatAmount(BigInt(tier.amount))}
+                            {formatMistToPUSD(tier.amount)}
                             <span className="text-sm font-normal text-[#94a3b8]">
                               {" "}/ {formatFrequency(tier)}
                             </span>
@@ -438,15 +452,16 @@ export default function SubscribePage() {
           tierFrequencyMs={selectedTierParams.frequencyMs}
           accountId={accountId ?? undefined}
           accountCapId={accountCapId ?? undefined}
-          currentBalance={accountJson?.balance?.value ? BigInt(accountJson.balance.value) : 0n}
+          currentBalance={accountJson?.address_balance ? BigInt(accountJson.address_balance) : 0n}
+          walletBalanceUsd={walletBalanceUsd}
           onSuccess={() => {
             setIsSetupModalOpen(false);
             setSubscriptionSuccess(true);
             const nextDate = new Date();
-            nextDate.setDate(nextDate.getDate() + 30);
-            setNextBillingDate(nextDate.toLocaleDateString());
+            nextDate.setTime(nextDate.getTime() + Number(selectedTierParams.frequencyMs));
+            setNextBillingDate(nextDate.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
             queryClient.invalidateQueries({ queryKey: ["platform", platformId] });
-            queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
+            queryClient.invalidateQueries({ queryKey: ["account-created-events", account?.address] });
           }}
         />
       )}

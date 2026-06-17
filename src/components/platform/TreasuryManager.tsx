@@ -11,7 +11,7 @@ import {
 } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TreasuryManagerProps {
@@ -35,19 +35,17 @@ function formatExplorerLink(address: string): string {
   return `https://explorer.sui.io/address/${address}?network=devnet`;
 }
 
-function getTimeRemaining(changeTime: number): { hours: number; minutes: number; seconds: number; isEligible: boolean } {
-  const now = Math.floor(Date.now() / 1000);
-  const elapsed = now - changeTime;
-  const timelockSeconds = 48 * 60 * 60;
-  const remaining = timelockSeconds - elapsed;
+function getTimeRemaining(changeTimeMs: number): { hours: number; minutes: number; seconds: number; isEligible: boolean } {
+  const now = Date.now();
+  const remaining = changeTimeMs - now;
 
   if (remaining <= 0) {
     return { hours: 0, minutes: 0, seconds: 0, isEligible: true };
   }
 
-  const hours = Math.floor(remaining / 3600);
-  const minutes = Math.floor((remaining % 3600) / 60);
-  const seconds = remaining % 60;
+  const hours = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const seconds = Math.floor((remaining % 60_000) / 1_000);
 
   return { hours, minutes, seconds, isEligible: false };
 }
@@ -93,7 +91,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::propose_treasury_change`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::propose_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -109,7 +107,7 @@ export function TreasuryManager({
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       setNewTreasury("");
@@ -128,7 +126,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::accept_treasury_change`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::accept_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -143,7 +141,7 @@ export function TreasuryManager({
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
     } catch (err) {
@@ -161,7 +159,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::cancel_treasury_change`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::cancel_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -175,7 +173,7 @@ export function TreasuryManager({
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
     } catch (err) {

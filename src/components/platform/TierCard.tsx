@@ -13,8 +13,9 @@ import {
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { TierModal } from "./TierModal";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
+import { formatMistToPUSD } from "../../lib/format";
 
 interface TierCardProps {
   platformId: string;
@@ -37,13 +38,6 @@ const FREQUENCY_LABELS: Record<string, string> = {
   custom: "Custom",
 };
 
-function formatAmount(amount: string, denomination: string = "SUI"): string {
-  const num = Number(amount);
-  if (denomination === "SUI") {
-    return `$${(num / 1_000_000_000).toFixed(2)} ${denomination}`;
-  }
-  return `$${(num / 1_000_000_000).toFixed(2)} ${denomination}`;
-}
 
 export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: TierCardProps) {
   const account = useCurrentAccount();
@@ -64,7 +58,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::deactivate_tier`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::deactivate_tier_by_index`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -72,7 +66,6 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
           mutable: true,
         }),
         tx.pure.u64(tierIndex),
-        tx.object(CLOCK_OBJECT_ID),
       ],
     });
 
@@ -80,7 +73,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
@@ -113,7 +106,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xl font-bold">
-                {formatAmount(tier.amount)}
+                {formatMistToPUSD(tier.amount)}
               </p>
               <p className="text-sm text-muted-foreground">
                 {tier.subscriber_count} subscriber{tier.subscriber_count !== 1 ? "s" : ""}

@@ -4,7 +4,8 @@ import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "../ui/button";
 import { NetworkBanner } from "./NetworkBanner";
-import { Menu, Wallet, CreditCard, Bell, Settings, Loader2 } from "lucide-react";
+import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink } from "lucide-react";
+import { NETWORK } from "../../constants";
 
 const NAV_ITEMS = [
   { path: "/dashboard/accounts", label: "Accounts", icon: Wallet },
@@ -37,6 +38,19 @@ export function DashboardLayout() {
           <div className="text-center flex flex-col items-center">
             <h2 className="text-2xl font-bold mb-4">Dashboard Access</h2>
             <p className="text-muted-foreground mb-6">Please connect your wallet to access the dashboard.</p>
+            <p className="text-sm text-muted-foreground mb-6 -mt-3">
+              Need test SUI for gas?{" "}
+              <a
+                href={`https://faucet.sui.io/?network=${NETWORK}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium hover:underline"
+                style={{ color: "#f59e0b" }}
+              >
+                Get some from the devnet faucet
+                <ExternalLink size={12} />
+              </a>
+            </p>
             <div className="flex gap-4">
               <Button onClick={() => navigate("/")} variant="outline">
                 Go to Home

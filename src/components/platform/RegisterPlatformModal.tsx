@@ -12,7 +12,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { V2_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface RegisterPlatformModalProps {
@@ -31,6 +31,23 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
   const [iconUrl, setIconUrl] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 60-second tier frequency (set on the matching TierModal preset) exists specifically
+  // so the "Process Now" button (Phase 1.1) can be demoed end-to-end inside a 5-minute
+  // window for the live hackathon demo.
+  const [useDemoDefaults, setUseDemoDefaults] = useState(false);
+
+  function handleDemoToggle(checked: boolean) {
+    setUseDemoDefaults(checked);
+    if (checked) {
+      setName("Demo SaaS");
+      setDescription("A demo platform for the PayStreamer hackathon. Subscribe for a few minutes of test billing.");
+      setCategory("SaaS");
+    } else {
+      setName("");
+      setDescription("");
+      setCategory("Software");
+    }
+  }
 
   async function handleSubmit() {
     if (!account || !name || !description || !category) {
@@ -44,7 +61,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${V2_PACKAGE_ID}::platform::register_platform`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::register_platform`,
       arguments: [
         tx.pure.string(name),
         tx.pure.string(description),
@@ -58,7 +75,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
       if (result.$kind === "FailedTransaction") {
         throw new Error(
-          result.FailedTransaction.status.error?.message ?? "Transaction failed"
+          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
         );
       }
       await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
@@ -76,6 +93,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
     setDescription("");
     setCategory("Software");
     setIconUrl("");
+    setUseDemoDefaults(false);
   }
 
   return (
@@ -89,6 +107,21 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
         </ModalHeader>
 
         <div className="space-y-4">
+          <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-[#6c63ff]/40 bg-[#6c63ff]/5 p-3">
+            <input
+              type="checkbox"
+              checked={useDemoDefaults}
+              onChange={(e) => handleDemoToggle(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <div>
+              <span className="text-sm font-medium">Use demo defaults</span>
+              <p className="text-xs text-muted-foreground">
+                Pre-fills a demo platform name and category. Pair with the matching 60-second demo tier so the live "Process Now" button can be demoed end-to-end in &lt;5 minutes.
+              </p>
+            </div>
+          </label>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Platform Name *</label>
             <Input

@@ -11,6 +11,9 @@ import {
   CardTitle,
 } from "../ui/card";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
+import { formatAmount, symbolFor } from "../../lib/format";
+import { DepositModal } from "./DepositModal";
+import { WithdrawModal } from "./WithdrawModal";
 
 interface AccountCardProps {
   accountId: string;
@@ -19,33 +22,28 @@ interface AccountCardProps {
   onManage?: (accountId: string) => void;
 }
 
-function formatBalance(rawBalance: any, denomination: string): string {
-  let raw = 0;
+function normalizeBalance(rawBalance: any): number {
   if (typeof rawBalance === "object" && rawBalance !== null) {
-    raw = parseInt(rawBalance.public_balance ?? rawBalance.balance ?? rawBalance.value ?? "0", 10);
-  } else if (typeof rawBalance === "string" || typeof rawBalance === "number") {
-    raw = parseInt(String(rawBalance), 10);
+    return parseInt(rawBalance.public_balance ?? rawBalance.balance ?? rawBalance.value ?? "0", 10);
   }
-
-  const normalized = raw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
+  if (typeof rawBalance === "string" || typeof rawBalance === "number") {
+    return parseInt(String(rawBalance), 10);
+  }
+  return 0;
 }
 
 export function AccountCard({ accountId, capId, denomination, onManage }: AccountCardProps) {
   const client = useCurrentClient();
   const [expanded, setExpanded] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const { data: account, isPending } = useQuery({
     queryKey: ["subscription-account", accountId],
     queryFn: async () => {
       const { object } = await client.core.getObject({
         objectId: accountId,
-        include: { json: true },
+        include: { json: true, type: true },
       });
       return object;
     },
@@ -53,15 +51,26 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
   });
 
   const fields = account?.json as Record<string, unknown> | undefined;
-  const balance = fields?.balance as number | undefined;
-  const subscriptions = fields?.subscriptions as Array<{ key: string; value: unknown }> | undefined;
+  const rawBalance = fields?.address_balance ?? fields?.balance;
+  
+  const subscriptionsRaw = fields?.subscriptions as any;
+  let subscriptionsCount = 0;
+  if (subscriptionsRaw && typeof subscriptionsRaw === "object") {
+    const contents = Array.isArray(subscriptionsRaw.contents) 
+      ? subscriptionsRaw.contents 
+      : (Array.isArray(subscriptionsRaw) ? subscriptionsRaw : Object.entries(subscriptionsRaw));
+    subscriptionsCount = contents.length;
+  }
+  
   const status = (fields?.status as { variant?: number })?.variant;
 
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
+  let actualDenomination = denomination;
+  if (account?.type) {
+    const match = account.type.match(/<([^>]+)>/);
+    if (match) actualDenomination = match[1];
+  }
+
+  const symbol = symbolFor(actualDenomination);
 
   return (
     <Card>
@@ -86,19 +95,25 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           <div>
             <p className="text-sm text-muted-foreground">Balance</p>
             <p className="text-2xl font-bold">
-              {isPending ? "..." : balance ? formatBalance(balance, denomination) : `0 ${symbol}`}
+              {isPending ? "..." : rawBalance !== undefined ? formatAmount(normalizeBalance(rawBalance), actualDenomination) : `0 ${symbol}`}
             </p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
-            <p>Subscriptions: {subscriptions?.length || 0}</p>
+            <p>Subscriptions: {subscriptionsCount}</p>
           </div>
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setDepositOpen(true)}>
+            Deposit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setWithdrawOpen(true)}>
+            Withdraw
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
             {expanded ? (
               <>
- Hide Details <ChevronUp className="h-4 w-4 ml-1" />
+                Hide Details <ChevronUp className="h-4 w-4 ml-1" />
               </>
             ) : (
               <>
@@ -132,6 +147,20 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
           </div>
         )}
       </CardContent>
+      <DepositModal
+        isOpen={depositOpen}
+        onClose={() => setDepositOpen(false)}
+        accountId={accountId}
+        capId={capId}
+        denomination={actualDenomination}
+      />
+      <WithdrawModal
+        isOpen={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        accountId={accountId}
+        capId={capId}
+        denomination={actualDenomination}
+      />
     </Card>
   );
 }

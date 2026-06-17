@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, CheckCircle } from "lucide-react";
-import { useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useDAppKit, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
+import { APP_COIN_DECIMALS, parsePUSDToMist } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
+import { useMintPusd } from "../../hooks/useMintPusd";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  DEVNET_V2_PACKAGE_ID,
-  DEVNET_COIN_TYPE_REGISTRY_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
+  PUSD_TYPE_ARG,
 } from "../../constants";
+import { queryCoins } from "../../lib/graphql";
 
 interface SetupSubscriptionModalProps {
   isOpen: boolean;
@@ -24,6 +28,7 @@ interface SetupSubscriptionModalProps {
   accountId?: string;
   accountCapId?: string;
   currentBalance?: bigint;
+  walletBalanceUsd?: number;
   onSuccess: (txDigest: string) => void;
 }
 
@@ -37,23 +42,28 @@ export function SetupSubscriptionModal({
   accountId,
   accountCapId,
   currentBalance = 0n,
+  walletBalanceUsd = 0,
   onSuccess,
 }: SetupSubscriptionModalProps) {
   const client = useCurrentClient();
   const dAppKit = useDAppKit();
+  const account = useCurrentAccount();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { mintPusd } = useMintPusd();
   
   const hasAccount = !!accountId && !!accountCapId;
   const recommendedBuffer = tierAmount * 3n;
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   
-  const minDepositSui = Number(absoluteMinRequired) / 1_000_000_000;
-  const defaultDepositSui = Number(shortfall) / 1_000_000_000;
-  const currentBalanceSui = Number(currentBalance) / 1_000_000_000;
-  const tierAmountSui = Number(tierAmount) / 1_000_000_000;
+  const pusdScale = Math.pow(10, APP_COIN_DECIMALS);
+  const minDepositUsd = Number(absoluteMinRequired) / pusdScale;
+  const defaultDepositUsd = Number(shortfall) / pusdScale;
+  const currentBalanceUsd = Number(currentBalance) / pusdScale;
+  const tierAmountUsd = Number(tierAmount) / pusdScale;
 
-  const [depositAmount, setDepositAmount] = useState(defaultDepositSui.toString());
+  const [depositAmount, setDepositAmount] = useState(defaultDepositUsd.toString());
   const [step, setStep] = useState<"input" | "success">("input");
   
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
@@ -63,76 +73,86 @@ export function SetupSubscriptionModal({
   useEffect(() => {
     if (isOpen) {
       setStep("input");
-      setDepositAmount(defaultDepositSui.toString());
+      setDepositAmount(defaultDepositUsd.toString());
       setTxStatus("idle");
       setTxDigest(undefined);
     }
-  }, [isOpen, platformId, tierIndex]); // reset when modal opens for a new tier
+  }, [isOpen, platformId, tierIndex]);
 
   if (!isOpen) return null;
 
+  const isValidSuiAddress = (addr: string): boolean => {
+    return /^0x[0-9a-fA-F]{64}$/.test(addr);
+  };
+
   const handleSubscribe = async () => {
-    const amountVal = parseFloat(depositAmount || "0");
-    if (amountVal < minDepositSui) {
+    if (hasAccount && accountId && !isValidSuiAddress(accountId)) {
       setTxStatus("error");
-      setTxMessage(`Deposit must be at least ${minDepositSui} SUI to cover the first bill.`);
+      setTxMessage("Invalid account reference. Please refresh and try again.");
       return;
     }
 
     setTxStatus("pending");
-    setTxMessage(hasAccount ? "Funding and subscribing..." : "Setting up account and subscribing...");
+    setTxMessage(hasAccount ? "Subscribing..." : "Setting up account and subscribing...");
 
     try {
+      const depositParsed = parseFloat(depositAmount || "0");
+      const depositMist = depositParsed > 0 ? parsePUSDToMist(depositAmount || "0") : 0n;
+      let coinsToUse: string[] = [];
+
+      if (depositMist > 0n) {
+        if (!account) throw new Error("Wallet not connected");
+        const availableCoins = await queryCoins(account.address, PUSD_TYPE_ARG);
+        let total = 0n;
+        for (const coin of availableCoins) {
+          total += BigInt(coin.balance);
+          coinsToUse.push(coin.id);
+          if (total >= depositMist) break;
+        }
+        if (total < depositMist) {
+          throw new Error("Insufficient PUSD balance for deposit.");
+        }
+      }
+
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
-      let workingAccountObj: any = tx.object(accountId || "0x0");
-      let workingCap: any = tx.object(accountCapId || "0x0");
+      let workingAccountObj: any;
+      let workingCap: any;
 
       if (!hasAccount) {
-        // 1. Create account
-        const initialPolicies = tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
-        });
-
         const [newAccountObj, newCap] = tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [
-            tx.object(DEVNET_COIN_TYPE_REGISTRY_ID),
-            initialPolicies,
+            tx.object(COIN_TYPE_REGISTRY_ID),
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
         workingAccountObj = newAccountObj;
         workingCap = newCap;
+      } else {
+        workingAccountObj = tx.object(accountId!);
+        workingCap = tx.object(accountCapId!);
       }
 
-      // 2. Deposit SUI (if amount > 0)
-      const amountInMist = Math.floor(amountVal * 1_000_000_000);
-      if (amountInMist > 0) {
-        const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
+      if (depositMist > 0n && coinsToUse.length > 0) {
+        const coinObjs = coinsToUse.map(id => tx.object(id));
+        if (coinObjs.length > 1) {
+           tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
+        }
+        const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
+        
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::deposit`,
-          typeArguments: [SUI_TYPE_ARG],
-          arguments: [
-            workingCap,
-            workingAccountObj,
-            coin,
-            tx.object(CLOCK_OBJECT_ID),
-          ],
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+          typeArguments: [PUSD_TYPE_ARG],
+          arguments: [workingCap, workingAccountObj, splitCoin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
 
-      // 3. Create Subscription
-      const accountType = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::registry::from_u8`,
-        arguments: [tx.pure.u8(0)],
-      });
-
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::billing::create_subscription`,
-        typeArguments: [SUI_TYPE_ARG],
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::create_subscription`,
+        typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           workingCap,
           workingAccountObj,
@@ -140,33 +160,33 @@ export function SetupSubscriptionModal({
           tx.pure.u64(BigInt(tierIndex)),
           tx.pure.u64(tierAmount),
           tx.pure.u64(tierFrequencyMs),
-          accountType,
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
 
-      // 4. Share account (only if we created a NEW one)
       if (!hasAccount) {
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
-          typeArguments: [SUI_TYPE_ARG],
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
+          typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingAccountObj, workingCap],
         });
       }
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+      if (result.$kind === "FailedTransaction" || !result.Transaction) {
+        throw new Error((result.FailedTransaction as any)?.effects?.status?.error ?? "Transaction failed");
       }
 
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      const txDigest = result.Transaction.digest;
+
+      await client.core.waitForTransaction({ digest: txDigest });
       
-      setTxDigest(result.Transaction.digest);
+      setTxDigest(txDigest);
       setTxStatus("success");
       setTxMessage("Subscription active!");
       
-      onSuccess(result.Transaction.digest);
+      onSuccess(txDigest);
       setStep("success");
     } catch (err) {
       console.error("Subscription Error:", err);
@@ -175,7 +195,33 @@ export function SetupSubscriptionModal({
     }
   };
 
+  const handleMintPusd = async () => {
+    setTxStatus("pending");
+    setTxMessage("Minting Test PUSD...");
+    try {
+      const result = await mintPusd();
+      if (!result.Transaction) throw new Error("Transaction failed");
+      const txDigest = result.Transaction.digest;
+      
+      await client.core.waitForTransaction({ digest: txDigest });
+      
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
+        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getAllBalances"] });
+        setTxStatus("success");
+        setTxMessage("Successfully minted 1,000 PUSD!");
+        setTxDigest(txDigest);
+      }, 1000);
+    } catch (err) {
+      console.error("Mint Error:", err);
+      setTxStatus("error");
+      setTxMessage(parseMoveError(err));
+    }
+  };
+
   const isPending = txStatus === "pending";
+  const requiredDeposit = Math.max(minDepositUsd, parseFloat(depositAmount || "0"));
+  const hasInsufficientWalletBalance = walletBalanceUsd < requiredDeposit;
 
   return (
     <AnimatePresence>
@@ -213,19 +259,23 @@ export function SetupSubscriptionModal({
                 <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Tier Amount</span>
-                    <span className="font-semibold">{tierAmountSui} SUI</span>
+                    <span className="font-semibold">{tierAmountUsd.toFixed(2)} USD</span>
                   </div>
                   {hasAccount && (
                     <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
                       <span className="text-muted-foreground">Current Balance</span>
-                      <span className="font-semibold text-primary">{currentBalanceSui} SUI</span>
+                      <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} USD</span>
                     </div>
                   )}
+                  <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
+                    <span className="text-muted-foreground">Wallet Balance (PUSD)</span>
+                    <span className="font-semibold">{walletBalanceUsd.toFixed(2)} USD</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {hasAccount ? "Additional Deposit (SUI)" : "Initial Deposit (SUI)"}
+                    {hasAccount ? "Additional Deposit (USD)" : "Initial Deposit (USD)"}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -233,8 +283,8 @@ export function SetupSubscriptionModal({
                     </div>
                     <input
                       type="number"
-                      min={minDepositSui}
-                      step="0.1"
+                      min={minDepositUsd}
+                      step="0.01"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       disabled={isPending}
@@ -243,16 +293,32 @@ export function SetupSubscriptionModal({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {minDepositSui > 0 
-                      ? `Minimum required: ${minDepositSui} SUI to cover the first cycle.`
+                    {minDepositUsd > 0 
+                      ? `Minimum required: ${minDepositUsd.toFixed(2)} USD to cover the first cycle.`
                       : "Your existing balance covers the first cycle."}
                     {" "}We recommend a buffer of at least 3 months to avoid interruptions.
                   </p>
                 </div>
 
+                {hasInsufficientWalletBalance && (
+                  <div className="p-4 bg-red-50/50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-lg space-y-3">
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                      Insufficient PUSD in your wallet to fund this deposit.
+                    </p>
+                    <Button 
+                      onClick={handleMintPusd} 
+                      disabled={isPending}
+                      variant="outline" 
+                      className="w-full border-red-200 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                    >
+                      Mint 1,000 Test PUSD
+                    </Button>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleSubscribe}
-                  disabled={isPending}
+                  disabled={isPending || hasInsufficientWalletBalance}
                   loading={isPending}
                   variant="gradient"
                   className="w-full py-6 text-lg"

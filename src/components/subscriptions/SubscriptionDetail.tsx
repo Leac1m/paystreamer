@@ -12,6 +12,7 @@ import {
 } from "../ui/card";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { formatMistToPUSD } from "../../lib/format";
 
 interface SubscriptionDetailProps {
   accountId: string;
@@ -28,18 +29,6 @@ interface SubscriptionDetailProps {
     payment_count?: number;
   };
   denomination: string;
-}
-
-function formatAmount(amount: string | number, denomination: string): string {
-  const raw = typeof amount === "string" ? parseInt(amount) : amount;
-  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
-  const normalized = safeRaw / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
 }
 
 function getFrequencyLabel(ms: string | number): string {
@@ -59,7 +48,7 @@ export function SubscriptionDetail({
   accountId,
   platformId,
   subscription,
-  denomination,
+  denomination: _denomination,
 }: SubscriptionDetailProps) {
   const client = useCurrentClient();
   const account = useCurrentAccount();
@@ -146,7 +135,7 @@ export function SubscriptionDetail({
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Amount</p>
               <p className="font-medium">
-                {formatAmount((subscription as any).amount || (subscription as any).tier_amount, denomination)}
+                {formatMistToPUSD((subscription as any).amount || (subscription as any).tier_amount)}
               </p>
             </div>
             <div className="space-y-1">
@@ -159,7 +148,7 @@ export function SubscriptionDetail({
               <p className="text-sm text-muted-foreground">Next Billing</p>
               <p className="font-medium">
                 {((subscription as any).next_billing_ts || (subscription as any).next_billing_time)
-                  ? new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleDateString()
+                  ? new Date(Number((subscription as any).next_billing_ts || (subscription as any).next_billing_time)).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
                   : "N/A"}
               </p>
             </div>
@@ -167,8 +156,8 @@ export function SubscriptionDetail({
               <p className="text-sm text-muted-foreground">Total Paid</p>
               <p className="font-medium">
                 {subscription.total_paid
-                  ? formatAmount(subscription.total_paid, denomination)
-                  : `0 ${denomination.includes("usdc") ? "USDC" : denomination.includes("usdsui") ? "USDSui" : "SUI"}`}
+                  ? formatMistToPUSD(subscription.total_paid)
+                  : "$0.00 PUSD"}
               </p>
             </div>
             <div className="space-y-1">
@@ -196,7 +185,7 @@ export function SubscriptionDetail({
                   <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
                     <div>
                       <p className="font-medium">
-                        {formatAmount(event.amount, denomination)}
+                        {formatMistToPUSD(event.amount)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(Number(event.timestamp)).toLocaleString()}

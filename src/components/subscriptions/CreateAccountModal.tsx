@@ -12,18 +12,18 @@ import {
   CardTitle,
 } from "../ui/card";
 import { DenominationSelector } from "./DenominationSelector";
-import { PolicyEditor } from "./PolicyEditor";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
 import {
-  DEVNET_V2_PACKAGE_ID,
-  DEVNET_COIN_TYPE_REGISTRY_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";
+import { queryCoins } from "../../lib/graphql";
 
-type Step = "denomination" | "policy" | "deposit" | "confirm";
+type Step = "denomination" | "deposit" | "confirm";
 
 interface CreateAccountModalProps {
   open: boolean;
@@ -39,14 +39,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
   const [step, setStep] = useState<Step>("denomination");
   const [selectedDenomination, setSelectedDenomination] = useState<string | null>(null);
-  const [policyValues, setPolicyValues] = useState({
-    maxPerTransaction: "",
-    maxPerMonth: "",
-    minBalance: "",
-    minFrequencyDays: "",
-  });
   const [depositAmount, setDepositAmount] = useState("");
-  const [skipPolicy, setSkipPolicy] = useState(false);
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState("");
@@ -56,7 +49,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
   const steps: { key: Step; label: string }[] = [
     { key: "denomination", label: "Denomination" },
-    { key: "policy", label: "Policies" },
     { key: "deposit", label: "Deposit" },
     { key: "confirm", label: "Confirm" },
   ];
@@ -85,30 +77,54 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
     setError(null);
 
     try {
+      const depositParsed = parseFloat(depositAmount || "0");
+      const depositMist = BigInt(Math.floor(depositParsed * 1_000_000_000));
+      let coinsToUse: string[] = [];
+
+      if (depositMist > 0n) {
+        const availableCoins = await queryCoins(account.address, selectedDenomination);
+        let total = 0n;
+        for (const coin of availableCoins) {
+          total += BigInt(coin.balance);
+          coinsToUse.push(coin.id);
+          if (total >= depositMist) break;
+        }
+        if (total < depositMist) {
+          throw new Error(`Insufficient ${selectedDenomination.split('::').pop()} balance for deposit.`);
+        }
+      }
+
       const tx = new Transaction();
 
-      const initialPolicies = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::empty_policy_set`,
-      });
-
       const [accountObj, cap] = tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::create_account`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
         typeArguments: [selectedDenomination],
-        arguments: [tx.object(DEVNET_COIN_TYPE_REGISTRY_ID), initialPolicies, tx.object(CLOCK_OBJECT_ID)],
+        arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
       });
 
-      const depositNum = parseFloat(depositAmount);
-      if (depositNum > 0) {
-        const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(BigInt(depositNum * 1_000_000_000))]);
+      if (depositMist > 0n && coinsToUse.length > 0) {
+        let primaryCoin: any;
+        if (selectedDenomination === "0x2::sui::SUI") {
+          const [splitCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(depositMist)]);
+          primaryCoin = splitCoin;
+        } else {
+          const coinObjs = coinsToUse.map(id => tx.object(id));
+          if (coinObjs.length > 1) {
+             tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
+          }
+          const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
+          primaryCoin = splitCoin;
+        }
+        
         tx.moveCall({
-          target: `${DEVNET_V2_PACKAGE_ID}::account::deposit`,
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
           typeArguments: [selectedDenomination],
-          arguments: [cap, accountObj, coin, tx.object(CLOCK_OBJECT_ID)],
+          arguments: [cap, accountObj, primaryCoin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
 
       tx.moveCall({
-        target: `${DEVNET_V2_PACKAGE_ID}::account::share_account`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
         typeArguments: [selectedDenomination],
         arguments: [accountObj, cap],
       });
@@ -116,7 +132,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
       if (result.$kind === "FailedTransaction") {
-        throw new Error(result.FailedTransaction.status.error?.message ?? "Transaction failed");
+        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
       }
 
       setTxStatus("success");
@@ -161,9 +177,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
   function resetForm() {
     setStep("denomination");
     setSelectedDenomination(null);
-    setPolicyValues({ maxPerTransaction: "", maxPerMonth: "", minBalance: "", minFrequencyDays: "" });
     setDepositAmount("");
-    setSkipPolicy(false);
     setTxStatus("idle");
     setTxMessage("");
     setTxDigest("");
@@ -176,7 +190,9 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
     resetForm();
   }
 
-  const denominationSymbol = selectedDenomination?.includes("usdc")
+  const denominationSymbol = selectedDenomination?.includes("pusd")
+    ? "USD"
+    : selectedDenomination?.includes("usdc")
     ? "USDC"
     : selectedDenomination?.includes("usdsui")
     ? "USDSui"
@@ -216,19 +232,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
                 <CardDescription>Select the token type for this account</CardDescription>
               </CardHeader>
               <DenominationSelector selected={selectedDenomination} onSelect={setSelectedDenomination} />
-            </>
-          )}
-
-          {step === "policy" && (
-            <>
-              <CardHeader className="p-0">
-                <CardTitle>Set Spending Limits</CardTitle>
-                <CardDescription>Configure optional spending limits (skip to skip)</CardDescription>
-              </CardHeader>
-              <Button variant="ghost" onClick={() => setSkipPolicy(true)} className="mb-4">
-                Skip policies
-              </Button>
-              <PolicyEditor values={policyValues} onChange={setPolicyValues} />
             </>
           )}
 
@@ -277,12 +280,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Policies</span>
-                    <span className="text-sm font-medium">
-                      {skipPolicy ? "None" : "Custom"}
-                    </span>
-                  </div>
                 </CardContent>
               </Card>
             </>
@@ -301,7 +298,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
             Back
           </Button>
           {currentStepIndex < steps.length - 1 ? (
-            <Button onClick={goNext} disabled={!selectedDenomination || (step === "policy" && !skipPolicy && Object.values(policyValues).every((v) => !v))}>
+            <Button onClick={goNext} disabled={!selectedDenomination}>
               Next
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>

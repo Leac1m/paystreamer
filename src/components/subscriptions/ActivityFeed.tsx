@@ -23,6 +23,7 @@ import {
   Download,
   AlertTriangle,
 } from "lucide-react";
+import { formatMistToPUSD } from "../../lib/format";
 
 type FilterTab = "all" | "payments" | "deposits" | "alerts";
 
@@ -34,16 +35,6 @@ interface EventRow {
   status: "success" | "failed";
   reason?: string;
   digest: string;
-}
-
-function formatAmount(amount: number, denomination: string): string {
-  const normalized = amount / 1_000_000_000;
-  const symbol = denomination.includes("usdc")
-    ? "USDC"
-    : denomination.includes("usdsui")
-    ? "USDSui"
-    : "SUI";
-  return `${normalized.toFixed(4)} ${symbol}`;
 }
 
 export function ActivityFeed() {
@@ -251,7 +242,7 @@ export function ActivityFeed() {
                     </td>
                     <td className={`py-3 px-2 text-right font-mono ${row.type === "deposit" ? "text-blue-600" : "text-foreground"}`}>
                       {row.type === "deposit" ? "+" : "-"}
-                      {formatAmount(row.amount, "SUI")}
+                      {formatMistToPUSD(row.amount)}
                     </td>
                     <td className="py-3 px-2 text-center">
                       <Badge variant={row.status === "success" ? "default" : "destructive"}>
