@@ -12,7 +12,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface RegisterPlatformModalProps {
@@ -61,7 +61,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${PACKAGE_ID}::platform::register_platform`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::register_platform`,
       arguments: [
         tx.pure.string(name),
         tx.pure.string(description),

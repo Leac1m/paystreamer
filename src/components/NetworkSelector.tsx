@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
 import { useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
-import { MAINNET_V2_PACKAGE_ID } from "../constants";
+import { SUBSCRIPTION_MAINNET_PACKAGE_ID } from "../constants";
 import { cn } from "../lib/utils";
 
 type SupportedNetwork = "mainnet" | "testnet" | "devnet";
@@ -55,7 +55,7 @@ export default function NetworkSelector({
   }, [open]);
 
   const available = dAppKit.networks as readonly SupportedNetwork[];
-  const isMainnetAvailable = MAINNET_V2_PACKAGE_ID !== undefined;
+  const isMainnetAvailable = SUBSCRIPTION_MAINNET_PACKAGE_ID !== undefined;
 
   const handleSelect = (network: SupportedNetwork) => {
     if (network === currentNetwork) {

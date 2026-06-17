@@ -9,7 +9,7 @@ import { parseMoveError } from "../../lib/errors";
 import { getDenominationDecimals } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import {
-  PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
@@ -96,7 +96,7 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         const [newAccountObj, newCap] = tx.moveCall({
-          target: `${PACKAGE_ID}::account::create_account`,
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(COIN_TYPE_REGISTRY_ID),
@@ -111,7 +111,7 @@ export function SetupSubscriptionModal({
       }
 
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::create_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           workingCap,
@@ -126,7 +126,7 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         tx.moveCall({
-          target: `${PACKAGE_ID}::account::share_account`,
+          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingAccountObj, workingCap],
         });

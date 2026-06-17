@@ -1,12 +1,9 @@
 import { createDAppKit } from "@mysten/dapp-kit-react";
 import { SuiGrpcClient } from "@mysten/sui/grpc";
 import {
-  DEVNET_COUNTER_PACKAGE_ID,
-  TESTNET_COUNTER_PACKAGE_ID,
-  MAINNET_COUNTER_PACKAGE_ID,
-  DEVNET_SUBSCRIPTIONS_PACKAGE_ID,
-  TESTNET_SUBSCRIPTIONS_PACKAGE_ID,
-  MAINNET_SUBSCRIPTIONS_PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+  SUBSCRIPTION_TESTNET_PACKAGE_ID,
+  SUBSCRIPTION_MAINNET_PACKAGE_ID,
 } from "./constants.ts";
 
 const GRPC_URLS = {
@@ -28,16 +25,11 @@ export const dAppKit = createDAppKit({
   defaultNetwork: "devnet",
   createClient(network) {
     const mvr = makeMvrOverrides({
-      counter: GRPC_URLS[network] === GRPC_URLS.mainnet
-        ? MAINNET_COUNTER_PACKAGE_ID
-        : GRPC_URLS[network] === GRPC_URLS.testnet
-        ? TESTNET_COUNTER_PACKAGE_ID
-        : DEVNET_COUNTER_PACKAGE_ID,
       subscriptions: GRPC_URLS[network] === GRPC_URLS.mainnet
-        ? MAINNET_SUBSCRIPTIONS_PACKAGE_ID
+        ? SUBSCRIPTION_MAINNET_PACKAGE_ID
         : GRPC_URLS[network] === GRPC_URLS.testnet
-        ? TESTNET_SUBSCRIPTIONS_PACKAGE_ID
-        : DEVNET_SUBSCRIPTIONS_PACKAGE_ID,
+        ? SUBSCRIPTION_TESTNET_PACKAGE_ID
+        : SUBSCRIPTION_DEVNET_PACKAGE_ID,
     });
     return new SuiGrpcClient({
       network,

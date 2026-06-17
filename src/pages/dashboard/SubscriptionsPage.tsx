@@ -54,7 +54,7 @@ export function SubscriptionsPage() {
       const results = await Promise.all(
         accountIds.map(id => client.core.getObject({
           objectId: id,
-          include: { json: true },
+          include: { json: true, type: true },
         }))
       );
       
@@ -79,6 +79,12 @@ export function SubscriptionsPage() {
           ? (subs as any).contents 
           : (Array.isArray(subs) ? subs : Object.entries(subs).map(([k, v]) => ({ key: k, value: v })));
           
+        let denomination = "0x2::sui::SUI";
+        if (obj.type) {
+          const match = obj.type.match(/<([^>]+)>/);
+          if (match) denomination = match[1];
+        }
+
         for (const contentItem of contents) {
           const platformId = contentItem.key;
           const sub = contentItem.value?.fields || contentItem.value;
@@ -88,7 +94,7 @@ export function SubscriptionsPage() {
             platformId: String(platformId),
             platformInitVersion: 0,
             subscription: sub as SubscriptionInfo["subscription"],
-            denomination: fields?.denomination as string || "0x2::sui::SUI",
+            denomination,
           });
         }
       }

@@ -13,13 +13,13 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   queryRecentEventsByType,
 } from "../lib/graphql";
-import { DEVNET_V2_PACKAGE_ID } from "../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
 import { formatTimeAgo, cn } from "../lib/utils";
 
 const EVENT_TYPES = {
-  PlatformRegistered: `${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered`,
-  PaymentProcessed: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentProcessed`,
-  SubscriptionCreated: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated`,
+  PlatformRegistered: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered`,
+  PaymentProcessed: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentProcessed`,
+  SubscriptionCreated: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionCreated`,
 } as const;
 
 type EventTab = keyof typeof EVENT_TYPES;

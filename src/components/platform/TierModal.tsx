@@ -12,7 +12,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { PACKAGE_ID, PUSD_TYPE_ARG } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, PUSD_TYPE_ARG } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 interface TierModalProps {
@@ -104,11 +104,12 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     const amountU64 = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
     const denominationTypeName = tx.moveCall({
       target: "0x1::type_name::get",
-      arguments: [tx.pure.string(PUSD_TYPE_ARG)],
+      typeArguments: [PUSD_TYPE_ARG],
+      arguments: [],
     });
 
     tx.moveCall({
-      target: `${PACKAGE_ID}::platform::create_tier`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::create_tier`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

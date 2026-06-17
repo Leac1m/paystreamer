@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { useOwnedPlatforms } from "../../lib/platformDiscovery";
-import { PACKAGE_ID } from "../../constants";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
 export function PlatformSettingsPage() {
@@ -53,7 +53,7 @@ export function PlatformSettingsPage() {
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${PACKAGE_ID}::platform::update_platform`,
+      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::update_platform`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platform.objectId,

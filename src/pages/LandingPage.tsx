@@ -19,7 +19,7 @@ import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import GuidedDemoBanner from "../components/GuidedDemoBanner";
 import { LiveEventFeed } from "../components/LiveEventFeed";
 import { Button } from "../components/ui/button";
-import { GRAPHQL_URL, DEVNET_V2_PACKAGE_ID } from "../constants";
+import { GRAPHQL_URL, SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
 
 const PLATFORM_FEE_PERCENT = 2.5;
 
@@ -56,7 +56,7 @@ export default function LandingPage() {
                 first: 50,
                 after: $after,
                 filter: {
-                  type: "${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered",
+                  type: "${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered",
                   timeRange: { startTime: "${thirtyDaysAgoTimestamp}" }
                 }
               ) {

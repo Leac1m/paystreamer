@@ -1,12 +1,13 @@
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import {
-  DEVNET_V2_PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
   GRAPHQL_URL,
+  NETWORK,
 } from "../constants";
 
 export const graphqlClient = new SuiGraphQLClient({
   url: GRAPHQL_URL,
-  network: "devnet",
+  network: NETWORK as any,
 });
 
 export interface PlatformObject {
@@ -191,7 +192,7 @@ export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegi
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered`, owner }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered`, owner }
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
@@ -203,7 +204,7 @@ export async function queryAccountCreatedEvents(sender: string): Promise<Account
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::account::AccountCreated`, sender }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::AccountCreated`, sender }
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as AccountCreatedEvent);
 }
@@ -215,7 +216,7 @@ export async function queryPlatformRegisteredEvents(): Promise<PlatformRegistere
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::platform::PlatformRegistered` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered` }
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
@@ -227,7 +228,7 @@ export async function querySubscriptionCreatedEvents(accountId: string): Promise
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionCreated` }
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
@@ -241,7 +242,7 @@ export async function querySubscriptionCreatedEventsByPlatform(platformId: strin
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionCreated` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionCreated` }
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
@@ -258,7 +259,7 @@ export async function queryPaymentProcessedEvents(
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentProcessed` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentProcessed` }
   );
   let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentProcessedEvent);
   if (accountId) {
@@ -277,7 +278,7 @@ export async function queryPaymentFailedEvents(accountId?: string): Promise<Paym
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::payment::PaymentFailed` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentFailed` }
   );
   let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentFailedEvent);
   if (accountId) {
@@ -293,7 +294,7 @@ export async function queryDepositEvents(accountId: string): Promise<DepositEven
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::account::Deposit` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::Deposit` }
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as DepositEvent)
@@ -333,7 +334,7 @@ export async function querySubscriptionUpdatedEventsByPlatform(
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${DEVNET_V2_PACKAGE_ID}::billing::SubscriptionUpdated` }
+    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionUpdated` }
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionUpdatedEvent)

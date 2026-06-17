@@ -17,7 +17,7 @@ import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
 import {
-  PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";
@@ -79,13 +79,13 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       const tx = new Transaction();
 
       const [accountObj, cap] = tx.moveCall({
-        target: `${PACKAGE_ID}::account::create_account`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
         typeArguments: [selectedDenomination],
         arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
       });
 
       tx.moveCall({
-        target: `${PACKAGE_ID}::account::share_account`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
         typeArguments: [selectedDenomination],
         arguments: [accountObj, cap],
       });

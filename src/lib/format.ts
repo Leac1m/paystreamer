@@ -2,7 +2,7 @@ import { SUI_TYPE_ARG, PUSD_TYPE_ARG } from "../constants";
 
 export const DECIMALS_BY_TYPE: Record<string, number> = {
   [SUI_TYPE_ARG]: 9,
-  [PUSD_TYPE_ARG]: 6,
+  [PUSD_TYPE_ARG]: 9,
 };
 
 export function getDenominationDecimals(type: string): number {

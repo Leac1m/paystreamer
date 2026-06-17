@@ -18,7 +18,7 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
 import {
-  PACKAGE_ID,
+  SUBSCRIPTION_DEVNET_PACKAGE_ID,
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
@@ -127,7 +127,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::pause_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::pause_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -166,7 +166,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::resume_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::resume_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -205,7 +205,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -250,16 +250,16 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       const limiters = tx.moveCall({
-        target: `${PACKAGE_ID}::policies::empty_limiters`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::empty_limiters`,
         arguments: [tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${PACKAGE_ID}::policies::ensure_initialized`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::ensure_initialized`,
         typeArguments: [denomination],
         arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${PACKAGE_ID}::scheduler::process_due_payment`,
+        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [denomination],
         arguments: [
           tx.sharedObjectRef({
