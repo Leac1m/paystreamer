@@ -32,10 +32,10 @@ export default function NavBar() {
     setTxMessage("Minting Test PUSD...");
     try {
       const result = await mintPusd();
-      if (!result.Transaction) throw new Error("Transaction failed");
-      const txDigest = result.Transaction.digest;
+      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
+      const txDigest = result.digest;
       
-      await client.core.waitForTransaction({ digest: txDigest });
+      await client.waitForTransaction({ digest: txDigest });
       setTimeout(async () => {
         await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
         await queryClient.invalidateQueries({ queryKey: ["sui-client", "getAllBalances"] });

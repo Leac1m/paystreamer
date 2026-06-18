@@ -5,6 +5,7 @@ import {
   SUBSCRIPTION_TESTNET_PACKAGE_ID,
   SUBSCRIPTION_MAINNET_PACKAGE_ID,
 } from "./constants.ts";
+import { createPersistentBurnerWalletInitializer } from "./lib/persistentBurnerWallet.ts";
 
 const GRPC_URLS = {
   mainnet: "https://fullnode.mainnet.sui.io:443",
@@ -20,6 +21,9 @@ function makeMvrOverrides(pkgIds: Record<string, string | undefined>) {
 }
 
 export const dAppKit = createDAppKit({
+  // WARNING: Unsafe burner wallet stores private keys in LocalStorage. This is insecure and
+  // should only be used for testing/development. Never enable this in production with
+  // real funds or on mainnet.
   enableBurnerWallet: import.meta.env.DEV,
   networks: ["mainnet", "testnet", "devnet"],
   defaultNetwork: "devnet",
@@ -37,6 +41,7 @@ export const dAppKit = createDAppKit({
       ...(mvr ? { mvr: { overrides: mvr } } : {}),
     });
   },
+  walletInitializers: [createPersistentBurnerWalletInitializer()],
 });
 
 // global type registration necessary for the hooks to work correctly

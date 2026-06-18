@@ -82,12 +82,12 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
       const builtTx = await tx.build({ client });
 
       // Sponsor signs
-      const sponsorSignature = await sponsorKeypair.signTransaction(builtTx);
+      const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(builtTx);
 
       // Execute transaction (no user signature needed for scheduler-initiated payments)
-      const result = await client.executeTransaction({
-        transaction: builtTx,
-        signatures: [sponsorSignature],
+      const result = await client.executeTransactionBlock({
+        transactionBlock: builtTx,
+        signature: sponsorSignature,
         options: {
           showEffects: true,
           showEvents: true,

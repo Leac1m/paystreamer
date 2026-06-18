@@ -3,6 +3,9 @@ import { Transaction } from '@mysten/sui/transactions';
 // ALLOWED_TARGETS: List of Move function targets that the sponsor will accept
 // Only transactions calling these functions can be sponsored
 export const ALLOWED_TARGETS = [
+  // pusd module
+  '0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160::pusd::mint',
+
   // account module
   '0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb::account::create_account',
   '0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb::account::deposit',

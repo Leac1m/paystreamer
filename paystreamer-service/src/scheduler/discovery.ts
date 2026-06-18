@@ -1,6 +1,5 @@
 import { client } from '../lib/sui.js';
 import { PACKAGE_ID } from '../lib/config.js';
-import { QueryTransactionBlocksResponse } from '@mysten/sui/client';
 
 /**
  * Represents a platform discovered from events

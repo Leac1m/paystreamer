@@ -1,15 +1,23 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { fromBase64 } from '@mysten/sui/utils';
-import { client, getSponsorKeypair, getSponsorAddress, signAndSubmitTransaction } from '../lib/sui.js';
+import { client, getSponsorKeypair, getSponsorAddress } from '../lib/sui.js';
 import { validateMoveCalls } from './validation.js';
 
-export interface SponsorRequest {
-  bytes: string;        // Base64 encoded transaction bytes
-  userSignature: string; // Base64 encoded user signature
-  userAddress: string;   // User's Sui address
+export interface PrepareRequest {
+  transaction: string;
+  userAddress: string;
 }
 
-export interface SponsorResponse {
+export interface PrepareResponse {
+  bytes: string;
+}
+
+export interface ExecuteRequest {
+  bytes: string;
+  userSignature: string;
+  userAddress: string;
+}
+
+export interface ExecuteResponse {
   digest: string;
 }
 
@@ -19,22 +27,16 @@ export interface SponsorError {
 }
 
 /**
- * Processes a sponsored transaction request
- * 1. Decodes the transaction bytes
- * 2. Validates Move call targets
- * 3. Sets gas owner to sponsor (address balance gas model)
- * 4. Signs and submits the transaction
+ * Step 1: Prepare a transaction for sponsorship
+ * Takes a Transaction JSON from frontend, builds with sponsor's gas, returns bytes
  */
-export async function processSponsorRequest(
-  request: SponsorRequest
-): Promise<SponsorResponse> {
-  const { bytes, userSignature, userAddress } = request;
+export async function prepareTransaction(
+  request: PrepareRequest
+): Promise<PrepareResponse> {
+  const { transaction: txJson, userAddress } = request;
 
-  // Decode the transaction bytes
-  const transactionBytes = fromBase64(bytes);
-
-  // Deserialize the transaction
-  const transaction = Transaction.fromKind(transactionBytes);
+  // Reconstruct transaction from JSON
+  const transaction = Transaction.from(txJson);
 
   // Validate that all Move call targets are allowed
   try {
@@ -46,29 +48,74 @@ export async function processSponsorRequest(
     };
   }
 
-  // Set the sender to the user address
+  // Set sender
   transaction.setSender(userAddress);
 
-  // Set the gas owner to the sponsor address (address balance gas model)
+  // Set gas owner to sponsor
   const sponsorAddress = getSponsorAddress();
   transaction.setGasOwner(sponsorAddress);
 
-  // Set gas payment to empty (address balance gas model)
-  // This means the sponsor's address balance will be used for gas
-  transaction.setGasPayment([]);
+  // Fetch sponsor's SUI coins for gas payment
+  const coins = await client.getCoins({
+    owner: sponsorAddress,
+    coinType: '0x2::sui::SUI',
+  });
 
-  try {
-    // Sign and submit the transaction
-    const result = await signAndSubmitTransaction(transaction, userSignature, userAddress);
-    
-    console.log(`[Sponsor] Transaction sponsored successfully: ${result.digest}`);
-    
-    return result;
-  } catch (error) {
-    console.error('[Sponsor] Failed to submit transaction:', error);
+  if (coins.data.length === 0) {
     throw {
-      error: error instanceof Error ? error.message : 'Transaction submission failed',
+      error: 'Sponsor has no SUI coins for gas',
       code: 'SUBMISSION_FAILED' as const,
     };
   }
+
+  // Use the first coin as gas payment
+  const gasCoin = coins.data[0];
+  transaction.setGasPayment([{
+    objectId: gasCoin.coinObjectId,
+    digest: gasCoin.digest,
+    version: gasCoin.version,
+  }]);
+  transaction.setGasBudget(50000000);
+
+  // Build the transaction with sponsor's gas
+  const builtTx = await transaction.build({ client });
+
+  // Return base64 encoded bytes
+  return {
+    bytes: Buffer.from(builtTx).toString('base64'),
+  };
+}
+
+/**
+ * Step 2: Execute a sponsored transaction
+ * Takes bytes + user signature, adds sponsor signature, executes
+ */
+export async function executeTransaction(
+  request: ExecuteRequest
+): Promise<ExecuteResponse> {
+  const { bytes: bytesBase64, userSignature, userAddress } = request;
+
+  // Decode the transaction bytes
+  const transactionBytes = Buffer.from(bytesBase64, 'base64');
+
+  // Sponsor signs the transaction
+  const sponsorKeypair = getSponsorKeypair();
+  const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(transactionBytes);
+
+  // Combine signatures: user signature first, then sponsor signature
+  const signatures = [userSignature, sponsorSignature];
+
+  // Execute the transaction
+  const result = await client.executeTransactionBlock({
+    transactionBlock: transactionBytes,
+    signature: signatures,
+    options: {
+      showEffects: true,
+      showEvents: true,
+    },
+  });
+
+  console.log(`[Sponsor] Transaction sponsored successfully: ${result.digest}`);
+
+  return { digest: result.digest };
 }

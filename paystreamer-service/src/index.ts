@@ -15,17 +15,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Sponsor routes
+app.use('/api', sponsorRoutes);
+
+// Health check endpoint at /api/health
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     network: NETWORK,
     timestamp: new Date().toISOString(),
   });
 });
-
-// Sponsor routes
-app.use('/', sponsorRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

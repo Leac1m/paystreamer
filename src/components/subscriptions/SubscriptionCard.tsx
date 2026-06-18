@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Transaction } from "@mysten/sui/transactions";
-import { useCurrentClient, useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import {
@@ -23,6 +23,7 @@ import {
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
 } from "../../constants";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 
 interface SubscriptionCardProps {
   accountId: string;
@@ -67,8 +68,8 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const client = useCurrentClient();
   const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
+  const { executeSponsored } = useSponsoredTransaction();
 
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
@@ -135,15 +136,13 @@ export function SubscriptionCard({
         ],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
-      }
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
       setTxStatus("success");
       setTxMessage("Subscription paused");
-      setTxDigest(result.Transaction.digest);
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setTxDigest(result.digest!);
+      await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
@@ -174,15 +173,13 @@ export function SubscriptionCard({
         ],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
-      }
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
       setTxStatus("success");
       setTxMessage("Subscription resumed");
-      setTxDigest(result.Transaction.digest);
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setTxDigest(result.digest!);
+      await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
@@ -213,15 +210,13 @@ export function SubscriptionCard({
         ],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
-      }
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
       setTxStatus("success");
       setTxMessage("Subscription cancelled");
-      setTxDigest(result.Transaction.digest);
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      setTxDigest(result.digest!);
+      await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
       setTxStatus("error");
@@ -278,11 +273,9 @@ export function SubscriptionCard({
 
       let digest: string | undefined;
       try {
-        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        if (result.$kind === "FailedTransaction") {
-          throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
-        }
-        digest = result.Transaction.digest;
+        const result = await executeSponsored(tx);
+        if (result.error) throw new Error(result.error);
+        digest = result.digest;
       } catch (primaryErr) {
         const isTimeout =
           primaryErr instanceof Error &&
@@ -323,7 +316,7 @@ export function SubscriptionCard({
 
       setTxStatus("success");
       setTxMessage("Payment processed");
-      setTxDigest(digest);
+      setTxDigest(digest!);
       await client.core.waitForTransaction({ digest: digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
       await queryClient.invalidateQueries({ queryKey: ["account-created-events", account.address] });

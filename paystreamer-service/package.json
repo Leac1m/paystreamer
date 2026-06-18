@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@mysten/sui": "^2.16.2",
-    "@mysten/sui/keypairs/ed25519": "^2.16.2",
     "dotenv": "^17.4.2",
     "express": "^4.18.2"
   },

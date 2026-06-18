@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet } from "lucide-react";
-import { useCurrentClient, useDAppKit, useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
 } from "../../constants";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -30,9 +31,9 @@ export function WithdrawModal({
   onSuccess,
 }: WithdrawModalProps) {
   const client = useCurrentClient();
-  const dAppKit = useDAppKit();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
+  const { executeSponsored } = useSponsoredTransaction();
 
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
@@ -80,13 +81,10 @@ export function WithdrawModal({
 
       tx.transferObjects([withdrawnCoin], tx.pure.address(account.address));
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
-      if (result.$kind === "FailedTransaction" || !result.Transaction) {
-        throw new Error((result.FailedTransaction as any)?.effects?.status?.error ?? "Transaction failed");
-      }
-
-      const digest = result.Transaction.digest;
+      const digest = result.digest!;
       await client.core.waitForTransaction({ digest });
       
       setTxDigest(digest);

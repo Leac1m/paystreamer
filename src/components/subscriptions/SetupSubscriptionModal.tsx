@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, CheckCircle } from "lucide-react";
-import { useCurrentClient, useDAppKit, useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
@@ -9,6 +9,7 @@ import { parseMoveError } from "../../lib/errors";
 import { APP_COIN_DECIMALS, parsePUSDToMist } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
 import { useMintPusd } from "../../hooks/useMintPusd";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
@@ -46,11 +47,11 @@ export function SetupSubscriptionModal({
   onSuccess,
 }: SetupSubscriptionModalProps) {
   const client = useCurrentClient();
-  const dAppKit = useDAppKit();
   const account = useCurrentAccount();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { mintPusd } = useMintPusd();
+  const { executeSponsored } = useSponsoredTransaction();
   
   const hasAccount = !!accountId && !!accountCapId;
   const recommendedBuffer = tierAmount * 3n;
@@ -172,15 +173,11 @@ export function SetupSubscriptionModal({
         });
       }
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
+      const txDigest = result.digest!;
 
-      if (result.$kind === "FailedTransaction" || !result.Transaction) {
-        throw new Error((result.FailedTransaction as any)?.effects?.status?.error ?? "Transaction failed");
-      }
-
-      const txDigest = result.Transaction.digest;
-
-      await client.core.waitForTransaction({ digest: txDigest });
+      await client.waitForTransaction({ digest: txDigest });
       
       setTxDigest(txDigest);
       setTxStatus("success");
@@ -200,10 +197,10 @@ export function SetupSubscriptionModal({
     setTxMessage("Minting Test PUSD...");
     try {
       const result = await mintPusd();
-      if (!result.Transaction) throw new Error("Transaction failed");
-      const txDigest = result.Transaction.digest;
+      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
+      const txDigest = result.digest;
       
-      await client.core.waitForTransaction({ digest: txDigest });
+      await client.waitForTransaction({ digest: txDigest });
       
       setTimeout(async () => {
         await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });

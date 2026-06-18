@@ -1,4 +1,4 @@
-import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -7,11 +7,12 @@ import {
   PUSD_TREASURY_CAP_INIT_VERSION,
   NETWORK
 } from "../constants";
+import { useSponsoredTransaction } from "./useSponsoredTransaction";
 
 export function useMintPusd() {
   const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
+  const { executeSponsored } = useSponsoredTransaction();
 
   const mintPusd = async (amount: number = 1000 * 1_000_000_000) => {
     if (!account) throw new Error("Wallet not connected");
@@ -32,7 +33,8 @@ export function useMintPusd() {
       ],
     });
 
-    const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+    const result = await executeSponsored(tx);
+    if (result.error) throw new Error(result.error);
     
     // Invalidate the sui client coin queries that dApp Kit uses
     await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet } from "lucide-react";
-import { useCurrentClient, useDAppKit, useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
@@ -13,6 +13,7 @@ import {
   CLOCK_OBJECT_ID,
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -32,9 +33,9 @@ export function DepositModal({
   onSuccess,
 }: DepositModalProps) {
   const client = useCurrentClient();
-  const dAppKit = useDAppKit();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
+  const { executeSponsored } = useSponsoredTransaction();
 
   const [depositAmount, setDepositAmount] = useState("");
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
@@ -101,13 +102,10 @@ export function DepositModal({
         ],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
-      if (result.$kind === "FailedTransaction" || !result.Transaction) {
-        throw new Error((result.FailedTransaction as any)?.effects?.status?.error ?? "Transaction failed");
-      }
-
-      const digest = result.Transaction.digest;
+      const digest = result.digest!;
       await client.core.waitForTransaction({ digest });
       
       setTxDigest(digest);

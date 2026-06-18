@@ -1,4 +1,4 @@
-# PayStreamer v3 Contract Migration
+# PayStreamer v3 — Build Context
 
 ## Contract Changes
 
@@ -10,35 +10,35 @@
 - Balance queries use `addressBalance` field (not `balance.value`)
 - **pause/play removed from scheduler** — scheduler runs continuously
 
-## Devnet Deployment (2026-06-16)
+## Devnet Deployment (2026-06-17)
 
 | Package | ID |
 |---------|-----|
-| Subscriptions v3 | `0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473` |
-| PUSD stablecoin | `0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa` |
-| CoinTypeRegistry | `0x2f7bc0af8c20cff6e772d3d411cc018550b958f1574f52d0d3c152f373ffd618` (shared v254755) |
-| PaymentScheduler | `0x4d526187e4157fe58f2fc7111a733c3e9f419e7cd23dd528993d87e54a4eacda` (shared v254755) |
-| AccessControl | `0x5b1bb002d8133a91002ffab3f6b2f9118703931685c78cccd793b8e929339e60` (shared v254755) |
-| PUSD TreasuryCap | `0xdfbececa1253c80994b65a7d2f8e2b1697d28e64e6a7e5eeca559fe043ac90e0` |
-| Demo Platform | `0xb84f8a6d57a20e605581a29342124762f2ac10c8c6d9f305a83edca5e7440aec` (v1491862) |
+| Subscriptions v3 | `0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb` |
+| PUSD stablecoin | `0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160` |
+| CoinTypeRegistry | `0x076e62b38cbe903413cb7ee9a177eef0c593a9bac40d0dcdbc7d46315af65639` (shared v14) |
+| PaymentScheduler | `0x09d3b621355da923e9076fa95a8ff253331b44b8a0f4fa61b0ca51878b1d1c4e` (shared v14) |
+| AccessControl | `0x938eebde0b5cab85934b0875b34b1854181ceb62437de22af177880abe312a97` |
+| PUSD TreasuryCap | `0xf04e1201cc50fa5401c2d3c37ac7284873282e7bfd3c6a7885f6f6989aebb68a` (v15) |
+| Demo Platform | `0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a9234193f5c0d9903d746` (v3233540) |
 
 ## Frontend Constants (src/constants.ts)
 
 All deployment-specific IDs are centralized in `src/constants.ts`. Update on every redeployment.
 
 ```ts
-PACKAGE_ID = "0x877e4310138665b821d0d03aa61efcf98e0bdfa32a4cc32674f58c2ac0c26473"
-COIN_TYPE_REGISTRY_ID = "0x2f7bc0af8c20cff6e772d3d411cc018550b958f1574f52d0d3c152f373ffd618"
-COIN_TYPE_REGISTRY_INIT_VERSION = 254755
-PAYMENT_SCHEDULER_ID = "0x4d526187e4157fe58f2fc7111a733c3e9f419e7cd23dd528993d87e54a4eacda"
-PAYMENT_SCHEDULER_INIT_VERSION = 254755
-PUSD_PACKAGE_ID = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa"
-PUSD_TYPE_ARG = "0xc74cc40df740034795a0c27524b499c330e619e2406263f37d8b67b1f824f6fa::pusd::PUSD"
-DEMO_PLATFORM_ID = "0xb84f8a6d57a20e605581a29342124762f2ac10c8c6d9f305a83edca5e7440aec"
-DEMO_PLATFORM_INIT_VERSION = 1491862
+SUBSCRIPTION_DEVNET_PACKAGE_ID = "0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb"
+COIN_TYPE_REGISTRY_ID = "0x076e62b38cbe903413cb7ee9a177eef0c593a9bac40d0dcdbc7d46315af65639"
+COIN_TYPE_REGISTRY_INIT_VERSION = 14
+PAYMENT_SCHEDULER_ID = "0x09d3b621355da923e9076fa95a8ff253331b44b8a0f4fa61b0ca51878b1d1c4e"
+PAYMENT_SCHEDULER_INIT_VERSION = 14
+PUSD_DEVNET_PACKAGE_ID = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160"
+PUSD_TYPE_ARG = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160::pusd::PUSD"
+DEMO_PLATFORM_ID = "0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a9234193f5c0d9903d746"
+DEMO_PLATFORM_INIT_VERSION = 3233540
 ```
 
-## Verified PTB Signatures (2026-06-16)
+## Verified PTB Signatures (2026-06-17)
 
 All user-facing flows tested in TypeScript SDK and CLI:
 
@@ -73,17 +73,71 @@ All user-facing flows tested in TypeScript SDK and CLI:
 ## Scripts
 
 - `pnpm seed:demo` — seeds demo platform on devnet (idempotent)
-- `pnpm e2e` — runs e2e payment cycle test (8/8 passing)
+- `pnpm e2e` — runs e2e payment cycle test (uses scripts/v2/e2e-payment-cycle.ts)
 
-## E2E Test Result (2026-06-16)
+## E2E Test Result (2026-06-16, OLD deployment)
 
-All 8 steps pass on devnet:
+All 8 steps pass on devnet (package `0x877e431...`):
 - Step 1: register_coin_type<PUSD> (expected fail — already registered)
-- Step 2: register_platform_with_tier
-- Step 3: create_account + share_account
-- Step 4a: mint PUSD
-- Step 4b: deposit PUSD
-- Step 5: create_subscription
-- Step 6: process_due_payment (1st cycle)
-- Step 7: process_due_payment (2nd cycle)
-- Step 8: cancel_subscription
+- Step 2: register_platform_with_tier ✅
+- Step 3: create_account + share_account ✅
+- Step 4a: mint PUSD ✅
+- Step 4b: deposit PUSD ✅
+- Step 5: create_subscription ✅
+- Step 6: process_due_payment (1st cycle) ✅
+- Step 7: process_due_payment (2nd cycle) ✅
+- Step 8: cancel_subscription ✅
+
+## Modules (10 total)
+
+`ac`, `account`, `asset`, `billing`, `payment`, `platform`, `policies`, `registry`, `scheduler`, `version`
+
+## Key Files
+
+```
+src/
+  constants.ts                   # All deployment IDs centralized
+  components/subscriptions/
+    CreateAccountModal.tsx       # create_account PTB
+    SetupSubscriptionModal.tsx  # create_account + create_subscription PTB
+    DepositModal.tsx            # deposit PTB
+    WithdrawModal.tsx            # withdraw PTB
+  components/platform/
+    TierModal.tsx               # create_tier with TypeName
+    TierCard.tsx                 # deactivate_tier_by_index
+    SchedulerControls.tsx        # Simplified (no pause/unpause)
+  contracts/subscriptions/
+    platform_registry.ts         # Platform registry helpers
+    subscription_account.ts      # Account helpers
+    subscription_manager.ts      # Subscription helpers
+
+scripts/v2/
+  e2e-payment-cycle.ts           # E2E test
+  seed-demo-platform.ts          # Demo platform seeder
+  config.ts                      # Environment-specific config
+```
+
+## How to Run
+
+```bash
+# Build contracts
+cd move/subscriptions && sui move build
+
+# Run tests
+cd move/subscriptions && sui move test
+
+# Seed demo platform
+pnpm seed:demo
+
+# Run e2e
+pnpm e2e
+
+# Start dev server
+pnpm dev --port 5176 --host 0.0.0.0
+```
+
+## Current Status
+
+- Devnet deployment: **LIVE** (2026-06-17)
+- E2E test: **NEEDS RE-RUN** against new deployment
+- Frontend: running on port 5176 with cloudflared tunnel
