@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { CheckCircle, XCircle, X, ExternalLink } from "lucide-react";
 import { cn } from "../lib/utils";
 import { getErrorMessage } from "../lib/errors";
+import { useCurrentNetwork } from "@mysten/dapp-kit-react";
 
 export type ToastId = string;
 
@@ -119,6 +120,7 @@ interface TxStatusToastProps {
 
 export function TxStatusToast({ status, message, digest, onClose }: TxStatusToastProps) {
   const [visible, setVisible] = useState(false);
+  const network = useCurrentNetwork();
 
   useEffect(() => {
     if (status !== "idle") {
@@ -167,12 +169,12 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
         </p>
         {digest && (
           <a
-            href={`https://explorer.sui.io/txblock/${digest}?network=devnet`}
+            href={`https://suiscan.xyz/${network}/tx/${digest}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground mt-0.5 font-mono hover:text-[#10b981] transition-colors flex items-center gap-1 underline"
           >
-            View on Sui Explorer
+            View on Suiscan
             <ExternalLink className="h-3 w-3" />
           </a>
         )}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Transaction } from "@mysten/sui/transactions";
-import { useCurrentClient, useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
@@ -22,6 +22,7 @@ import {
   CLOCK_OBJECT_ID,
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 
 type Step = "denomination" | "deposit" | "confirm";
 
@@ -34,8 +35,8 @@ interface CreateAccountModalProps {
 export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountModalProps) {
   const client = useCurrentClient();
   const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
+  const { executeSponsored } = useSponsoredTransaction();
 
   const [step, setStep] = useState<Step>("denomination");
   const [selectedDenomination, setSelectedDenomination] = useState<string | null>(null);
@@ -129,20 +130,17 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         arguments: [accountObj, cap],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-
-      if (result.$kind === "FailedTransaction") {
-        throw new Error((result.FailedTransaction as any).effects?.status?.error ?? (result.Transaction as any).effects?.status?.error ?? "Transaction failed");
-      }
+      const result = await executeSponsored(tx);
+      if (result.error) throw new Error(result.error);
 
       setTxStatus("success");
       setTxMessage("Account created successfully!");
-      setTxDigest(result.Transaction.digest);
+      setTxDigest(result.digest!);
 
-      await client.core.waitForTransaction({ digest: result.Transaction.digest });
+      await client.waitForTransaction({ digest: result.digest! });
 
-      const txData = await client.core.getTransaction({
-        digest: result.Transaction.digest,
+      const txData = await client.getTransaction({
+        digest: result.digest!,
         include: { objectTypes: true },
       });
 
