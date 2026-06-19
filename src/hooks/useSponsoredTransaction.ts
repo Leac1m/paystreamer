@@ -1,5 +1,6 @@
 import { useCurrentAccount, useDAppKit, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { fromBase64 } from "@mysten/sui/utils";
 
 const SPONSOR_API_URL = "/api";
 
@@ -32,24 +33,26 @@ export function useSponsoredTransaction() {
       });
 
       // 100,000,000 MIST = 0.1 SUI
-      if (BigInt(suiBalance?.totalBalance || "0") >= 100_000_000n) {
+      if (BigInt(suiBalance?.balance?.balance || "0") >= 100_000_000n) {
         console.log("Wallet has sufficient SUI balance, skipping sponsor flow...");
         
         const { signature, bytes } = await dAppKit.signTransaction({
           transaction: tx,
         });
 
-        const res = await client.executeTransactionBlock({
-          transactionBlock: bytes,
-          signature,
-          options: { showEffects: true, showEvents: true }
+        const res = await client.executeTransaction({
+          transaction: fromBase64(bytes),
+          signatures: [signature],
+          include: { effects: true, events: true }
         });
 
-        if (res.effects?.status.status === "failure") {
-          return { error: res.effects.status.error || "Local execution failed", status: "failure" };
+        const txData = res.Transaction || res.FailedTransaction;
+
+        if ((txData as any)?.effects?.status.status === "failure") {
+          return { error: (txData as any).effects.status.error || "Local execution failed", status: "failure" };
         }
 
-        return { digest: res.digest, status: "success" };
+        return { digest: txData?.digest || "", status: "success" };
       }
 
       // For sponsored transactions, user has no SUI so we always use the sponsored flow
@@ -106,17 +109,19 @@ export function useSponsoredTransaction() {
           transaction: tx,
         });
 
-        const res = await client.executeTransactionBlock({
-          transactionBlock: bytes,
-          signature,
-          options: { showEffects: true, showEvents: true }
+        const res = await client.executeTransaction({
+          transaction: fromBase64(bytes),
+          signatures: [signature],
+          include: { effects: true, events: true }
         });
 
-        if (res.effects?.status.status === "failure") {
-          return { error: res.effects.status.error || "Local execution failed", status: "failure" };
+        const txData = res.Transaction || res.FailedTransaction;
+
+        if ((txData as any)?.effects?.status.status === "failure") {
+          return { error: (txData as any).effects.status.error || "Local execution failed", status: "failure" };
         }
 
-        return { digest: res.digest, status: "success" };
+        return { digest: txData?.digest || "", status: "success" };
       } catch (localError: any) {
         return { 
           error: localError.message || sponsorError.message || "Execution failed", 

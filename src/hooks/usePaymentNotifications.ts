@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useRef } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useQuery } from "@tanstack/react-query";
 import { useOwnedPlatforms } from "../lib/platformDiscovery";

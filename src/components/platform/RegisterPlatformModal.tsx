@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCurrentAccount, useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import {

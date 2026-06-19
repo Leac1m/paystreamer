@@ -46,8 +46,8 @@ export function PlatformSettingsPage() {
       target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::update_platform`,
       arguments: [
         tx.sharedObjectRef({
-          objectId: platform.objectId,
-          initialSharedVersion: platform.initialSharedVersion,
+          objectId: platform!.objectId,
+          initialSharedVersion: platform!.initialSharedVersion,
           mutable: true,
         }),
         tx.pure.option("string", name || null),
