@@ -54,7 +54,7 @@ export function SetupSubscriptionModal({
   const { executeSponsored } = useSponsoredTransaction();
   
   const hasAccount = !!accountId && !!accountCapId;
-  const recommendedBuffer = tierAmount * 3n;
+  const recommendedBuffer = tierAmount * 30n;
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   

@@ -27,5 +27,5 @@ export const PUSD_TREASURY_CAP_INIT_VERSION = 15;
 // Demo-only: the set of denominations the UI is allowed to render.
 export const DEMO_DENOMINATIONS: string[] = [PUSD_TYPE_ARG];
 
-export const DEMO_PLATFORM_ID = "0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a9234193f5c0d9903d746";
-export const DEMO_PLATFORM_INIT_VERSION = 3233540;
+export const DEMO_PLATFORM_ID = "0x452a39d1656c16331bb5c4b53ed83f51842cd08f006a9a87c547b29215e3daa7";
+export const DEMO_PLATFORM_INIT_VERSION = 5413211;

@@ -55,12 +55,12 @@ import {
 } from "./config.ts";
 import { loadKeypair, newTx, sharedObjectMut } from "./test-utils.ts";
 
-const DEMO_PLATFORM_NAME = "Demo SaaS";
+const DEMO_PLATFORM_NAME = "Demo SaaS 2";
 const DEMO_PLATFORM_DESCRIPTION =
   "A demo platform for the PayStreamer hackathon. Subscribe for a few minutes of test billing.";
 const DEMO_PLATFORM_CATEGORY = "SaaS";
 const DEMO_TIER_NAME = "Demo Tier (1-minute billing)";
-const DEMO_TIER_AMOUNT_MIST = 1_000_000n;
+const DEMO_TIER_AMOUNT_MIST = 10_000_000_000n;
 const DEMO_TIER_FREQUENCY_MS = 60_000n;
 
 const DEMO_USER_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -616,10 +616,5 @@ async function main() {
 
 main().catch((e) => {
   console.error("SEED_DEMO_FAILED:", e);
-  if (e instanceof Error) {
-    console.error("Stack:", e.stack);
-  } else {
-    console.error("Value:", JSON.stringify(e, null, 2));
-  }
   process.exit(1);
 });

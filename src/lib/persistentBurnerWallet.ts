@@ -11,6 +11,8 @@ import type {
 	SuiSignAndExecuteTransactionMethod,
 	SuiSignPersonalMessageMethod,
 	SuiSignTransactionMethod,
+	SuiSignTransactionBlockMethod,
+	SuiSignAndExecuteTransactionBlockMethod,
 } from '@mysten/wallet-standard';
 import {
 	getWallets,
@@ -20,9 +22,11 @@ import {
 	SuiSignAndExecuteTransaction,
 	SuiSignPersonalMessage,
 	SuiSignTransaction,
+	SuiSignTransactionBlock,
+	SuiSignAndExecuteTransactionBlock,
 } from '@mysten/wallet-standard';
 import type { Wallet } from '@mysten/wallet-standard';
-import { toBase64 } from '@mysten/utils';
+import { toBase64 } from '@mysten/sui/utils';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { WalletInitializer } from '@mysten/dapp-kit-core';
 
@@ -50,7 +54,7 @@ export function createPersistentBurnerWalletInitializer(): WalletInitializer {
 	return {
 		id: 'persistent-burner-initializer',
 		initialize({ networks, getClient }) {
-			const wallet = new PersistentBurnerWallet({ clients: networks.map(getClient) });
+			console.log("NETWORKS:", networks); const wallet = new PersistentBurnerWallet({ clients: networks.map(getClient) });
 			const unregister = getWallets().register(wallet);
 			return { unregister };
 		},
@@ -78,7 +82,13 @@ class PersistentBurnerWallet implements Wallet {
 			address: this.#keypair.getPublicKey().toSuiAddress(),
 			publicKey: this.#keypair.getPublicKey().toSuiBytes(),
 			chains: this.chains,
-			features: [SuiSignTransaction, SuiSignAndExecuteTransaction, SuiSignPersonalMessage],
+			features: [
+				SuiSignTransaction, 
+				SuiSignAndExecuteTransaction, 
+				SuiSignPersonalMessage,
+				SuiSignTransactionBlock,
+				SuiSignAndExecuteTransactionBlock
+			],
 		});
 	}
 
@@ -123,6 +133,14 @@ class PersistentBurnerWallet implements Wallet {
 			[SuiSignAndExecuteTransaction]: {
 				version: '2.0.0',
 				signAndExecuteTransaction: this.#signAndExecuteTransaction,
+			},
+			[SuiSignTransactionBlock]: {
+				version: '1.0.0',
+				signTransactionBlock: this.#signTransactionBlock,
+			},
+			[SuiSignAndExecuteTransactionBlock]: {
+				version: '1.0.0',
+				signAndExecuteTransactionBlock: this.#signAndExecuteTransactionBlock,
 			},
 		};
 	}
@@ -175,5 +193,27 @@ class PersistentBurnerWallet implements Wallet {
 			digest: tx.digest,
 			effects: toBase64(tx.effects.bcs!),
 		};
+	};
+
+	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({ transactionBlock, chain }) => {
+		const result = await this.#signTransaction({ transaction: transactionBlock as any, chain } as any);
+		return {
+			transactionBlockBytes: result.bytes,
+			signature: result.signature,
+		};
+	};
+
+	#signAndExecuteTransactionBlock: SuiSignAndExecuteTransactionBlockMethod = async ({
+		transactionBlock,
+		chain,
+		account,
+	}) => {
+		const result = await this.#signAndExecuteTransaction({
+			transaction: transactionBlock as any,
+			chain,
+			account
+		} as any);
+
+		return result as any;
 	};
 }

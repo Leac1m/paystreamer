@@ -377,8 +377,8 @@ export default function SubscribePage() {
                           </div>
 
                           {isSubscribed ? (
-                            <Button disabled className="w-full" variant="secondary">
-                              Already Subscribed
+                            <Button onClick={() => window.location.href = "/dashboard"} className="w-full" variant="secondary">
+                              Manage Subscription
                             </Button>
                           ) : !account ? (
                             <Button
