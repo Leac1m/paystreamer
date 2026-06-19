@@ -4,9 +4,16 @@ import { getSponsorAddress, client } from './lib/sui.js';
 import sponsorRoutes from './sponsor/routes.js';
 import { startScheduler, stopScheduler } from './scheduler/index.js';
 
+import cors from 'cors';
+
 const app = express();
 
 // Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // Request logging middleware

@@ -2,7 +2,7 @@ import { useCurrentAccount, useDAppKit, useCurrentClient } from "@mysten/dapp-ki
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
 
-const SPONSOR_API_URL = "/api";
+const SPONSOR_API_URL = import.meta.env.VITE_SPONSOR_API_URL || "/api";
 
 export interface SponsoredTransactionResult {
   digest: string;
