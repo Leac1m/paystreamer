@@ -6,7 +6,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "../ui/button";
 import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
-import { parsePUSDToMist } from "../../lib/format";
+import { parsePUSDToMist, APP_COIN_DECIMALS } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
@@ -14,6 +14,7 @@ import {
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useMintPusd } from "../../hooks/useMintPusd";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -36,11 +37,22 @@ export function DepositModal({
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
   const { executeSponsored } = useSponsoredTransaction();
+  const { mintPusd } = useMintPusd();
 
   const [depositAmount, setDepositAmount] = useState("");
+  const [walletBalanceUsd, setWalletBalanceUsd] = useState(0);
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (account && isOpen) {
+      queryCoins(account.address, denomination).then(coins => {
+        const total = coins.reduce((acc, coin) => acc + BigInt(coin.balance), 0n);
+        setWalletBalanceUsd(Number(total) / Math.pow(10, APP_COIN_DECIMALS));
+      });
+    }
+  }, [account, isOpen, denomination, txStatus]);
 
   useEffect(() => {
     if (isOpen) {
@@ -126,7 +138,28 @@ export function DepositModal({
     }
   };
 
+  const handleMintPusd = async () => {
+    setTxStatus("pending");
+    setTxMessage("Minting Test PUSD...");
+    try {
+      const result = await mintPusd();
+      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
+      
+      setTimeout(async () => {
+        setTxStatus("success");
+        setTxMessage("Successfully minted 1,000 PUSD!");
+        setTxDigest(result.digest);
+      }, 1000);
+    } catch (err) {
+      console.error("Mint Error:", err);
+      setTxStatus("error");
+      setTxMessage(parseMoveError(err));
+    }
+  };
+
   const isPending = txStatus === "pending";
+  const depositParsed = parseFloat(depositAmount || "0");
+  const hasInsufficientWalletBalance = walletBalanceUsd < depositParsed;
 
   return (
     <AnimatePresence>
@@ -176,9 +209,25 @@ export function DepositModal({
               </div>
             </div>
 
+            {hasInsufficientWalletBalance && (
+              <div className="p-4 bg-red-50/50 border border-red-200 dark:bg-red-950/20 dark:border-red-900/50 rounded-lg space-y-3">
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                  Insufficient PUSD in your wallet to fund this deposit.
+                </p>
+                <Button 
+                  onClick={handleMintPusd} 
+                  disabled={isPending}
+                  variant="outline" 
+                  className="w-full border-red-200 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                >
+                  Mint 1,000 Test PUSD
+                </Button>
+              </div>
+            )}
+
             <Button
               onClick={handleDeposit}
-              disabled={isPending || !depositAmount}
+              disabled={isPending || !depositAmount || hasInsufficientWalletBalance}
               loading={isPending}
               variant="default"
               className="w-full py-6 text-lg"

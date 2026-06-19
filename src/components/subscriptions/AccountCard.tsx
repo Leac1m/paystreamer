@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentClient } from "@mysten/dapp-kit-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -34,6 +34,7 @@ function normalizeBalance(rawBalance: any): number {
 
 export function AccountCard({ accountId, capId, denomination, onManage }: AccountCardProps) {
   const client = useCurrentClient();
+  const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -153,6 +154,9 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
         accountId={accountId}
         capId={capId}
         denomination={actualDenomination}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+        }}
       />
       <WithdrawModal
         isOpen={withdrawOpen}
@@ -160,6 +164,9 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
         accountId={accountId}
         capId={capId}
         denomination={actualDenomination}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });
+        }}
       />
     </Card>
   );

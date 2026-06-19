@@ -17,7 +17,7 @@ export interface Toast {
 interface TxToastContextValue {
   toasts: Toast[];
   addToast: (id: ToastId) => void;
-  confirmToast: (id: ToastId, digest?: string) => void;
+  confirmToast: (id: ToastId, digest?: string, customMessage?: string) => void;
   failToast: (id: ToastId, error: unknown) => void;
   removeToast: (id: ToastId) => void;
 }
@@ -31,9 +31,9 @@ export function TxToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => [...prev, { id, status: "pending", message: "Transaction submitted..." }]);
   }, []);
 
-  const confirmToast = useCallback((id: ToastId, digest?: string) => {
+  const confirmToast = useCallback((id: ToastId, digest?: string, customMessage?: string) => {
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: "Transaction confirmed", digest } : t))
+      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: customMessage || "Transaction confirmed", digest } : t))
     );
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
