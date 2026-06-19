@@ -198,7 +198,7 @@ async function fetchDiscriminant(
 async function fetchSuiDiscriminant(
   client: SuiGraphQLClient,
 ): Promise<number | undefined> {
-  return fetchDiscriminant(client, V2_PACKAGE_ID, "::sui::SUI");
+  return fetchDiscriminant(client, V3_PACKAGE_ID, "::sui::SUI");
 }
 
 async function registerCoinType<T extends string>(

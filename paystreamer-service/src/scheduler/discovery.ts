@@ -80,64 +80,89 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
   console.log(`[Discovery] Discovering subscriptions for platform: ${platformId}`);
 
   try {
-    // Query for SubscriptionCreated events for this platform
+    // 1. Query for SubscriptionCreated events for this platform to find all account IDs
     const subscriptionCreatedEventType = `${PACKAGE_ID}::billing::SubscriptionCreated`;
     
+    // In a production system, we'd paginate through all events or use an indexer.
+    // For this demo, we'll fetch a large chunk.
     const events = await client.queryEvents({
       query: {
         MoveEventType: subscriptionCreatedEventType,
       },
-      limit: 200,
+      limit: 1000,
     });
 
-    const subscriptions: DiscoveredSubscription[] = [];
+    const accountIds = new Set<string>();
 
     for (const event of events.data) {
       if (event.type === subscriptionCreatedEventType && event.parsedJson) {
         const parsed = event.parsedJson as {
           platform_id?: string;
           account_id?: string;
-          subscription_id?: string;
-          next_billing_time?: string | number;
-          subscription?: {
-            next_billing_time?: string | number;
-            denomination?: string;
-          };
         };
 
-        // Filter by platform
-        const eventPlatformId = parsed.platform_id;
-        if (eventPlatformId !== platformId) {
-          continue;
-        }
-
-        const accountId = parsed.account_id;
-        const subscriptionId = parsed.subscription_id;
-        
-        // Extract next billing time and denomination
-        let nextBillingTime: string | number = 0;
-        let denomination = '';
-
-        if (parsed.subscription) {
-          nextBillingTime = parsed.subscription.next_billing_time || 0;
-          denomination = parsed.subscription.denomination || '';
-        } else {
-          nextBillingTime = parsed.next_billing_time || 0;
-        }
-
-        if (accountId && subscriptionId) {
-          subscriptions.push({
-            accountId,
-            platformId: eventPlatformId,
-            subscriptionId,
-            nextBillingTime: BigInt(nextBillingTime),
-            denomination,
-          });
+        if (parsed.platform_id === platformId && parsed.account_id) {
+          accountIds.add(parsed.account_id);
         }
       }
     }
 
-    console.log(`[Discovery] Found ${subscriptions.length} subscriptions for platform ${platformId}`);
+    if (accountIds.size === 0) {
+      console.log(`[Discovery] No accounts found for platform ${platformId}`);
+      return [];
+    }
+
+    console.log(`[Discovery] Found ${accountIds.size} unique accounts. Fetching account objects...`);
+
+    // 2. Fetch the actual account objects in batches
+    const accountIdsArray = Array.from(accountIds);
+    const subscriptions: DiscoveredSubscription[] = [];
+    
+    // multiGetObjects allows max 50 objects per request
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < accountIdsArray.length; i += BATCH_SIZE) {
+      const batchIds = accountIdsArray.slice(i, i + BATCH_SIZE);
+      const objects = await client.multiGetObjects({
+        ids: batchIds,
+        options: { showContent: true, showType: true },
+      });
+
+      for (const obj of objects) {
+        if (!obj.data || !obj.data.content || obj.data.content.dataType !== 'moveObject') continue;
+        
+        const accountId = obj.data.objectId;
+        const typeStr = obj.data.type || '';
+        
+        // Extract denomination from type: ...::account::SubscriptionAccount<DENOMINATION>
+        const match = typeStr.match(/<(.+)>/);
+        const denomination = match ? match[1] : '';
+
+        if (!denomination) continue;
+
+        // Parse VecMap containing subscriptions
+        const fields = obj.data.content.fields as any;
+        const subscriptionsMap = fields.subscriptions?.fields?.contents || [];
+
+        // Find the subscription for this platform
+        const platformSub = subscriptionsMap.find((entry: any) => entry.fields.key === platformId);
+        
+        if (platformSub) {
+          const subData = platformSub.fields.value.fields;
+          // status === 0 means active
+          if (subData.status === 0) {
+            subscriptions.push({
+              accountId,
+              platformId,
+              subscriptionId: platformId, // In V2, platformId is effectively the subscription key
+              nextBillingTime: BigInt(subData.next_billing_time),
+              denomination,
+            });
+          }
+        }
+      }
+    }
+
+    console.log(`[Discovery] Found ${subscriptions.length} active subscriptions for platform ${platformId}`);
     return subscriptions;
   } catch (error) {
     console.error(`[Discovery] Error discovering subscriptions for platform ${platformId}:`, error);

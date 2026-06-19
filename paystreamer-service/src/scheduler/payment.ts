@@ -45,12 +45,9 @@ export function buildPaymentTransaction(subscription: DiscoveredSubscription): T
     ],
   });
 
-  // Set gas owner to sponsor (address balance gas model)
+  // Set sender to sponsor
   const sponsorAddress = getSponsorAddress();
-  tx.setGasOwner(sponsorAddress);
-
-  // Set gas payment to empty (address balance gas model)
-  tx.setGasPayment([]);
+  tx.setSender(sponsorAddress);
 
   return tx;
 }
@@ -78,6 +75,17 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
       const sponsorKeypair = getSponsorKeypair();
       const sponsorAddress = getSponsorAddress();
 
+      // Fetch largest coin to bypass RPC stale caches on Devnet
+      const coins = await client.getCoins({ owner: sponsorAddress, coinType: '0x2::sui::SUI' });
+      const largestCoin = coins.data.sort((a, b) => Number(BigInt(b.balance) - BigInt(a.balance)))[0];
+      if (largestCoin) {
+        tx.setGasPayment([{
+          objectId: largestCoin.coinObjectId,
+          version: largestCoin.version,
+          digest: largestCoin.digest,
+        }]);
+      }
+
       // Build transaction bytes
       const builtTx = await tx.build({ client });
 
@@ -96,8 +104,17 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
 
       console.log(`[Payment] Payment processed successfully: ${result.digest}`);
       digests.push(result.digest);
-    } catch (error) {
-      console.error(`[Payment] Failed to process payment for subscription ${subscription.subscriptionId}:`, error);
+    } catch (error: any) {
+      const isInsufficientBalance = 
+        error?.executionError?.MoveAbort?.abortCode === '4101' || 
+        error?.executionError?.MoveAbort?.abortCode === 4101 ||
+        error?.message?.includes('abort code: 4101');
+
+      if (isInsufficientBalance) {
+        console.warn(`[Payment] Skipping subscription ${subscription.subscriptionId}: Insufficient balance (EInsufficientBalance: 4101)`);
+      } else {
+        console.error(`[Payment] Failed to process payment for subscription ${subscription.subscriptionId}:`, error);
+      }
       // Continue processing other subscriptions
     }
   }
