@@ -1,26 +1,17 @@
 import { useState } from "react";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useOutletContext } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { TierCard } from "../../components/platform/TierCard";
 import { TierModal } from "../../components/platform/TierModal";
-import { useOwnedPlatforms } from "../../lib/platformDiscovery";
+import { PlatformObject } from "../../lib/platformDiscovery";
 
 export function TiersPage() {
-  const account = useCurrentAccount();
-  const { data: platforms, isPending } = useOwnedPlatforms(account?.address ?? null);
+  const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
   const [addModalOpen, setAddModalOpen] = useState(false);
 
-  if (isPending) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!platforms || platforms.length === 0) {
+  if (!platform) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -32,7 +23,6 @@ export function TiersPage() {
     );
   }
 
-  const platform = platforms[0];
   const tiers = Array.isArray(platform.json.tiers) ? platform.json.tiers : [];
 
   return (

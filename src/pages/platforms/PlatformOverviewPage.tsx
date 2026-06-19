@@ -1,27 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useOutletContext } from "react-router-dom";
 import { Plus, Check } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { PlatformOwnerOverview } from "../../components/platform/PlatformOwnerOverview";
 import { RegisterPlatformModal } from "../../components/platform/RegisterPlatformModal";
-import { useOwnedPlatforms } from "../../lib/platformDiscovery";
+import { PlatformObject } from "../../lib/platformDiscovery";
 
 export function PlatformOverviewPage() {
-  const account = useCurrentAccount();
-  const { data: platforms, isPending } = useOwnedPlatforms(account?.address ?? null);
+  const { platform: activePlatform } = useOutletContext<{ platform: PlatformObject | undefined }>();
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
 
-  if (isPending) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!platforms || platforms.length === 0) {
+  if (!activePlatform) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -40,8 +31,6 @@ export function PlatformOverviewPage() {
       </Card>
     );
   }
-
-  const activePlatform = platforms[0];
   const tiers = Array.isArray(activePlatform.json.tiers) ? activePlatform.json.tiers : [];
   const hasTier = tiers.length > 0;
 

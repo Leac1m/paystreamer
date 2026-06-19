@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
-import { useNavigate } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
-import { useOwnedPlatforms } from "../../lib/platformDiscovery";
+import { PlatformObject } from "../../lib/platformDiscovery";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 
@@ -13,7 +13,7 @@ export function PlatformSettingsPage() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const navigate = useNavigate();
-  const { data: platforms, isPending } = useOwnedPlatforms(account?.address ?? null);
+  const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -21,15 +21,7 @@ export function PlatformSettingsPage() {
   const [isPendingTx, setIsPendingTx] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isPending) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!platforms || platforms.length === 0) {
+  if (!platform) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -40,8 +32,6 @@ export function PlatformSettingsPage() {
       </Card>
     );
   }
-
-  const platform = platforms[0];
   const fields = platform.json;
 
   async function handleUpdateSettings() {

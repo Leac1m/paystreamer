@@ -11,12 +11,13 @@ export interface Toast {
   status: "pending" | "confirmed" | "failed";
   message: string;
   error?: string;
+  digest?: string;
 }
 
 interface TxToastContextValue {
   toasts: Toast[];
   addToast: (id: ToastId) => void;
-  confirmToast: (id: ToastId) => void;
+  confirmToast: (id: ToastId, digest?: string) => void;
   failToast: (id: ToastId, error: unknown) => void;
   removeToast: (id: ToastId) => void;
 }
@@ -30,9 +31,9 @@ export function TxToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => [...prev, { id, status: "pending", message: "Transaction submitted..." }]);
   }, []);
 
-  const confirmToast = useCallback((id: ToastId) => {
+  const confirmToast = useCallback((id: ToastId, digest?: string) => {
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: "Transaction confirmed" } : t))
+      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: "Transaction confirmed", digest } : t))
     );
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -68,6 +69,7 @@ export function useTxToast() {
 }
 
 function TxStatusToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: ToastId) => void }) {
+  const network = useCurrentNetwork();
   if (toasts.length === 0) return null;
 
   return (
@@ -90,6 +92,17 @@ function TxStatusToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemov
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white">{toast.message}</p>
             {toast.error && <p className="text-xs text-red-300 mt-1">{toast.error}</p>}
+            {toast.digest && (
+              <a
+                href={`https://suiscan.xyz/${network}/tx/${toast.digest}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-white/60 mt-0.5 font-mono hover:text-white transition-colors flex items-center gap-1 underline"
+              >
+                View on Suiscan
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
           <button
             onClick={() => onRemove(toast.id)}

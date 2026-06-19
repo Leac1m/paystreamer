@@ -139,7 +139,7 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
     return `$${total.toFixed(2)}`;
   }, [monthlyPaymentEvents]);
 
-  const activeSubscribers = fields.subscriber_count || 0;
+  const activeSubscribers = Number(fields.subscriber_count || 0);
 
   const churnRate = useMemo(() => {
     if (activeSubscribers === 0) return "—";

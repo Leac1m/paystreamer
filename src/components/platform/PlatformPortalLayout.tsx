@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
-import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2 } from "lucide-react";
+import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { NetworkBanner } from "../dashboard/NetworkBanner";
 import { useOwnedPlatforms, PlatformObject } from "../../lib/platformDiscovery";
@@ -125,6 +125,23 @@ export function PlatformPortalLayout() {
               );
             })}
           </nav>
+
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 space-y-4">
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-start gap-2 bg-transparent text-white border-white/20 hover:bg-white/10 hover:text-white"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ExternalLink size={16} />
+              Subscription Dashboard
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-xs text-muted-foreground font-mono">
+                {account.address.slice(0, 6)}...{account.address.slice(-4)}
+              </span>
+            </div>
+          </div>
         </aside>
 
         {sidebarOpen && (

@@ -1,28 +1,17 @@
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { useOwnedPlatforms } from "../../lib/platformDiscovery";
+import { useOutletContext } from "react-router-dom";
 import { TreasuryManager } from "../../components/platform/TreasuryManager";
+import { PlatformObject } from "../../lib/platformDiscovery";
 
 export function TreasuryPage() {
-  const account = useCurrentAccount();
-  const { data: platforms, isPending } = useOwnedPlatforms(account?.address ?? null);
+  const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
 
-  if (isPending) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!platforms || platforms.length === 0) {
+  if (!platform) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>You don't own any platforms.</p>
       </div>
     );
   }
-
-  const platform = platforms[0];
 
   return (
     <div className="space-y-6">

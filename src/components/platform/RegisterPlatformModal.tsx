@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import {
   Modal,
   ModalContent,
@@ -14,6 +15,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
+import { useTxToast, generateToastId } from "../TxStatusToast";
 
 interface RegisterPlatformModalProps {
   open: boolean;
@@ -22,8 +24,10 @@ interface RegisterPlatformModalProps {
 
 export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalProps) {
   const account = useCurrentAccount();
-  const dAppKit = useDAppKit();
+  const client = useCurrentClient();
+  const { executeSponsored } = useSponsoredTransaction();
   const queryClient = useQueryClient();
+  const { addToast, confirmToast, failToast } = useTxToast();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -39,7 +43,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
   function handleDemoToggle(checked: boolean) {
     setUseDemoDefaults(checked);
     if (checked) {
-      setName("Demo SaaS");
+      setName(`Demo SaaS ${Math.floor(Math.random() * 1000)}`);
       setDescription("A demo platform for the PayStreamer hackathon. Subscribe for a few minutes of test billing.");
       setCategory("SaaS");
     } else {
@@ -71,17 +75,27 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
       ],
     });
 
+    const toastId = generateToastId();
+    addToast(toastId);
+
     try {
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      if (result.$kind === "FailedTransaction") {
-        throw new Error(
-          (result.FailedTransaction as any).effects?.status?.error ?? "Transaction failed"
-        );
+      const result = await executeSponsored(tx);
+      if (result.error) {
+        throw new Error(result.error);
       }
-      await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
+      
+      await client.waitForTransaction({ digest: result.digest! });
+      confirmToast(toastId, result.digest!);
+      
+      setTimeout(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
+      }, 1500);
+      
       onClose();
       resetForm();
     } catch (err) {
+      console.error("DEBUG ERR in RegisterPlatformModal:", err);
+      failToast(toastId, err);
       setError(getErrorMessage(err));
     } finally {
       setIsPending(false);

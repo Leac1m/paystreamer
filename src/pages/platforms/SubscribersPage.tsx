@@ -1,14 +1,11 @@
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useOwnedPlatforms } from "../../lib/platformDiscovery";
+import { PlatformObject } from "../../lib/platformDiscovery";
 import { SubscriberTable } from "../../components/platform/SubscriberTable";
 import { querySubscriptionCreatedEventsByPlatform, queryPaymentProcessedEvents } from "../../lib/graphql";
 
 export function SubscribersPage() {
-  const account = useCurrentAccount();
-  const { data: platforms, isPending: platformsPending } = useOwnedPlatforms(account?.address ?? null);
-
-  const platform = platforms?.[0];
+  const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
 
   const { data: subscriptionEvents, isPending: subEventsPending } = useQuery({
     queryKey: ["platform-subscriptions", platform?.objectId],
@@ -28,7 +25,7 @@ export function SubscribersPage() {
     enabled: !!platform?.objectId,
   });
 
-  const isPending = platformsPending || subEventsPending || paymentsPending;
+  const isPending = subEventsPending || paymentsPending;
 
   if (isPending) {
     return (

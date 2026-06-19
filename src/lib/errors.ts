@@ -32,6 +32,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
 };
 
 export function getErrorMessage(error: unknown): string {
+  console.error("[getErrorMessage] Original error:", error);
   if (error instanceof Error) {
     const match = error.message.match(/0x[0-9A-Fa-f]+/);
     if (match) {
@@ -44,18 +45,19 @@ export function getErrorMessage(error: unknown): string {
         return ERROR_MESSAGES[lowerCode];
       }
     }
-    if (error.message.includes("Insufficient balance")) {
+    if (error.message.includes("Insufficient balance") || error.message.includes("balance too low")) {
       return ERROR_MESSAGES["0x01005"];
     }
     if (error.message.includes("already subscribed")) {
       return ERROR_MESSAGES["0x06003"];
     }
-    if (error.message.includes("not enough gas")) {
-      return "Not enough SUI to pay for transaction fees. Please add funds.";
+    if (error.message.toLowerCase().includes("gas") || error.message.includes("find a coin") || error.message.includes("resolve gas")) {
+      return "Not enough SUI to pay for transaction fees. Please add funds from the devnet faucet.";
     }
     if (error.message.includes("expiry")) {
       return ERROR_MESSAGES["0x0A003"];
     }
+    return `Transaction failed: ${error.message}`;
   }
   return "Something went wrong. Please try again.";
 }
