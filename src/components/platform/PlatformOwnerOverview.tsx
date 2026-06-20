@@ -29,8 +29,7 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
-    const config = useAppConfig();
-  return (
+      return (
     <Card>
       <CardContent className="p-4">
         <div className="flex items-start justify-between">

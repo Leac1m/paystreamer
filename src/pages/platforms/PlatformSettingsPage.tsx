@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { PlatformObject } from "../../lib/platformDiscovery";
-import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { useAppConfig } from "../../hooks/useAppConfig";
 

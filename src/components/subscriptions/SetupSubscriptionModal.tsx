@@ -11,8 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useMintPusd } from "../../hooks/useMintPusd";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+import { 
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,

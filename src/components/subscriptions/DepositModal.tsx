@@ -8,8 +8,7 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist, APP_COIN_DECIMALS } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+import { 
   CLOCK_OBJECT_ID,
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";

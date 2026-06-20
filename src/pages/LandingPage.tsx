@@ -14,7 +14,7 @@ import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import { Button } from "../components/ui/button";
-import { GRAPHQL_URL, SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
+import { GRAPHQL_URL} from "../constants";
 import { useAppConfig } from "../hooks/useAppConfig";
 
 const PLATFORM_FEE_PERCENT = 2.5;

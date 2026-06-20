@@ -172,11 +172,9 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
 
 export async function queryPlatformInitialVersions(
   platformIds: string[],
-  network?: SupportedNetwork
 ): Promise<PlatformVersionInfo[]> {
   if (platformIds.length === 0) return [];
-  const config = getConfig(network);
-
+  
   const results = await Promise.all(
     platformIds.map(async (id) => {
       const data = await executeQuery<{ object: { owner: { initialSharedVersion: number } | null } }>(
@@ -198,8 +196,8 @@ export async function queryPlatformInitialVersions(
 }
 
 export async function queryPlatformsByOwner(owner: string, network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $owner }) {
         nodes { timestamp, contents { json } }
@@ -212,8 +210,8 @@ export async function queryPlatformsByOwner(owner: string, network?: SupportedNe
 }
 
 export async function queryAccountCreatedEvents(sender: string, network?: SupportedNetwork): Promise<AccountCreatedEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $sender }) {
         nodes { timestamp, contents { json } }
@@ -226,8 +224,8 @@ export async function queryAccountCreatedEvents(sender: string, network?: Suppor
 }
 
 export async function queryPlatformRegisteredEvents(network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformRegistered($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -240,8 +238,8 @@ export async function queryPlatformRegisteredEvents(network?: SupportedNetwork):
 }
 
 export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -256,8 +254,8 @@ export async function querySubscriptionCreatedEvents(accountId: string, network?
 }
 
 export async function querySubscriptionCreatedEventsByPlatform(platformId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -276,8 +274,8 @@ export async function queryPaymentProcessedEvents(
   platformId?: string,
   network?: SupportedNetwork
 ): Promise<PaymentProcessedEvent[]> {
-  const config = getConfig(network);
-  const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
+    const config = getConfig(network);
+    const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
     `query GetPaymentProcessed($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -297,8 +295,8 @@ export async function queryPaymentProcessedEvents(
 }
 
 export async function queryPaymentFailedEvents(accountId?: string, network?: SupportedNetwork): Promise<PaymentFailedEvent[]> {
-  const config = getConfig(network);
-  const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
+    const config = getConfig(network);
+    const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
     `query GetPaymentFailed($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -315,8 +313,8 @@ export async function queryPaymentFailedEvents(accountId?: string, network?: Sup
 }
 
 export async function queryDepositEvents(accountId: string, network?: SupportedNetwork): Promise<DepositEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
     `query GetDeposits($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -360,8 +358,8 @@ export async function querySubscriptionUpdatedEventsByPlatform(
   platformId: string,
   network?: SupportedNetwork
 ): Promise<SubscriptionUpdatedEvent[]> {
-  const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionUpdatedEvent } }[] } }>(
+    const config = getConfig(network);
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionUpdatedEvent } }[] } }>(
     `query GetSubscriptionUpdated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }

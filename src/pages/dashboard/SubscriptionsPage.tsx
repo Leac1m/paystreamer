@@ -108,7 +108,7 @@ export function SubscriptionsPage() {
     queryFn: async () => {
       const ids = Array.from(new Set(subscriptionsRaw.map((s) => s.platformId).filter(Boolean)));
       if (ids.length === 0) return new Map<string, number>();
-      const infos = await queryPlatformInitialVersions(ids, config.network);
+      const infos = await queryPlatformInitialVersions(ids);
       return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
     },
     enabled: subscriptionsRaw.length > 0,

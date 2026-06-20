@@ -64,14 +64,6 @@ function getFrequencyMs(tier: TierInfo): bigint {
   return BigInt(fStr || "2592000000");
 }
 
-interface PlatformJson {
-  name?: string;
-  description?: string;
-  category?: string;
-  is_verified?: boolean;
-  tiers?: TierInfo[];
-  subscribers?: Array<{ account_id: string }>;
-}
 
 export default function SubscribePage() {
     const config = useAppConfig();

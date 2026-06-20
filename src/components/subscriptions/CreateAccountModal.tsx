@@ -16,8 +16,7 @@ import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+import { 
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "../../constants";

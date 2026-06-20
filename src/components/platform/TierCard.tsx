@@ -13,7 +13,6 @@ import {
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { TierModal } from "./TierModal";
-import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { formatMistToPUSD } from "../../lib/format";
 import { useAppConfig } from "../../hooks/useAppConfig";

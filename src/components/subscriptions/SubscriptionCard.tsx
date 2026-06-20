@@ -17,8 +17,7 @@ import { formatMistToPUSD } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
+import { 
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,

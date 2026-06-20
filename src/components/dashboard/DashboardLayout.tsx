@@ -5,7 +5,6 @@ import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "../ui/button";
 import { NetworkBanner } from "./NetworkBanner";
 import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink } from "lucide-react";
-import { NETWORK } from "../../constants";
 
 const NAV_ITEMS = [
   { path: "/dashboard/accounts", label: "Accounts", icon: Wallet },

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Wallet, CheckCircle, ExternalLink, Coins } from "lucide-react";
+import { X, Wallet, CheckCircle, ExternalLink } from "lucide-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Button } from "./ui/button";

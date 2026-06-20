@@ -8,9 +8,6 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
-} from "../../constants";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
