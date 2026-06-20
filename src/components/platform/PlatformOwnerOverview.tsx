@@ -142,9 +142,16 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
   }, [monthlyPaymentEvents]);
 
   const activeSubscribers = useMemo(() => {
-    if (!fields.tiers || !Array.isArray(fields.tiers)) return 0;
-    return fields.tiers.reduce((sum, tier) => sum + (Number(tier.subscriber_count) || 0), 0);
-  }, [fields.tiers]);
+    const onChainCount = Number(fields.subscriber_count) || 0;
+    if (onChainCount > 0) return onChainCount;
+    
+    if (!subscriptionEvents) return 0;
+    
+    const created = subscriptionEvents.length;
+    const cancelled = (subscriptionUpdatedEvents || []).filter(e => e.change_kind === 2).length;
+    
+    return Math.max(0, created - cancelled);
+  }, [fields.subscriber_count, subscriptionEvents, subscriptionUpdatedEvents]);
 
   const churnRate = useMemo(() => {
     if (activeSubscribers === 0) return "—";

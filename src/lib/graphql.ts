@@ -115,6 +115,13 @@ async function executeQuery<T>(query: string, variables?: Record<string, unknown
   return (result.data || {}) as T;
 }
 
+function parseEventTimestamp(node: any): number {
+  const jsonTs = node.contents?.json?.timestamp || node.contents?.json?.timestamp_ms;
+  if (jsonTs) return Number(jsonTs);
+  if (node.timestamp) return new Date(node.timestamp).getTime();
+  return Date.now();
+}
+
 export async function queryPlatform(platformId: string, network?: SupportedNetwork): Promise<PlatformObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PlatformObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetPlatform($id: SuiAddress!) {
@@ -199,49 +206,49 @@ export async function queryPlatformsByOwner(owner: string, network?: SupportedNe
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
-      events(first: 50, filter: { type: $type, sender: $owner }) {
+      events(last: 50, filter: { type: $type, sender: $owner }) {
         nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${config.PACKAGE_ID}::platform::PlatformRegistered`, owner },
     network
   );
-  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
 }
 
 export async function queryAccountCreatedEvents(sender: string, network?: SupportedNetwork): Promise<AccountCreatedEvent[]> {
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
-      events(first: 50, filter: { type: $type, sender: $sender }) {
+      events(last: 50, filter: { type: $type, sender: $sender }) {
         nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${config.PACKAGE_ID}::account::AccountCreated`, sender },
     network
   );
-  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as AccountCreatedEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as AccountCreatedEvent);
 }
 
 export async function queryPlatformRegisteredEvents(network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformRegistered($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${config.PACKAGE_ID}::platform::PlatformRegistered` },
     network
   );
-  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
 }
 
 export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
@@ -249,7 +256,7 @@ export async function querySubscriptionCreatedEvents(accountId: string, network?
     network
   );
   return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
+    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionCreatedEvent)
     .filter((e) => e.account_id === accountId);
 }
 
@@ -257,7 +264,7 @@ export async function querySubscriptionCreatedEventsByPlatform(platformId: strin
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
@@ -265,7 +272,7 @@ export async function querySubscriptionCreatedEventsByPlatform(platformId: strin
     network
   );
   return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
+    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionCreatedEvent)
     .filter((e) => e.platform_id === platformId);
 }
 
@@ -277,14 +284,14 @@ export async function queryPaymentProcessedEvents(
     const config = getConfig(network);
     const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
     `query GetPaymentProcessed($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${config.PACKAGE_ID}::payment::PaymentProcessed` },
     network
   );
-  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentProcessedEvent);
+  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentProcessedEvent);
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
   }
@@ -298,14 +305,14 @@ export async function queryPaymentFailedEvents(accountId?: string, network?: Sup
     const config = getConfig(network);
     const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
     `query GetPaymentFailed($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
     { type: `${config.PACKAGE_ID}::payment::PaymentFailed` },
     network
   );
-  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentFailedEvent);
+  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentFailedEvent);
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
   }
@@ -316,7 +323,7 @@ export async function queryDepositEvents(accountId: string, network?: SupportedN
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
     `query GetDeposits($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
@@ -324,7 +331,7 @@ export async function queryDepositEvents(accountId: string, network?: SupportedN
     network
   );
   return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as DepositEvent)
+    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as DepositEvent)
     .filter((e) => e.account_id === accountId);
 }
 
@@ -335,7 +342,7 @@ export async function queryRecentEventsByType(
 ): Promise<Array<{ id: string; transactionDigest: string; timestamp: number; json: Record<string, unknown> }>> {
   const data = await executeQuery<{ events: { nodes: { timestamp: string; transaction: { digest: string }; contents: { json: Record<string, unknown> } }[] } }>(
     `query GetRecentEvents($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes {
           timestamp
           transaction { digest }
@@ -349,7 +356,7 @@ export async function queryRecentEventsByType(
   return (data.events?.nodes ?? []).map((n) => ({
     id: n.transaction.digest,
     transactionDigest: n.transaction.digest,
-    timestamp: new Date(n.timestamp).getTime(),
+    timestamp: parseEventTimestamp(n),
     json: n.contents?.json ?? {},
   })).slice(0, limit);
 }
@@ -361,7 +368,7 @@ export async function querySubscriptionUpdatedEventsByPlatform(
     const config = getConfig(network);
     const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionUpdatedEvent } }[] } }>(
     `query GetSubscriptionUpdated($type: String!) {
-      events(first: 50, filter: { type: $type }) {
+      events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
@@ -369,7 +376,7 @@ export async function querySubscriptionUpdatedEventsByPlatform(
     network
   );
   return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionUpdatedEvent)
+    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionUpdatedEvent)
     .filter((e) => e.platform_id === platformId);
 }
 

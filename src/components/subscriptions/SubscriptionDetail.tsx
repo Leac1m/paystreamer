@@ -183,7 +183,7 @@ export function SubscriptionDetail({
             </div>
             {paymentEvents && paymentEvents.length > 0 ? (
               <div className="space-y-2">
-                {paymentEvents.slice(0, 10).map((event: any, i: number) => (
+                {[...paymentEvents].sort((a, b) => b.timestamp - a.timestamp).slice(0, 10).map((event: any, i: number) => (
                   <div key={i} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
                     <div>
                       <p className="font-medium">

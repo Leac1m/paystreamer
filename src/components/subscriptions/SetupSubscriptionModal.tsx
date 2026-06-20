@@ -58,9 +58,16 @@ export function SetupSubscriptionModal({
   const THREE_MONTHS_MS = 90n * 24n * 60n * 60n * 1000n;
   let cyclesBuffer = THREE_MONTHS_MS / tierFrequencyMs;
   if (cyclesBuffer < 3n) cyclesBuffer = 3n;
-  if (cyclesBuffer > 100n) cyclesBuffer = 100n;
+  if (cyclesBuffer > 10n) cyclesBuffer = 10n;
   
-  const recommendedBuffer = tierAmount * cyclesBuffer;
+  let recommendedBuffer = tierAmount * cyclesBuffer;
+  const maxBuffer = parsePUSDToMist("100");
+  if (recommendedBuffer > maxBuffer) {
+    recommendedBuffer = maxBuffer;
+  }
+  if (recommendedBuffer < tierAmount) {
+    recommendedBuffer = tierAmount;
+  }
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   

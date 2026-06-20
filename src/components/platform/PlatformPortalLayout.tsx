@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2, ExternalLink } from "lucide-react";
@@ -73,7 +73,10 @@ export function PlatformPortalLayout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="font-semibold text-lg">Platform Portal</h2>
+            <Link to="/" className="flex items-center gap-3">
+              <img src="/logo.png" alt="PayStreamer Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_6px_rgba(108,99,255,0.5)]" />
+              <span className="font-bold">PayStreamer</span>
+            </Link>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
               <X className="h-5 w-5" />
             </button>

@@ -33,7 +33,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("Software");
+  const [category, setCategory] = useState("");
   const [iconUrl, setIconUrl] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
   function resetForm() {
     setName("");
     setDescription("");
-    setCategory("Software");
+    setCategory("");
     setIconUrl("");
     setUseDemoDefaults(false);
   }

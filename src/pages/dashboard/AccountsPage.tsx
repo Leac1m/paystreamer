@@ -69,7 +69,7 @@ export function AccountsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-4">
           {uniqueAccounts.map((acc) => (
             <AccountCard
               key={acc.accountId}

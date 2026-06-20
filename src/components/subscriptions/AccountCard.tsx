@@ -131,17 +131,17 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
 
         {expanded && (
           <div className="pt-4 border-t space-y-2">
-            <div className="text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Account ID:</span>
-                <span className="font-mono">{accountId}</span>
+            <div className="text-xs space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                <span className="text-muted-foreground shrink-0">Account ID:</span>
+                <span className="font-mono break-all text-left sm:text-right">{accountId}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cap ID:</span>
-                <span className="font-mono">{capId}</span>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                <span className="text-muted-foreground shrink-0">Cap ID:</span>
+                <span className="font-mono break-all text-left sm:text-right">{capId}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Denomination:</span>
+              <div className="flex justify-between gap-1">
+                <span className="text-muted-foreground shrink-0">Denomination:</span>
                 <span>{symbol}</span>
               </div>
             </div>

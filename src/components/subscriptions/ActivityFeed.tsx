@@ -133,7 +133,7 @@ export function ActivityFeed() {
   function exportCSV() {
     const headers = ["Timestamp", "Type", "Description", "Amount", "Status", "Digest"];
     const rows = filteredRows.map((r) => [
-      new Date(r.timestamp / 1_000_000).toISOString(),
+      new Date(r.timestamp).toISOString(),
       r.type,
       r.description,
       r.amount.toString(),
@@ -203,10 +203,10 @@ export function ActivityFeed() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => (
-                  <tr key={row.digest} className="border-b">
+                {filteredRows.map((row, index) => (
+                  <tr key={`${row.type}-${row.timestamp}-${index}`} className="border-b">
                     <td className="py-3 px-2 font-mono text-xs sticky left-0 bg-card">
-                      {new Date(row.timestamp / 1_000_000).toLocaleString()}
+                      {new Date(row.timestamp).toLocaleString()}
                     </td>
                     <td className="py-3 px-2">
                       {row.type === "payment" && (
@@ -230,12 +230,12 @@ export function ActivityFeed() {
                     </td>
                     <td className="py-3 px-2">
                       <button
-                        onClick={() => toggleExpand(row.digest)}
+                        onClick={() => toggleExpand(row.digest || `${row.type}-${index}`)}
                         className="hover:underline text-left"
                       >
                         {row.description}
                       </button>
-                      {expandedRows.has(row.digest) && row.reason && (
+                      {expandedRows.has(row.digest || `${row.type}-${index}`) && row.reason && (
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           {row.reason}

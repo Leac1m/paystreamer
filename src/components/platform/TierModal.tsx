@@ -17,6 +17,7 @@ import {  PUSD_TYPE_ARG } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { useTxToast, generateToastId } from "../TxStatusToast";
 import { useAppConfig } from "../../hooks/useAppConfig";
+import { formatFrequency } from "../../lib/format";
 
 interface TierModalProps {
   open: boolean;
@@ -35,13 +36,7 @@ interface TierModalProps {
 
 type BillingCycle = "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
-const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-  custom: "Custom (Seconds)",
-};
+
 
 const BILLING_CYCLE_SECONDS: Record<BillingCycle, number> = {
   daily: 86400,
@@ -94,7 +89,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       : BILLING_CYCLE_SECONDS[billingCycle] * 1000;
 
   const previewAmount = amount
-    ? `$${parseFloat(amount).toFixed(2)} USD/${BILLING_CYCLE_LABELS[billingCycle].toLowerCase()}`
+    ? `${parseFloat(amount).toFixed(2)} PUSD / ${formatFrequency({ frequency_ms: String(frequencySeconds) })}`
     : "";
 
   async function handleSubmit() {
@@ -205,12 +200,18 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Amount</label>
-            <Input
-              type="number"
-              placeholder="9.99"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type="number"
+                placeholder="9.99"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="pr-16"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <span className="text-muted-foreground text-sm">PUSD</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -244,7 +245,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
           {previewAmount && (
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">Live Preview</p>
-              <p className="text-lg font-semibold">{previewAmount.replace("SUI", "USD")}</p>
+              <p className="text-lg font-semibold">{previewAmount}</p>
             </div>
           )}
 

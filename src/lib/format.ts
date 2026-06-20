@@ -30,3 +30,56 @@ export function symbolFor(_type?: string): string {
 export function getDenominationDecimals(_type?: string): number {
     return APP_COIN_DECIMALS;
 }
+
+const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
+
+export interface TierInfo {
+  name?: string;
+  amount?: string;
+  frequency_ms?: string;
+  frequency?: string | { variant: number };
+  is_active?: boolean;
+}
+
+export function formatFrequency(tier: TierInfo): string {
+  const freq = tier.frequency_ms || tier.frequency;
+  if (typeof freq === "object" && freq !== null && "variant" in freq) {
+    return FREQUENCY_LABELS[freq.variant] || "Unknown";
+  }
+  const fStr = String(freq);
+  if (fStr === "86400000") return "Daily";
+  if (fStr === "604800000") return "Weekly";
+  if (fStr === "2592000000") return "Monthly";
+  if (fStr === "31536000000") return "Yearly";
+  if (fStr === "daily" || fStr === "weekly" || fStr === "monthly" || fStr === "yearly") {
+    return fStr.charAt(0).toUpperCase() + fStr.slice(1);
+  }
+  
+  const ms = parseInt(fStr);
+  if (!Number.isNaN(ms) && ms > 0) {
+    if (ms < 3600000) {
+      const mins = Math.round(ms / 60000);
+      return `${mins} ${mins === 1 ? 'min' : 'mins'}`;
+    }
+    if (ms < 86400000) {
+      const hours = Math.round(ms / 3600000);
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    }
+    const days = Math.round(ms / 86400000);
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
+  }
+  return "Unknown";
+}
+
+export function getFrequencyMs(tier: TierInfo): bigint {
+  const freq = tier.frequency_ms || tier.frequency;
+  if (typeof freq === "object" && freq !== null && "variant" in freq) {
+    return BigInt(freq.variant === 0 ? 86400000 : freq.variant === 1 ? 604800000 : 2592000000);
+  }
+  const fStr = String(freq);
+  if (fStr === "daily") return BigInt(86400000);
+  if (fStr === "weekly") return BigInt(604800000);
+  if (fStr === "monthly") return BigInt(2592000000);
+  if (fStr === "yearly") return BigInt(31536000000);
+  return BigInt(fStr || "2592000000");
+}

@@ -14,7 +14,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { TierModal } from "./TierModal";
 import { getErrorMessage } from "../../lib/errors";
-import { formatMistToPUSD } from "../../lib/format";
+import { formatMistToPUSD, formatFrequency } from "../../lib/format";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface TierCardProps {
@@ -30,13 +30,6 @@ interface TierCardProps {
   tierIndex: number;
 }
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-  custom: "Custom",
-};
 
 
 export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: TierCardProps) {
@@ -48,8 +41,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const freqLabel =
-    FREQUENCY_LABELS[tier.frequency?.toLowerCase()] || tier.frequency || "Monthly";
+  const freqLabel = formatFrequency(tier);
 
   async function deactivateTier() {
     if (!account) return;

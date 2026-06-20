@@ -13,7 +13,7 @@ import {
 } from "../ui/card";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "../ui/modal";
 import { parseMoveError, isRetryableError } from "../../lib/errors";
-import { formatMistToPUSD } from "../../lib/format";
+import { formatMistToPUSD, formatFrequency } from "../../lib/format";
 import { TxStatusToast } from "../TxStatusToast";
 import { TxStatus } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
@@ -44,18 +44,6 @@ interface SubscriptionCardProps {
   onExpand?: () => void;
 }
 
-function getFrequencyLabel(ms: string | number): string {
-  const raw = typeof ms === "string" ? parseInt(ms) : ms;
-  const safeRaw = Number.isNaN(raw) || !raw ? 0 : raw;
-  if (safeRaw === 0) return "Unknown";
-  if (safeRaw === 86400000) return "Daily";
-  if (safeRaw === 604800000) return "Weekly";
-  if (safeRaw === 2592000000) return "Monthly";
-  if (safeRaw === 31536000000) return "Yearly";
-  if (safeRaw < 3600000) return `${Math.round(safeRaw / 60000)} mins`;
-  if (safeRaw < 86400000) return `${Math.round(safeRaw / 3600000)} hours`;
-  return `${Math.round(safeRaw / 86400000)} days`;
-}
 
 export function SubscriptionCard({
   accountId,
@@ -353,7 +341,7 @@ export function SubscriptionCard({
             <div>
               <p className="text-sm text-muted-foreground">Frequency</p>
               <p className="text-lg font-semibold">
-                {getFrequencyLabel((subscription as any).frequency_ms || (subscription as any).tier_frequency_ms || (subscription as any).schedule_frequency_ms)}
+                {formatFrequency({ frequency_ms: String((subscription as any).frequency_ms || (subscription as any).tier_frequency_ms || (subscription as any).schedule_frequency_ms) })}
               </p>
             </div>
           </div>

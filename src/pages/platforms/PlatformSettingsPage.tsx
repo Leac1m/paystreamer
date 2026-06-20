@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useOutletContext, useNavigate } from "react-router-dom";
@@ -16,11 +16,18 @@ export function PlatformSettingsPage() {
   const navigate = useNavigate();
   const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(platform?.json.name || "");
+  const [description, setDescription] = useState(platform?.json.description || "");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isPendingTx, setIsPendingTx] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (platform) {
+      setName(platform.json.name || "");
+      setDescription(platform.json.description || "");
+    }
+  }, [platform]);
 
   if (!platform) {
     return (
