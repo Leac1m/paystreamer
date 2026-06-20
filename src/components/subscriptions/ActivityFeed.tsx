@@ -61,7 +61,7 @@ export function ActivityFeed() {
     queryFn: async () => {
       if (accountIds.length === 0) return [];
       // Query for all accounts and flatten
-      const promises = accountIds.map(id => queryPaymentProcessedEvents(id, config.network));
+      const promises = accountIds.map(id => queryPaymentProcessedEvents(id, undefined, config.network));
       const results = await Promise.all(promises);
       return results.flat();
     },

@@ -168,7 +168,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
           <div className="space-y-2">
             <label className="text-sm font-medium">Icon URL (Optional)</label>
             <Input
-              placeholder="https://example.com/icon.png"
+              placeholder="https://example.com/logo.png"
               value={iconUrl}
               onChange={(e) => setIconUrl(e.target.value)}
             />

@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "../ui/button";
-import { NetworkBanner } from "./NetworkBanner";
+
 import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -32,7 +32,7 @@ export function DashboardLayout() {
   if (!account) {
     return (
       <div className="min-h-screen bg-background">
-        <NetworkBanner />
+
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center flex flex-col items-center">
             <h2 className="text-2xl font-bold mb-4">Dashboard Access</h2>
@@ -61,7 +61,7 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NetworkBanner />
+
 
       <div className="flex">
         <aside
@@ -71,13 +71,7 @@ export function DashboardLayout() {
         >
           <div className="p-4 border-b">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white" fillOpacity="0.9" />
-                  <path d="M2 17L12 22L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
+              <img src="/logo.png" alt="PayStreamer Logo" className="w-8 h-8 object-contain drop-shadow-[0_0_6px_rgba(108,99,255,0.5)]" />
               <span className="font-bold">PayStreamer</span>
             </Link>
           </div>

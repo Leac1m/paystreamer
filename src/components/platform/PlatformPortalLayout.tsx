@@ -4,7 +4,7 @@ import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { NetworkBanner } from "../dashboard/NetworkBanner";
+
 import { useOwnedPlatforms, PlatformObject } from "../../lib/platformDiscovery";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { Button } from "../ui/button";
@@ -39,7 +39,7 @@ export function PlatformPortalLayout() {
   if (!account) {
     return (
       <div className="min-h-screen bg-[#0a0a0f]">
-        <NetworkBanner />
+
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center flex flex-col items-center">
             <h2 className="text-2xl font-bold text-white mb-4">Platform Portal Access</h2>
@@ -65,7 +65,7 @@ export function PlatformPortalLayout() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      <NetworkBanner />
+
 
       <div className="flex">
         <aside className={cn(

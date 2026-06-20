@@ -141,7 +141,10 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
     return `$${total.toFixed(2)}`;
   }, [monthlyPaymentEvents]);
 
-  const activeSubscribers = Number(fields.subscriber_count || 0);
+  const activeSubscribers = useMemo(() => {
+    if (!fields.tiers || !Array.isArray(fields.tiers)) return 0;
+    return fields.tiers.reduce((sum, tier) => sum + (Number(tier.subscriber_count) || 0), 0);
+  }, [fields.tiers]);
 
   const churnRate = useMemo(() => {
     if (activeSubscribers === 0) return "—";

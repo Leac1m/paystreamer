@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { CheckCircle, HelpCircle, CreditCard, Shield, Globe, Zap } from 'lucide-react';
 import NavBar from '../components/NavBar';
-import { NetworkBanner } from '../components/dashboard/NetworkBanner';
+
 import { Button } from '../components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -51,7 +51,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <div className="noise" />
-      <NetworkBanner />
+
       <NavBar />
 
       <main className="pt-32 pb-24">
