@@ -10,6 +10,7 @@ import { CheckCircle, Wallet, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import NavBar from "../components/NavBar";
 
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
 import { queryAccountCreatedEvents, queryAccount, queryCoins, queryPlatform } from "../lib/graphql";
@@ -44,9 +45,16 @@ function formatFrequency(tier: TierInfo): string {
   
   const ms = parseInt(fStr);
   if (!Number.isNaN(ms) && ms > 0) {
-    if (ms < 3600000) return `${Math.round(ms / 60000)} mins`;
-    if (ms < 86400000) return `${Math.round(ms / 3600000)} hours`;
-    return `${Math.round(ms / 86400000)} days`;
+    if (ms < 3600000) {
+      const mins = Math.round(ms / 60000);
+      return `${mins} ${mins === 1 ? 'min' : 'mins'}`;
+    }
+    if (ms < 86400000) {
+      const hours = Math.round(ms / 3600000);
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    }
+    const days = Math.round(ms / 86400000);
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
   }
   return "Unknown";
 }
@@ -175,37 +183,9 @@ export default function SubscribePage() {
     <div className="min-h-screen bg-[#0a0a0f]">
       <div className="noise" />
 
+      <NavBar />
 
-      <header className="glass py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <a href="/" className="flex items-center gap-3">
-              <img src="/logo.png" alt="PayStreamer Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(108,99,255,0.5)]" />
-              <span className="text-xl font-bold text-white">PayStreamer</span>
-            </a>
-
-            {account ? (
-              <div className="flex items-center gap-2 text-sm text-[#94a3b8]">
-                <span className="font-mono">
-                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
-                </span>
-              </div>
-            ) : isConnecting ? (
-              <Button disabled>
-                <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                Connecting...
-              </Button>
-            ) : (
-              <Button onClick={() => modalRef.current?.show()}>
-                <Wallet size={16} className="mr-2" />
-                Connect Wallet
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
         {platformLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-[#6c63ff]" />
@@ -337,7 +317,7 @@ export default function SubscribePage() {
                     </table>
                   </div>
                 )}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className={`grid gap-6 ${activeTiers.length === 1 ? "max-w-md mx-auto" : "md:grid-cols-2 lg:grid-cols-3"}`}>
                   {activeTiers.map((tier: any, index: number) => {
 
 

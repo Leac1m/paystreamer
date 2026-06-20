@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Layers, Users, Zap, ExternalLink, Sparkles } from "lucide-react";
+import { Layers, Users, Zap, ArrowRight, Sparkles, ExternalLink } from "lucide-react";
 import NavBar from "../components/NavBar";
 import { DEMO_PLATFORM_ID } from "../constants";
 
@@ -119,7 +119,7 @@ export function ExplorePage() {
                     onClick={() => navigate(`/subscribe/${platform.objectId}`)}
                   >
                     View Plans
-                    <ExternalLink className="w-4 h-4 ml-2 opacity-70" />
+                    <ArrowRight className="w-4 h-4 ml-2 opacity-70" />
                   </Button>
                 </CardFooter>
               </Card>

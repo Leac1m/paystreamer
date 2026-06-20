@@ -55,7 +55,12 @@ export function SetupSubscriptionModal({
   const { executeSponsored } = useSponsoredTransaction();
   
   const hasAccount = !!accountId && !!accountCapId;
-  const recommendedBuffer = tierAmount * 30n;
+  const THREE_MONTHS_MS = 90n * 24n * 60n * 60n * 1000n;
+  let cyclesBuffer = THREE_MONTHS_MS / tierFrequencyMs;
+  if (cyclesBuffer < 3n) cyclesBuffer = 3n;
+  if (cyclesBuffer > 100n) cyclesBuffer = 100n;
+  
+  const recommendedBuffer = tierAmount * cyclesBuffer;
   const shortfall = currentBalance < recommendedBuffer ? recommendedBuffer - currentBalance : 0n;
   const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
   
@@ -257,23 +262,23 @@ export function SetupSubscriptionModal({
                 <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Tier Amount</span>
-                    <span className="font-semibold">{tierAmountUsd.toFixed(2)} USD</span>
+                    <span className="font-semibold">{tierAmountUsd.toFixed(2)} PUSD</span>
                   </div>
                   {hasAccount && (
                     <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
                       <span className="text-muted-foreground">Current Balance</span>
-                      <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} USD</span>
+                      <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} PUSD</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
-                    <span className="text-muted-foreground">Wallet Balance (PUSD)</span>
-                    <span className="font-semibold">{walletBalanceUsd.toFixed(2)} USD</span>
+                    <span className="text-muted-foreground">Wallet Balance</span>
+                    <span className="font-semibold">{walletBalanceUsd.toFixed(2)} PUSD</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {hasAccount ? "Additional Deposit (USD)" : "Initial Deposit (USD)"}
+                    {hasAccount ? "Additional Deposit (PUSD)" : "Initial Deposit (PUSD)"}
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -292,9 +297,9 @@ export function SetupSubscriptionModal({
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {minDepositUsd > 0 
-                      ? `Minimum required: ${minDepositUsd.toFixed(2)} USD to cover the first cycle.`
+                      ? `Minimum required: ${minDepositUsd.toFixed(2)} PUSD to cover the first cycle.`
                       : "Your existing balance covers the first cycle."}
-                    {" "}We recommend a buffer of at least 3 months to avoid interruptions.
+                    {" "}We recommend keeping a buffer to avoid interruptions.
                   </p>
                 </div>
 
@@ -306,8 +311,7 @@ export function SetupSubscriptionModal({
                     <Button 
                       onClick={handleMintPusd} 
                       disabled={isPending}
-                      variant="outline" 
-                      className="w-full border-red-200 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium"
                     >
                       Mint 1,000 Test PUSD
                     </Button>
@@ -319,7 +323,7 @@ export function SetupSubscriptionModal({
                   disabled={isPending || hasInsufficientWalletBalance}
                   loading={isPending}
                   variant="gradient"
-                  className="w-full py-6 text-lg"
+                  className="w-full py-6 text-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale"
                 >
                   {hasAccount 
                     ? (parseFloat(depositAmount || "0") > 0 ? "Fill Up & Subscribe" : "Subscribe Now") 
