@@ -29,7 +29,7 @@ const FAQ_ITEMS = [
   },
   {
     question: 'What currencies are supported?',
-    answer: 'Currently PayStreamer exclusively supports our native stablecoin (PUSD).',
+    answer: 'Currently USDC and SUI on Sui. Additional stablecoins can be added via the Coin Type Registry.',
   },
   {
     question: 'Can subscribers cancel their subscription?',

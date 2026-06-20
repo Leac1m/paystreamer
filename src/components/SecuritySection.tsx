@@ -47,7 +47,7 @@ export default function SecuritySection() {
             <div className="relative bg-black/40 rounded-2xl p-6 mb-6">
               {/* Object Container */}
               <div className="border-2 border-dashed border-[#6c63ff]/30 rounded-xl p-6">
-                <div className="text-xs text-[#94a3b8] mb-4 font-mono">subscription_account::SharedObject</div>
+                <div className="text-xs text-[#94a3b8] mb-4 font-mono">account::SubscriptionAccount</div>
 
                 {/* Balance */}
                 <div className="bg-[#10b981]/10 border border-[#10b981]/30 rounded-lg p-4 mb-4">
@@ -129,9 +129,9 @@ export default function SecuritySection() {
               </div>
 
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Bot Delegation</h4>
+                <h4 className="text-white font-medium mb-2">Permissionless Execution</h4>
                 <p className="text-sm text-[#94a3b8]">
-                  The SchedulerCap safely allows automated server cron jobs to execute withdrawals without needing to hold sensitive admin keys.
+                  Withdrawals are permissionless. Anyone (or any decentralized cron network) can process due payments without needing sensitive admin keys.
                 </p>
               </div>
 
@@ -172,7 +172,7 @@ export default function SecuritySection() {
               </div>
               <h4 className="text-white font-medium mb-2">Contract Validation</h4>
               <p className="text-sm text-[#94a3b8]">
-                Sui validates the SchedulerCap and ensures the requested users are actually due for billing.
+                Smart contracts evaluate on-chain time policies and ensure the requested users are actually due for billing before any funds move.
               </p>
             </div>
 

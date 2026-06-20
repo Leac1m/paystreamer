@@ -44,10 +44,10 @@ export default function HeroSection() {
             animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 30 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
+            {/* <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-6">
               <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
               <span className="text-sm text-[#94a3b8]">Built on Sui Blockchain</span>
-            </div>
+            </div> */}
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
               <span className="text-white">Automate Your Crypto Subscriptions. </span>

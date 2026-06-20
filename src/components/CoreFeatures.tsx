@@ -11,7 +11,7 @@ export default function CoreFeatures() {
     {
       icon: <DollarSign size={24} className="text-[#6c63ff]" />,
       title: 'Stablecoin Settlement',
-      description: 'Subscriptions are priced and settled in USDC/USDT. Protects your revenue from crypto volatility and simplifies accounting.'
+      description: 'Subscriptions are priced and settled in USDC/USDT (or other custom tokens). Protects your revenue from crypto volatility and simplifies accounting.'
     },
     {
       icon: <ShieldCheck size={24} className="text-[#3b82f6]" />,
