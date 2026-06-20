@@ -32,8 +32,8 @@ function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
 }
 
-function formatExplorerLink(address: string): string {
-  return `https://explorer.sui.io/address/${address}?network=devnet`;
+function formatExplorerLink(address: string, network: string): string {
+  return `https://suiscan.xyz/${network}/account/${address}`;
 }
 
 function getTimeRemaining(changeTimeMs: number): { hours: number; minutes: number; seconds: number; isEligible: boolean } {
@@ -207,7 +207,7 @@ export function TreasuryManager({
                   <Copy className="h-4 w-4" />
                 </button>
                 <a
-                  href={formatExplorerLink(currentTreasury)}
+                  href={formatExplorerLink(currentTreasury, config.network)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground"

@@ -24,7 +24,7 @@ const STAGES: { key: Stage; label: string; detail: string; icon: React.ReactNode
   {
     key: 'paid',
     label: 'Paid',
-    detail: '0.001 SUI sent',
+    detail: '0.001 PUSD sent',
     icon: <CheckCircle2 size={20} className="text-white" />,
     accent: '#10b981',
   },
@@ -222,7 +222,7 @@ export default function DemoFlowAnimation() {
           >
             <Activity size={12} className="text-[#10b981]" />
             <span>
-              Subscription <SubscriptionHash /> paid 0.001 SUI <AgeTicker />
+              Subscription <SubscriptionHash /> paid 0.001 PUSD <AgeTicker />
             </span>
           </motion.div>
         </div>

@@ -13,7 +13,6 @@ interface OnboardModalProps {
 
 const SUI_WALLET_URL = "https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil";
 const SUIET_URL = "https://suiet.app/";
-const FAUCET_URL = "https://faucet.sui.io/?network=devnet";
 
 export function OnboardModal({ open, onClose }: OnboardModalProps) {
   const account = useCurrentAccount();
@@ -121,22 +120,6 @@ export function OnboardModal({ open, onClose }: OnboardModalProps) {
                     </a>
                   </div>
                 </div>
-
-                <a
-                  href={FAUCET_URL}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-[#10b981]/30 bg-[#10b981]/5 hover:bg-[#10b981]/10 transition-colors"
-                >
-                  <Coins className="w-4 h-4 text-[#10b981] mt-0.5 shrink-0" />
-                  <div className="text-sm flex-1">
-                    <span className="font-medium">Get free devnet SUI</span>
-                    <p className="text-xs text-muted-foreground">
-                      You'll need a tiny amount of SUI to pay gas for the registration transaction.
-                    </p>
-                  </div>
-                  <ExternalLink size={14} className="text-muted-foreground mt-0.5" />
-                </a>
 
                 <Button
                   onClick={() => connectModalRef.current?.show()}
