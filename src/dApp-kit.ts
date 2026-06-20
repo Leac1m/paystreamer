@@ -26,8 +26,8 @@ export const dAppKit = createDAppKit({
   // should only be used for testing/development. Never enable this in production with
   // real funds or on mainnet.
   enableBurnerWallet: import.meta.env.DEV,
-  networks: ["mainnet", "testnet", "devnet"],
-  defaultNetwork: NETWORK as any,
+  networks: import.meta.env.PROD ? ["testnet"] : ["mainnet", "testnet", "devnet"],
+  defaultNetwork: import.meta.env.PROD ? "testnet" : (NETWORK as any),
   createClient(network) {
     const mvr = makeMvrOverrides({
       subscriptions: GRPC_URLS[network] === GRPC_URLS.mainnet

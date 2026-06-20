@@ -40,6 +40,11 @@ export default function NetworkSelector({
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
+
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
