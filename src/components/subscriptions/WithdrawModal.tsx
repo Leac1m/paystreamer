@@ -12,6 +12,7 @@ import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
 } from "../../constants";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function WithdrawModal({
   denomination,
   onSuccess,
 }: WithdrawModalProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
@@ -70,7 +72,7 @@ export function WithdrawModal({
       tx.setGasBudget(100_000_000);
 
       const [withdrawnCoin] = tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::withdraw`,
+        target: `${config.PACKAGE_ID}::account::withdraw`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),

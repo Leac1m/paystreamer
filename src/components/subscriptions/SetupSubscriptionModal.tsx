@@ -18,6 +18,7 @@ import {
   PUSD_TYPE_ARG,
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SetupSubscriptionModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export function SetupSubscriptionModal({
   walletBalanceUsd = 0,
   onSuccess,
 }: SetupSubscriptionModalProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const navigate = useNavigate();
@@ -123,7 +125,7 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         const [newAccountObj, newCap] = tx.moveCall({
-          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
+          target: `${config.PACKAGE_ID}::account::create_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(COIN_TYPE_REGISTRY_ID),
@@ -145,14 +147,14 @@ export function SetupSubscriptionModal({
         const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
         
         tx.moveCall({
-          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+          target: `${config.PACKAGE_ID}::account::deposit`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingCap, workingAccountObj, splitCoin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
 
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::create_subscription`,
+        target: `${config.PACKAGE_ID}::billing::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           workingCap,
@@ -167,7 +169,7 @@ export function SetupSubscriptionModal({
 
       if (!hasAccount) {
         tx.moveCall({
-          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
+          target: `${config.PACKAGE_ID}::account::share_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [workingAccountObj, workingCap],
         });

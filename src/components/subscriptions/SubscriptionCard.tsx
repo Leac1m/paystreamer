@@ -24,6 +24,7 @@ import {
   CLOCK_OBJECT_ID,
 } from "../../constants";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SubscriptionCardProps {
   accountId: string;
@@ -66,6 +67,7 @@ export function SubscriptionCard({
   denomination,
   onExpand,
 }: SubscriptionCardProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
@@ -79,7 +81,7 @@ export function SubscriptionCard({
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const { data: platform } = useQuery({
-    queryKey: ["platform", platformId],
+    queryKey: ["platform", platformId, config.network],
     queryFn: async () => {
       const { object } = await client.core.getObject({
         objectId: platformId,
@@ -126,7 +128,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::pause_subscription`,
+        target: `${config.PACKAGE_ID}::billing::pause_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -163,7 +165,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::resume_subscription`,
+        target: `${config.PACKAGE_ID}::billing::resume_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -200,7 +202,7 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${config.PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),
@@ -243,16 +245,16 @@ export function SubscriptionCard({
     try {
       const tx = new Transaction();
       const limiters = tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::empty_limiters`,
+        target: `${config.PACKAGE_ID}::policies::empty_limiters`,
         arguments: [tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::policies::ensure_initialized`,
+        target: `${config.PACKAGE_ID}::policies::ensure_initialized`,
         typeArguments: [denomination],
         arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
       });
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::scheduler::process_due_payment`,
+        target: `${config.PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [denomination],
         arguments: [
           tx.sharedObjectRef({

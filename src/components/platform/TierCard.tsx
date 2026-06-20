@@ -16,6 +16,7 @@ import { TierModal } from "./TierModal";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { formatMistToPUSD } from "../../lib/format";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface TierCardProps {
   platformId: string;
@@ -40,6 +41,7 @@ const FREQUENCY_LABELS: Record<string, string> = {
 
 
 export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: TierCardProps) {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
@@ -58,7 +60,7 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::deactivate_tier_by_index`,
+      target: `${config.PACKAGE_ID}::platform::deactivate_tier_by_index`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

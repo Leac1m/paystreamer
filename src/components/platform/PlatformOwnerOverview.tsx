@@ -15,6 +15,7 @@ import {
   querySubscriptionCreatedEventsByPlatform,
   querySubscriptionUpdatedEventsByPlatform,
 } from "../../lib/graphql";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface PlatformOwnerOverviewProps {
   platform: PlatformObject;
@@ -28,6 +29,7 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
+    const config = useAppConfig();
   return (
     <Card>
       <CardContent className="p-4">
@@ -96,13 +98,14 @@ type RecentActivityItem = {
 };
 
 export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) {
+    const config = useAppConfig();
   const fields = platform.json;
   const platformId = platform.objectId;
 
   const { data: monthlyPaymentEvents } = useQuery({
-    queryKey: ["payment-events-this-month", platformId],
+    queryKey: ["payment-events-this-month", platformId, config.network],
     queryFn: async () => {
-      const events = await queryPaymentProcessedEvents(undefined, platformId);
+      const events = await queryPaymentProcessedEvents(undefined, platformId, config.network);
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       return events.filter((e) => Number(e.timestamp) >= startOfMonth);
@@ -111,20 +114,20 @@ export function PlatformOwnerOverview({ platform }: PlatformOwnerOverviewProps) 
   });
 
   const { data: allPaymentEvents } = useQuery({
-    queryKey: ["payment-events-all", platformId],
-    queryFn: () => queryPaymentProcessedEvents(undefined, platformId),
+    queryKey: ["payment-events-all", platformId, config.network],
+    queryFn: () => queryPaymentProcessedEvents(undefined, platformId, config.network),
     enabled: !!platformId,
   });
 
   const { data: subscriptionEvents } = useQuery({
-    queryKey: ["subscription-created-events", platformId],
-    queryFn: () => querySubscriptionCreatedEventsByPlatform(platformId),
+    queryKey: ["subscription-created-events", platformId, config.network],
+    queryFn: () => querySubscriptionCreatedEventsByPlatform(platformId, config.network),
     enabled: !!platformId,
   });
 
   const { data: subscriptionUpdatedEvents } = useQuery({
-    queryKey: ["subscription-updated-events", platformId],
-    queryFn: () => querySubscriptionUpdatedEventsByPlatform(platformId),
+    queryKey: ["subscription-updated-events", platformId, config.network],
+    queryFn: () => querySubscriptionUpdatedEventsByPlatform(platformId, config.network),
     enabled: !!platformId,
   });
 

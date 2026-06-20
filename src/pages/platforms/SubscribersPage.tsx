@@ -3,24 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 import { PlatformObject } from "../../lib/platformDiscovery";
 import { SubscriberTable } from "../../components/platform/SubscriberTable";
 import { querySubscriptionCreatedEventsByPlatform, queryPaymentProcessedEvents } from "../../lib/graphql";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function SubscribersPage() {
+    const config = useAppConfig();
   const { platform } = useOutletContext<{ platform: PlatformObject | undefined }>();
 
   const { data: subscriptionEvents, isPending: subEventsPending } = useQuery({
-    queryKey: ["platform-subscriptions", platform?.objectId],
+    queryKey: ["platform-subscriptions", platform?.objectId, config.network],
     queryFn: async () => {
       if (!platform?.objectId) return [];
-      return await querySubscriptionCreatedEventsByPlatform(platform.objectId);
+      return await querySubscriptionCreatedEventsByPlatform(platform.objectId, config.network);
     },
     enabled: !!platform?.objectId,
   });
 
   const { data: paymentEvents, isPending: paymentsPending } = useQuery({
-    queryKey: ["platform-payments", platform?.objectId],
+    queryKey: ["platform-payments", platform?.objectId, config.network],
     queryFn: async () => {
       if (!platform?.objectId) return [];
-      return await queryPaymentProcessedEvents(undefined, platform.objectId);
+      return await queryPaymentProcessedEvents(undefined, platform.objectId, config.network);
     },
     enabled: !!platform?.objectId,
   });

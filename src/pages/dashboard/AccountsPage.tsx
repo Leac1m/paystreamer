@@ -7,6 +7,7 @@ import { AccountCard } from "../../components/subscriptions/AccountCard";
 import { CreateAccountModal } from "../../components/subscriptions/CreateAccountModal";
 import { PlusCircle } from "lucide-react";
 import { queryAccountCreatedEvents } from "../../lib/graphql";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface AccountInfo {
   accountId: string;
@@ -15,14 +16,15 @@ interface AccountInfo {
 }
 
 export function AccountsPage() {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const [modalOpen, setModalOpen] = useState(false);
 
   const { data: accountCreatedEvents, isPending } = useQuery({
-    queryKey: ["account-created-events", account?.address],
+    queryKey: ["account-created-events", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
-      return await queryAccountCreatedEvents(account.address);
+      return await queryAccountCreatedEvents(account.address, config.network);
     },
     enabled: !!account?.address,
   });

@@ -15,6 +15,7 @@ import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import { Button } from "../components/ui/button";
 import { GRAPHQL_URL, SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
+import { useAppConfig } from "../hooks/useAppConfig";
 
 const PLATFORM_FEE_PERCENT = 2.5;
 
@@ -24,6 +25,7 @@ interface PlatformInfo {
 }
 
 export default function LandingPage() {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const { isConnecting } = useWalletConnection();
   const navigate = useNavigate();
@@ -35,7 +37,7 @@ export default function LandingPage() {
   }, []);
 
   const { data: recentPlatforms } = useQuery({
-    queryKey: ["recent-platforms"],
+    queryKey: ["recent-platforms", config.network],
     queryFn: async () => {
       const now = Date.now();
       const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -51,7 +53,7 @@ export default function LandingPage() {
                 first: 50,
                 after: $after,
                 filter: {
-                  type: "${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered",
+                  type: "${config.PACKAGE_ID}::platform::PlatformRegistered",
                   timeRange: { startTime: "${thirtyDaysAgoTimestamp}" }
                 }
               ) {

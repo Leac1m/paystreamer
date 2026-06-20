@@ -23,6 +23,7 @@ import {
 } from "../../constants";
 import { queryCoins } from "../../lib/graphql";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 type Step = "denomination" | "deposit" | "confirm";
 
@@ -33,6 +34,7 @@ interface CreateAccountModalProps {
 }
 
 export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountModalProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
@@ -98,7 +100,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       const tx = new Transaction();
 
       const [accountObj, cap] = tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::create_account`,
+        target: `${config.PACKAGE_ID}::account::create_account`,
         typeArguments: [selectedDenomination],
         arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
       });
@@ -118,14 +120,14 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         }
         
         tx.moveCall({
-          target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+          target: `${config.PACKAGE_ID}::account::deposit`,
           typeArguments: [selectedDenomination],
           arguments: [cap, accountObj, primaryCoin, tx.object(CLOCK_OBJECT_ID)],
         });
       }
 
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::share_account`,
+        target: `${config.PACKAGE_ID}::account::share_account`,
         typeArguments: [selectedDenomination],
         arguments: [accountObj, cap],
       });

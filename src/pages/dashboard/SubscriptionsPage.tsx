@@ -31,8 +31,10 @@ interface SubscriptionInfo {
 }
 
 import { queryAccountCreatedEvents, queryPlatformInitialVersions } from "../../lib/graphql";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function SubscriptionsPage() {
+    const config = useAppConfig();
   const navigate = useNavigate();
   const client = useCurrentClient();
   const account = useCurrentAccount();
@@ -40,11 +42,11 @@ export function SubscriptionsPage() {
   const [expandedSub, setExpandedSub] = useState<SubscriptionInfo | null>(null);
 
   const { data: accountObjects, isPending } = useQuery({
-    queryKey: ["subscription-accounts", account?.address],
+    queryKey: ["subscription-accounts", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
       
-      const events = await queryAccountCreatedEvents(account.address);
+      const events = await queryAccountCreatedEvents(account.address, config.network);
       const capMap = new Map<string, string>();
       events.forEach(e => capMap.set(e.account_id, e.cap_id));
       const accountIds = Array.from(capMap.keys());
@@ -102,11 +104,11 @@ export function SubscriptionsPage() {
   }
 
   const { data: platformVersions } = useQuery({
-    queryKey: ["platform-versions", subscriptionsRaw.map((s) => s.platformId).join(",")],
+    queryKey: ["platform-versions", subscriptionsRaw.map((s) => s.platformId).join(","), config.network],
     queryFn: async () => {
       const ids = Array.from(new Set(subscriptionsRaw.map((s) => s.platformId).filter(Boolean)));
       if (ids.length === 0) return new Map<string, number>();
-      const infos = await queryPlatformInitialVersions(ids);
+      const infos = await queryPlatformInitialVersions(ids, config.network);
       return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
     },
     enabled: subscriptionsRaw.length > 0,

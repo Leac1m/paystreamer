@@ -35,8 +35,8 @@ import {
   V3_COIN_TYPE_REGISTRY_ID,
   V3_COIN_TYPE_REGISTRY_INIT_VERSION,
   V3_PACKAGE_ID,
-  V3_PAYMENT_SCHEDULER_ID,
-  V3_PAYMENT_SCHEDULER_INIT_VERSION,
+  PAYMENT_SCHEDULER_ID,
+  PAYMENT_SCHEDULER_INIT_VERSION,
   V2_GRAPHQL_URL,
   V2_NETWORK,
   PUSD_PACKAGE_ID,
@@ -244,7 +244,7 @@ async function fetchTreasuryCoinBalance(
 
 // Shared object initial versions captured at publish time.
 const SHARED_INIT_VERSION_REGISTRY = V3_COIN_TYPE_REGISTRY_INIT_VERSION;
-const SHARED_INIT_VERSION_SCHEDULER = V3_PAYMENT_SCHEDULER_INIT_VERSION;
+const SHARED_INIT_VERSION_SCHEDULER = PAYMENT_SCHEDULER_INIT_VERSION;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
 
 function sharedObjectMut(id: string, initialVersion: number) {
@@ -345,7 +345,7 @@ async function main() {
     url: V2_GRAPHQL_URL,
     network: V2_NETWORK,
   });
-  const rpcClient = new SuiJsonRpcClient({ url: "https://fullnode.devnet.sui.io:443", network: "devnet" });
+  const rpcClient = new SuiJsonRpcClient({ url: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 
   console.log("======================================================");
   console.log(" PayStreamer v3 — E2E Payment Cycle");
@@ -353,7 +353,7 @@ async function main() {
   console.log(`network:        ${V2_NETWORK}`);
   console.log(`package:        ${V3_PACKAGE_ID}`);
   console.log(`sender:         ${sender}`);
-  console.log(`scheduler:      ${V3_PAYMENT_SCHEDULER_ID}`);
+  console.log(`scheduler:      ${PAYMENT_SCHEDULER_ID}`);
   console.log(`registry:       ${V3_COIN_TYPE_REGISTRY_ID}`);
   console.log(`PUSD type:      ${PUSD_TYPE_ARG}`);
 
@@ -633,7 +633,7 @@ async function main() {
       target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
-        sharedObjectMut(V3_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
+        sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         tx.object(summary.ids.accountId!),
         limiters,
@@ -673,7 +673,7 @@ async function main() {
       target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
-        sharedObjectMut(V3_PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
+        sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         tx.object(summary.ids.accountId!),
         limiters,

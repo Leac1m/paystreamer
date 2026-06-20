@@ -16,6 +16,7 @@ import { Button } from "../ui/button";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { useTxToast, generateToastId } from "../TxStatusToast";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface RegisterPlatformModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ interface RegisterPlatformModalProps {
 }
 
 export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalProps) {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const client = useCurrentClient();
   const { executeSponsored } = useSponsoredTransaction();
@@ -65,7 +67,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::register_platform`,
+      target: `${config.PACKAGE_ID}::platform::register_platform`,
       arguments: [
         tx.pure.string(name),
         tx.pure.string(description),

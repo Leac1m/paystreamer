@@ -4,6 +4,7 @@ import {
   SUBSCRIPTION_DEVNET_PACKAGE_ID,
   SUBSCRIPTION_TESTNET_PACKAGE_ID,
   SUBSCRIPTION_MAINNET_PACKAGE_ID,
+  NETWORK,
 } from "./constants.ts";
 import { createPersistentBurnerWalletInitializer } from "./lib/persistentBurnerWallet.ts";
 
@@ -26,7 +27,7 @@ export const dAppKit = createDAppKit({
   // real funds or on mainnet.
   enableBurnerWallet: import.meta.env.DEV,
   networks: ["mainnet", "testnet", "devnet"],
-  defaultNetwork: "devnet",
+  defaultNetwork: NETWORK as any,
   createClient(network) {
     const mvr = makeMvrOverrides({
       subscriptions: GRPC_URLS[network] === GRPC_URLS.mainnet

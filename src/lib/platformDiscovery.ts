@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphqlClient, queryPlatformsByOwner } from "./graphql";
+import { SupportedNetwork } from "../constants";
+import { getGraphQLClient, queryPlatformsByOwner } from "./graphql";
+import { useAppConfig } from "../hooks/useAppConfig";
 
 const E2E_TEST_NAME_PREFIX = "PayStreamer E2E";
 
@@ -27,16 +29,17 @@ export interface PlatformObject {
 }
 
 export async function discoverOwnedPlatforms(
-  walletAddress: string
+  walletAddress: string,
+  network?: SupportedNetwork
 ): Promise<PlatformObject[]> {
-  const events = await queryPlatformsByOwner(walletAddress);
+  const events = await queryPlatformsByOwner(walletAddress, network);
   const platformIds = Array.from(
     new Set(events.map((e) => e.platform_id).filter(Boolean))
   );
 
   if (platformIds.length === 0) return [];
 
-  const client = graphqlClient;
+  const client = getGraphQLClient(network);
 
   const query = `
     query GetPlatforms {
@@ -96,25 +99,26 @@ export async function discoverOwnedPlatforms(
 }
 
 export function useOwnedPlatforms(walletAddress: string | null) {
+    const config = useAppConfig();
   return useQuery({
-    queryKey: ["owned-platforms", walletAddress],
+    queryKey: ["owned-platforms", walletAddress, config.network],
     queryFn: async () => {
       if (!walletAddress) return [];
-      return discoverOwnedPlatforms(walletAddress);
+      return discoverOwnedPlatforms(walletAddress, config.network);
     },
     enabled: !!walletAddress,
   });
 }
 
-export async function discoverAllPlatforms(): Promise<PlatformObject[]> {
-  const events = await import("./graphql").then((m) => m.queryPlatformRegisteredEvents());
+export async function discoverAllPlatforms(network?: SupportedNetwork): Promise<PlatformObject[]> {
+  const events = await import("./graphql").then((m) => m.queryPlatformRegisteredEvents(network));
   const platformIds = Array.from(
     new Set(events.map((e) => e.platform_id).filter(Boolean))
   );
 
   if (platformIds.length === 0) return [];
 
-  const client = graphqlClient;
+  const client = getGraphQLClient(network);
 
   const query = `
     query GetPlatforms {
@@ -174,10 +178,11 @@ export async function discoverAllPlatforms(): Promise<PlatformObject[]> {
 }
 
 export function useAllPlatforms() {
+    const config = useAppConfig();
   return useQuery({
-    queryKey: ["all-platforms"],
+    queryKey: ["all-platforms", config.network],
     queryFn: async () => {
-      return discoverAllPlatforms();
+      return discoverAllPlatforms(config.network);
     },
   });
 }

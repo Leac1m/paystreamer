@@ -13,6 +13,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface TreasuryManagerProps {
   platformId: string;
@@ -57,6 +58,7 @@ export function TreasuryManager({
   pendingTreasury,
   pendingTreasuryChangeTime,
 }: TreasuryManagerProps) {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const [newTreasury, setNewTreasury] = useState("");
@@ -91,7 +93,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::propose_treasury_change`,
+      target: `${config.PACKAGE_ID}::platform::propose_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -126,7 +128,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::accept_treasury_change`,
+      target: `${config.PACKAGE_ID}::platform::accept_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,
@@ -159,7 +161,7 @@ export function TreasuryManager({
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::cancel_treasury_change`,
+      target: `${config.PACKAGE_ID}::platform::cancel_treasury_change`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

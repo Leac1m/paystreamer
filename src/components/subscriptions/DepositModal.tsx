@@ -15,6 +15,7 @@ import {
 import { queryCoins } from "../../lib/graphql";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useMintPusd } from "../../hooks/useMintPusd";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export function DepositModal({
   denomination,
   onSuccess,
 }: DepositModalProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
@@ -104,7 +106,7 @@ export function DepositModal({
       const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
       
       tx.moveCall({
-        target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::deposit`,
+        target: `${config.PACKAGE_ID}::account::deposit`,
         typeArguments: [denomination],
         arguments: [
           tx.object(capId),

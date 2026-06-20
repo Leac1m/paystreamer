@@ -10,17 +10,17 @@
 - Balance queries use `addressBalance` field (not `balance.value`)
 - **pause/play removed from scheduler** — scheduler runs continuously
 
-## Devnet Deployment (2026-06-17)
+## Testnet Deployment (2026-06-19)
 
 | Package | ID |
 |---------|-----|
-| Subscriptions v3 | `0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb` |
-| PUSD stablecoin | `0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160` |
-| CoinTypeRegistry | `0x076e62b38cbe903413cb7ee9a177eef0c593a9bac40d0dcdbc7d46315af65639` (shared v14) |
-| PaymentScheduler | `0x09d3b621355da923e9076fa95a8ff253331b44b8a0f4fa61b0ca51878b1d1c4e` (shared v14) |
-| AccessControl | `0x938eebde0b5cab85934b0875b34b1854181ceb62437de22af177880abe312a97` |
-| PUSD TreasuryCap | `0xf04e1201cc50fa5401c2d3c37ac7284873282e7bfd3c6a7885f6f6989aebb68a` (v15) |
-| Demo Platform | `0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a9234193f5c0d9903d746` (v3233540) |
+| Subscriptions v3 | `0x48c2c4ea663d95748ae53f3945f58433cf259b42c3aedfd62ba6a13ba4f2d38c` |
+| PUSD stablecoin | `0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f` |
+| CoinTypeRegistry | `0x48ccd75e970e510e6d94ca4fb94fb117c8c5ed760ef71e8594c311ebba23ca07` (shared v349181685) |
+| PaymentScheduler | `0xaad10a547fa266be39fabec779149784884f64f0202a103c69787124dacca223` (shared v349181685) |
+| AccessControl | `0x9cfde1ce446211229e8553bdb78265767a3a7514534450371ed17e363586779d` |
+| PUSD TreasuryCap | `0xca02759942d7c917bb74166c1ea44336f9819e6e36b051ff92b43de6989bcba2` (v349181682) |
+| Demo Platform | `0x68852b06587a12277f26f17acf06f6d000bbd3598f796ca3f3abb6e97afa5abb` (v909612921) |
 
 ## Frontend Constants (src/constants.ts)
 
@@ -149,6 +149,6 @@ Implementation in `src/lib/persistentBurnerWallet.ts`.
 
 ## Current Status
 
-- Devnet deployment: **LIVE** (2026-06-17)
+- Testnet deployment: **LIVE** (2026-06-19)
 - E2E test: **NEEDS RE-RUN** against new deployment
 - Frontend: running on port 5176 with cloudflared tunnel

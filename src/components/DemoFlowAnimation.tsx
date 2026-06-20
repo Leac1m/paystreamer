@@ -55,8 +55,11 @@ function AgeTicker() {
   return <span>{seconds}s ago</span>;
 }
 
+import { useAppConfig } from '../hooks/useAppConfig';
+
 export default function DemoFlowAnimation() {
   const [index, setIndex] = useState(0);
+  const config = useAppConfig();
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -110,7 +113,7 @@ export default function DemoFlowAnimation() {
                   Live
                 </span>
               </div>
-              <span className="text-xs text-[#94a3b8] font-mono">devnet</span>
+              <span className="text-xs text-[#94a3b8] font-mono">{config.network}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 relative">
@@ -197,7 +200,7 @@ export default function DemoFlowAnimation() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.3 }}
-                  href="https://suiscan.xyz/devnet"
+                  href={`https://suiscan.xyz/${config.network}`}
                   target="_blank"
                   rel="noreferrer"
                   className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#10b981]/15 border border-[#10b981]/30 text-[#10b981] text-[10px] font-medium"

@@ -8,8 +8,10 @@ import { Button } from "../../components/ui/button";
 import { PlatformObject } from "../../lib/platformDiscovery";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function PlatformSettingsPage() {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const navigate = useNavigate();
@@ -43,7 +45,7 @@ export function PlatformSettingsPage() {
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::update_platform`,
+      target: `${config.PACKAGE_ID}::platform::update_platform`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platform!.objectId,

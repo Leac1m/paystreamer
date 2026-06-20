@@ -24,6 +24,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { formatMistToPUSD } from "../../lib/format";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 type FilterTab = "all" | "payments" | "deposits" | "alerts";
 
@@ -38,16 +39,17 @@ interface EventRow {
 }
 
 export function ActivityFeed() {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // First, get the user's account IDs
   const { data: accounts } = useQuery({
-    queryKey: ["account-created-events", account?.address],
+    queryKey: ["account-created-events", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
-      return await queryAccountCreatedEvents(account.address);
+      return await queryAccountCreatedEvents(account.address, config.network);
     },
     enabled: !!account?.address,
   });
@@ -55,11 +57,11 @@ export function ActivityFeed() {
   const accountIds = accounts?.map(a => a.account_id) || [];
 
   const { data: events, isPending: eventsPending } = useQuery({
-    queryKey: ["activity-events", accountIds],
+    queryKey: ["activity-events", accountIds, config.network],
     queryFn: async () => {
       if (accountIds.length === 0) return [];
       // Query for all accounts and flatten
-      const promises = accountIds.map(id => queryPaymentProcessedEvents(id));
+      const promises = accountIds.map(id => queryPaymentProcessedEvents(id, config.network));
       const results = await Promise.all(promises);
       return results.flat();
     },
@@ -67,10 +69,10 @@ export function ActivityFeed() {
   });
 
   const { data: depositEvents, isPending: depositsPending } = useQuery({
-    queryKey: ["deposit-events", accountIds],
+    queryKey: ["deposit-events", accountIds, config.network],
     queryFn: async () => {
       if (accountIds.length === 0) return [];
-      const promises = accountIds.map(id => queryDepositEvents(id));
+      const promises = accountIds.map(id => queryDepositEvents(id, config.network));
       const results = await Promise.all(promises);
       return results.flat();
     },
@@ -78,10 +80,10 @@ export function ActivityFeed() {
   });
 
   const { data: failedEvents, isPending: failedPending } = useQuery({
-    queryKey: ["failed-events", accountIds],
+    queryKey: ["failed-events", accountIds, config.network],
     queryFn: async () => {
       if (accountIds.length === 0) return [];
-      const promises = accountIds.map(id => queryPaymentFailedEvents(id));
+      const promises = accountIds.map(id => queryPaymentFailedEvents(id, config.network));
       const results = await Promise.all(promises);
       return results.flat();
     },

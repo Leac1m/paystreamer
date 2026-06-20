@@ -6,8 +6,10 @@ import { queryAccountCreatedEvents, queryRecentEventsByType } from "../lib/graph
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID } from "../constants";
 import { useTxToast, generateToastId } from "../components/TxStatusToast";
 import { formatMistToPUSD } from "../lib/format";
+import { useAppConfig } from "../hooks/useAppConfig";
 
 export function usePaymentNotifications() {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const txToast = useTxToast();
   // Use a ref for lastSeenTimestamp to avoid triggering re-renders or getting stale closures
@@ -20,10 +22,10 @@ export function usePaymentNotifications() {
 
   // 2. Get user's accounts
   const { data: accountCreatedEvents } = useQuery({
-    queryKey: ["account-created-events", account?.address],
+    queryKey: ["account-created-events", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
-      return await queryAccountCreatedEvents(account.address);
+      return await queryAccountCreatedEvents(account.address, config.network);
     },
     enabled: !!account?.address,
   });
@@ -31,18 +33,18 @@ export function usePaymentNotifications() {
 
   // 3. Poll for recent payment events
   useQuery({
-    queryKey: ["recent-payments-polling", account?.address],
+    queryKey: ["recent-payments-polling", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
       
       const [processedEvents, failedEvents] = await Promise.all([
         queryRecentEventsByType(
-          `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentProcessed`,
-          20
+          `${config.PACKAGE_ID}::payment::PaymentProcessed`,
+          20, config.network
         ),
         queryRecentEventsByType(
-          `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentFailed`,
-          20
+          `${config.PACKAGE_ID}::payment::PaymentFailed`,
+          20, config.network
         )
       ]);
 

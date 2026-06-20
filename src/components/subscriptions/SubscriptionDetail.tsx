@@ -13,6 +13,7 @@ import {
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { formatMistToPUSD } from "../../lib/format";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SubscriptionDetailProps {
   accountId: string;
@@ -50,12 +51,13 @@ export function SubscriptionDetail({
   subscription,
   denomination: _denomination,
 }: SubscriptionDetailProps) {
+    const config = useAppConfig();
   const client = useCurrentClient();
   const account = useCurrentAccount();
   const [expanded, setExpanded] = useState(true);
 
   const { data: platform } = useQuery({
-    queryKey: ["platform", platformId],
+    queryKey: ["platform", platformId, config.network],
     queryFn: async () => {
       const { object } = await client.core.getObject({
         objectId: platformId,
@@ -67,11 +69,11 @@ export function SubscriptionDetail({
   });
 
   const { data: paymentEvents } = useQuery({
-    queryKey: ["payment-events", accountId, platformId],
+    queryKey: ["payment-events", accountId, platformId, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
       const { queryPaymentProcessedEvents } = await import("../../lib/graphql");
-      const events = await queryPaymentProcessedEvents(accountId, platformId);
+      const events = await queryPaymentProcessedEvents(accountId, platformId, config.network);
       return events;
     },
     enabled: !!account?.address,
@@ -170,7 +172,7 @@ export function SubscriptionDetail({
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium">Payment History</p>
               <a
-                href={`https://suivision.xyz/account/${accountId}`}
+                href={`https://suiscan.xyz/${config.network}/account/${accountId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"

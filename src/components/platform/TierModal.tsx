@@ -16,6 +16,7 @@ import { Button } from "../ui/button";
 import { SUBSCRIPTION_DEVNET_PACKAGE_ID, PUSD_TYPE_ARG } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { useTxToast, generateToastId } from "../TxStatusToast";
+import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface TierModalProps {
   open: boolean;
@@ -51,6 +52,7 @@ const BILLING_CYCLE_SECONDS: Record<BillingCycle, number> = {
 };
 
 export function TierModal({ open, onClose, platformId, initialSharedVersion, tier, tierIndex: _tierIndex }: TierModalProps) {
+    const config = useAppConfig();
   const account = useCurrentAccount();
   const client = useCurrentClient();
   const { executeSponsored } = useSponsoredTransaction();
@@ -113,7 +115,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     });
 
     tx.moveCall({
-      target: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::create_tier`,
+      target: `${config.PACKAGE_ID}::platform::create_tier`,
       arguments: [
         tx.sharedObjectRef({
           objectId: platformId,

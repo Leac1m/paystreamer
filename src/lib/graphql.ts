@@ -1,14 +1,18 @@
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
-import {
-  SUBSCRIPTION_DEVNET_PACKAGE_ID,
-  GRAPHQL_URL,
-  NETWORK,
-} from "../constants";
+import { getConfig, SupportedNetwork } from "../constants";
 
-export const graphqlClient = new SuiGraphQLClient({
-  url: GRAPHQL_URL,
-  network: NETWORK as any,
-});
+const clients = new Map<SupportedNetwork, SuiGraphQLClient>();
+
+export function getGraphQLClient(network?: SupportedNetwork) {
+  const target = network || "testnet";
+  if (!clients.has(target)) {
+    clients.set(target, new SuiGraphQLClient({
+      url: getConfig(target).GRAPHQL_URL,
+      network: target as any,
+    }));
+  }
+  return clients.get(target)!;
+}
 
 export interface PlatformObject {
   id: string;
@@ -102,15 +106,16 @@ export interface DepositEvent {
   timestamp: number;
 }
 
-async function executeQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
-  const result = await graphqlClient.query({ query, variables });
+async function executeQuery<T>(query: string, variables?: Record<string, unknown>, network?: SupportedNetwork): Promise<T> {
+  const client = getGraphQLClient(network);
+  const result = await client.query({ query, variables });
   if (result.errors && result.errors.length > 0) {
     throw new Error(result.errors[0].message);
   }
   return (result.data || {}) as T;
 }
 
-export async function queryPlatform(platformId: string): Promise<PlatformObject> {
+export async function queryPlatform(platformId: string, network?: SupportedNetwork): Promise<PlatformObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PlatformObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetPlatform($id: SuiAddress!) {
       object(address: $id) {
@@ -118,19 +123,21 @@ export async function queryPlatform(platformId: string): Promise<PlatformObject>
         owner { ... on Shared { initialSharedVersion } }
       }
     }`,
-    { id: platformId }
+    { id: platformId },
+    network
   );
   return data.object.asMoveObject.contents.json;
 }
 
-export async function queryAccount(accountId: string): Promise<SubscriptionAccountObject> {
+export async function queryAccount(accountId: string, network?: SupportedNetwork): Promise<SubscriptionAccountObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: SubscriptionAccountObject } } } }>(
     `query GetAccount($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
       }
     }`,
-    { id: accountId }
+    { id: accountId },
+    network
   );
   return data.object.asMoveObject.contents.json;
 }
@@ -164,9 +171,11 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
 }
 
 export async function queryPlatformInitialVersions(
-  platformIds: string[]
+  platformIds: string[],
+  network?: SupportedNetwork
 ): Promise<PlatformVersionInfo[]> {
   if (platformIds.length === 0) return [];
+  const config = getConfig(network);
 
   const results = await Promise.all(
     platformIds.map(async (id) => {
@@ -188,64 +197,74 @@ export async function queryPlatformInitialVersions(
   return results;
 }
 
-export async function queryPlatformsByOwner(owner: string): Promise<PlatformRegisteredEvent[]> {
+export async function queryPlatformsByOwner(owner: string, network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $owner }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered`, owner }
+    { type: `${config.PACKAGE_ID}::platform::PlatformRegistered`, owner },
+    network
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
 
-export async function queryAccountCreatedEvents(sender: string): Promise<AccountCreatedEvent[]> {
+export async function queryAccountCreatedEvents(sender: string, network?: SupportedNetwork): Promise<AccountCreatedEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
       events(first: 50, filter: { type: $type, sender: $sender }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::AccountCreated`, sender }
+    { type: `${config.PACKAGE_ID}::account::AccountCreated`, sender },
+    network
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as AccountCreatedEvent);
 }
 
-export async function queryPlatformRegisteredEvents(): Promise<PlatformRegisteredEvent[]> {
+export async function queryPlatformRegisteredEvents(network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformRegistered($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::platform::PlatformRegistered` }
+    { type: `${config.PACKAGE_ID}::platform::PlatformRegistered` },
+    network
   );
   return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PlatformRegisteredEvent);
 }
 
-export async function querySubscriptionCreatedEvents(accountId: string): Promise<SubscriptionCreatedEvent[]> {
+export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionCreated` }
+    { type: `${config.PACKAGE_ID}::billing::SubscriptionCreated` },
+    network
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
     .filter((e) => e.account_id === accountId);
 }
 
-export async function querySubscriptionCreatedEventsByPlatform(platformId: string): Promise<SubscriptionCreatedEvent[]> {
+export async function querySubscriptionCreatedEventsByPlatform(platformId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
     `query GetSubscriptionCreated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionCreated` }
+    { type: `${config.PACKAGE_ID}::billing::SubscriptionCreated` },
+    network
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionCreatedEvent)
@@ -254,15 +273,18 @@ export async function querySubscriptionCreatedEventsByPlatform(platformId: strin
 
 export async function queryPaymentProcessedEvents(
   accountId?: string,
-  platformId?: string
+  platformId?: string,
+  network?: SupportedNetwork
 ): Promise<PaymentProcessedEvent[]> {
+  const config = getConfig(network);
   const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
     `query GetPaymentProcessed($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentProcessed` }
+    { type: `${config.PACKAGE_ID}::payment::PaymentProcessed` },
+    network
   );
   let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentProcessedEvent);
   if (accountId) {
@@ -274,14 +296,16 @@ export async function queryPaymentProcessedEvents(
   return events;
 }
 
-export async function queryPaymentFailedEvents(accountId?: string): Promise<PaymentFailedEvent[]> {
+export async function queryPaymentFailedEvents(accountId?: string, network?: SupportedNetwork): Promise<PaymentFailedEvent[]> {
+  const config = getConfig(network);
   const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
     `query GetPaymentFailed($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::payment::PaymentFailed` }
+    { type: `${config.PACKAGE_ID}::payment::PaymentFailed` },
+    network
   );
   let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as PaymentFailedEvent);
   if (accountId) {
@@ -290,14 +314,16 @@ export async function queryPaymentFailedEvents(accountId?: string): Promise<Paym
   return events;
 }
 
-export async function queryDepositEvents(accountId: string): Promise<DepositEvent[]> {
+export async function queryDepositEvents(accountId: string, network?: SupportedNetwork): Promise<DepositEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
     `query GetDeposits($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::account::Deposit` }
+    { type: `${config.PACKAGE_ID}::account::Deposit` },
+    network
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as DepositEvent)
@@ -306,7 +332,8 @@ export async function queryDepositEvents(accountId: string): Promise<DepositEven
 
 export async function queryRecentEventsByType(
   type: string,
-  limit: number = 10
+  limit: number = 10,
+  network?: SupportedNetwork
 ): Promise<Array<{ id: string; transactionDigest: string; timestamp: number; json: Record<string, unknown> }>> {
   const data = await executeQuery<{ events: { nodes: { timestamp: string; transaction: { digest: string }; contents: { json: Record<string, unknown> } }[] } }>(
     `query GetRecentEvents($type: String!) {
@@ -318,7 +345,8 @@ export async function queryRecentEventsByType(
         }
       }
     }`,
-    { type }
+    { type },
+    network
   );
   return (data.events?.nodes ?? []).map((n) => ({
     id: n.transaction.digest,
@@ -329,15 +357,18 @@ export async function queryRecentEventsByType(
 }
 
 export async function querySubscriptionUpdatedEventsByPlatform(
-  platformId: string
+  platformId: string,
+  network?: SupportedNetwork
 ): Promise<SubscriptionUpdatedEvent[]> {
+  const config = getConfig(network);
   const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionUpdatedEvent } }[] } }>(
     `query GetSubscriptionUpdated($type: String!) {
       events(first: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
       }
     }`,
-    { type: `${SUBSCRIPTION_DEVNET_PACKAGE_ID}::billing::SubscriptionUpdated` }
+    { type: `${config.PACKAGE_ID}::billing::SubscriptionUpdated` },
+    network
   );
   return data.events.nodes
     .map((n) => ({ ...n.contents.json, timestamp: new Date(n.timestamp).getTime() }) as SubscriptionUpdatedEvent)

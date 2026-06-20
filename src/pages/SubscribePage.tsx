@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCurrentClient, useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
 
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { useRef } from "react";
@@ -12,9 +12,10 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { NetworkBanner } from "../components/dashboard/NetworkBanner";
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
-import { queryAccountCreatedEvents, queryAccount, queryCoins } from "../lib/graphql";
+import { queryAccountCreatedEvents, queryAccount, queryCoins, queryPlatform } from "../lib/graphql";
 import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
 import { formatMistToPUSD, APP_COIN_DECIMALS } from "../lib/format";
+import { useAppConfig } from "../hooks/useAppConfig";
 
 const FREQUENCY_LABELS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
@@ -73,8 +74,8 @@ interface PlatformJson {
 }
 
 export default function SubscribePage() {
+    const config = useAppConfig();
   const { platformId } = useParams<{ platformId: string }>();
-  const client = useCurrentClient();
   const account = useCurrentAccount();
   const { isConnecting } = useWalletConnection();
   const modalRef = useRef<any>(null);
@@ -90,23 +91,19 @@ export default function SubscribePage() {
   } | null>(null);
 
   const { data: platform, isPending: platformLoading } = useQuery({
-    queryKey: ["platform", platformId],
+    queryKey: ["platform", platformId, config.network],
     queryFn: async () => {
       if (!platformId) return null;
-      const { object } = await client.core.getObject({
-        objectId: platformId,
-        include: { json: true },
-      });
-      return object;
+      return await queryPlatform(platformId, config.network as any);
     },
     enabled: !!platformId && platformId.length >= 66,
   });
 
   const { data: accountCreatedEvents } = useQuery({
-    queryKey: ["account-created-events", account?.address],
+    queryKey: ["account-created-events", account?.address, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
-      return await queryAccountCreatedEvents(account.address);
+      return await queryAccountCreatedEvents(account.address, config.network);
     },
     enabled: !!account?.address,
   });
@@ -122,7 +119,7 @@ export default function SubscribePage() {
   const accountId = uniqueAccounts[0]?.accountId;
   const accountCapId = uniqueAccounts[0]?.capId;
 
-  const platformJson = platform?.json as PlatformJson | undefined;
+  const platformJson = platform as any;
   const tiersJson = platformJson?.tiers as any;
   const tiersList = Array.isArray(tiersJson) 
     ? tiersJson 
@@ -133,10 +130,10 @@ export default function SubscribePage() {
   const activeTiers = mappedTiers.filter((t: any) => t.is_active !== false);
 
   const { data: accountObj } = useQuery({
-    queryKey: ["subscription-account-details", accountId],
+    queryKey: ["subscription-account-details", accountId, config.network],
     queryFn: async () => {
       if (!accountId) return null;
-      return await queryAccount(accountId);
+      return await queryAccount(accountId, config.network as any);
     },
     enabled: !!accountId,
   });
@@ -152,7 +149,7 @@ export default function SubscribePage() {
   });
 
   const { data: pusdCoins } = useQuery({
-    queryKey: ["getCoins", account?.address, PUSD_TYPE_ARG],
+    queryKey: ["getCoins", account?.address, PUSD_TYPE_ARG, config.network],
     queryFn: async () => {
       return await queryCoins(account?.address as string, PUSD_TYPE_ARG);
     },
