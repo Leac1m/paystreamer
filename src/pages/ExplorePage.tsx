@@ -17,7 +17,7 @@ export function ExplorePage() {
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
-      <main className="container mx-auto px-4 py-16">
+      <main className="container mx-auto px-4 pt-32 pb-16">
         <div className="max-w-3xl mb-12">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
             Discover Platforms
@@ -29,7 +29,7 @@ export function ExplorePage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardHeader className="h-32 bg-muted/50 rounded-t-lg" />
@@ -77,7 +77,7 @@ export function ExplorePage() {
             </div>
           )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {platforms.map((platform) => (
               <Card 
                 key={platform.objectId} 
