@@ -26,6 +26,7 @@ export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
         MoveEventType: platformRegisteredEventType,
       },
       limit: 100,
+      order: 'descending',
     });
 
     const platforms: DiscoveredPlatform[] = [];
@@ -90,6 +91,7 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
         MoveEventType: subscriptionCreatedEventType,
       },
       limit: 1000,
+      order: 'descending',
     });
 
     const accountIds = new Set<string>();

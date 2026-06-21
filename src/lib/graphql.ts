@@ -281,37 +281,18 @@ export async function querySubscriptionCreatedEvents(accountId: string, network?
 
 export async function querySubscriptionCreatedEventsByPlatform(platformId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
   const config = getConfig(network);
-  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
-    `query GetSubscriptionCreatedTx($id: SuiAddress!) {
-      transactions(last: 50, filter: { affectedObject: $id }) {
-        nodes {
-          effects {
-            timestamp
-            events {
-              nodes {
-                contents { type { repr } json }
-              }
-            }
-          }
-        }
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
+    `query GetSubscriptionCreated($type: String!) {
+      events(last: 50, filter: { type: $type }) {
+        nodes { timestamp, contents { json } }
       }
     }`,
-    { id: platformId },
+    { type: `${config.PACKAGE_ID}::billing::SubscriptionCreated` },
     network
   );
-  
-  const targetType = `${config.PACKAGE_ID}::billing::SubscriptionCreated`;
-  const events: SubscriptionCreatedEvent[] = [];
-  
-  for (const tx of data.transactions?.nodes || []) {
-    for (const ev of tx.effects?.events?.nodes || []) {
-      if (ev.contents?.type?.repr.startsWith(targetType)) {
-        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
-      }
-    }
-  }
-  
-  return events.filter((e) => e.platform_id === platformId);
+  return data.events.nodes
+    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionCreatedEvent)
+    .filter((e) => e.platform_id === platformId);
 }
 
 export async function queryPaymentProcessedEvents(
