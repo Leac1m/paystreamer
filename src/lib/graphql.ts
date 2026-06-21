@@ -203,8 +203,8 @@ export async function queryPlatformInitialVersions(
 }
 
 export async function queryPlatformsByOwner(owner: string, network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
-    const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
+  const config = getConfig(network);
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
       events(last: 50, filter: { type: $type, sender: $owner }) {
         nodes { timestamp, contents { json } }
@@ -217,8 +217,8 @@ export async function queryPlatformsByOwner(owner: string, network?: SupportedNe
 }
 
 export async function queryAccountCreatedEvents(sender: string, network?: SupportedNetwork): Promise<AccountCreatedEvent[]> {
-    const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
+  const config = getConfig(network);
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
       events(last: 50, filter: { type: $type, sender: $sender }) {
         nodes { timestamp, contents { json } }
@@ -245,35 +245,73 @@ export async function queryPlatformRegisteredEvents(network?: SupportedNetwork):
 }
 
 export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
-    const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
-    `query GetSubscriptionCreated($type: String!) {
-      events(last: 50, filter: { type: $type }) {
-        nodes { timestamp, contents { json } }
+  const config = getConfig(network);
+  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
+    `query GetSubscriptionCreatedTx($id: SuiAddress!) {
+      transactions(last: 50, filter: { affectedObject: $id }) {
+        nodes {
+          effects {
+            timestamp
+            events {
+              nodes {
+                contents { type { repr } json }
+              }
+            }
+          }
+        }
       }
     }`,
-    { type: `${config.PACKAGE_ID}::billing::SubscriptionCreated` },
+    { id: accountId },
     network
   );
-  return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionCreatedEvent)
-    .filter((e) => e.account_id === accountId);
+  
+  const targetType = `${config.PACKAGE_ID}::billing::SubscriptionCreated`;
+  const events: SubscriptionCreatedEvent[] = [];
+  
+  for (const tx of data.transactions?.nodes || []) {
+    for (const ev of tx.effects?.events?.nodes || []) {
+      if (ev.contents?.type?.repr.startsWith(targetType)) {
+        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
+      }
+    }
+  }
+  
+  return events.filter((e) => e.account_id === accountId);
 }
 
 export async function querySubscriptionCreatedEventsByPlatform(platformId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
-    const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: SubscriptionCreatedEvent } }[] } }>(
-    `query GetSubscriptionCreated($type: String!) {
-      events(last: 50, filter: { type: $type }) {
-        nodes { timestamp, contents { json } }
+  const config = getConfig(network);
+  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
+    `query GetSubscriptionCreatedTx($id: SuiAddress!) {
+      transactions(last: 50, filter: { affectedObject: $id }) {
+        nodes {
+          effects {
+            timestamp
+            events {
+              nodes {
+                contents { type { repr } json }
+              }
+            }
+          }
+        }
       }
     }`,
-    { type: `${config.PACKAGE_ID}::billing::SubscriptionCreated` },
+    { id: platformId },
     network
   );
-  return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as SubscriptionCreatedEvent)
-    .filter((e) => e.platform_id === platformId);
+  
+  const targetType = `${config.PACKAGE_ID}::billing::SubscriptionCreated`;
+  const events: SubscriptionCreatedEvent[] = [];
+  
+  for (const tx of data.transactions?.nodes || []) {
+    for (const ev of tx.effects?.events?.nodes || []) {
+      if (ev.contents?.type?.repr.startsWith(targetType)) {
+        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
+      }
+    }
+  }
+  
+  return events.filter((e) => e.platform_id === platformId);
 }
 
 export async function queryPaymentProcessedEvents(
@@ -281,17 +319,56 @@ export async function queryPaymentProcessedEvents(
   platformId?: string,
   network?: SupportedNetwork
 ): Promise<PaymentProcessedEvent[]> {
-    const config = getConfig(network);
+  const config = getConfig(network);
+  const targetId = accountId || platformId;
+  
+  if (!targetId) {
+    // Fallback to global events if no specific object is provided
     const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentProcessedEvent } }[] } }>(
-    `query GetPaymentProcessed($type: String!) {
-      events(last: 50, filter: { type: $type }) {
-        nodes { timestamp, contents { json } }
+      `query GetPaymentProcessed($type: String!) {
+        events(last: 50, filter: { type: $type }) {
+          nodes { timestamp, contents { json } }
+        }
+      }`,
+      { type: `${config.PACKAGE_ID}::payment::PaymentProcessed` },
+      network
+    );
+    let events = allEvents.events?.nodes?.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentProcessedEvent) || [];
+    return events;
+  }
+
+  // Use affectedObject to bypass global 50 limit
+  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
+    `query GetPaymentProcessedTx($id: SuiAddress!) {
+      transactions(last: 50, filter: { affectedObject: $id }) {
+        nodes {
+          effects {
+            timestamp
+            events {
+              nodes {
+                contents { type { repr } json }
+              }
+            }
+          }
+        }
       }
     }`,
-    { type: `${config.PACKAGE_ID}::payment::PaymentProcessed` },
+    { id: targetId },
     network
   );
-  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentProcessedEvent);
+  
+  const paymentType1 = `${config.PACKAGE_ID}::payment::PaymentProcessed`;
+  const paymentType2 = `${config.PACKAGE_ID}::billing::PaymentRecorded`;
+  let events: PaymentProcessedEvent[] = [];
+  
+  for (const tx of data.transactions?.nodes || []) {
+    for (const ev of tx.effects?.events?.nodes || []) {
+      if (ev.contents?.type?.repr.startsWith(paymentType1) || ev.contents?.type?.repr.startsWith(paymentType2)) {
+        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
+      }
+    }
+  }
+  
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
   }
@@ -301,38 +378,101 @@ export async function queryPaymentProcessedEvents(
   return events;
 }
 
-export async function queryPaymentFailedEvents(accountId?: string, network?: SupportedNetwork): Promise<PaymentFailedEvent[]> {
-    const config = getConfig(network);
+export async function queryPaymentFailedEvents(
+  accountId?: string,
+  platformId?: string,
+  network?: SupportedNetwork
+): Promise<PaymentFailedEvent[]> {
+  const config = getConfig(network);
+  const targetId = accountId || platformId;
+  
+  if (!targetId) {
     const allEvents = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PaymentFailedEvent } }[] } }>(
-    `query GetPaymentFailed($type: String!) {
-      events(last: 50, filter: { type: $type }) {
-        nodes { timestamp, contents { json } }
+      `query GetPaymentFailed($type: String!) {
+        events(last: 50, filter: { type: $type }) {
+          nodes { timestamp, contents { json } }
+        }
+      }`,
+      { type: `${config.PACKAGE_ID}::payment::PaymentFailed` },
+      network
+    );
+    let events = allEvents.events?.nodes?.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentFailedEvent) || [];
+    return events;
+  }
+
+  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
+    `query GetPaymentFailedTx($id: SuiAddress!) {
+      transactions(last: 50, filter: { affectedObject: $id }) {
+        nodes {
+          effects {
+            timestamp
+            events {
+              nodes {
+                contents { type { repr } json }
+              }
+            }
+          }
+        }
       }
     }`,
-    { type: `${config.PACKAGE_ID}::payment::PaymentFailed` },
+    { id: targetId },
     network
   );
-  let events = allEvents.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PaymentFailedEvent);
+  
+  const paymentType1 = `${config.PACKAGE_ID}::payment::PaymentFailed`;
+  const paymentType2 = `${config.PACKAGE_ID}::billing::FailedPaymentRecorded`;
+  let events: PaymentFailedEvent[] = [];
+  
+  for (const tx of data.transactions?.nodes || []) {
+    for (const ev of tx.effects?.events?.nodes || []) {
+      if (ev.contents?.type?.repr.startsWith(paymentType1) || ev.contents?.type?.repr.startsWith(paymentType2)) {
+        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
+      }
+    }
+  }
+  
   if (accountId) {
     events = events.filter((e) => e.account_id === accountId);
+  }
+  if (platformId) {
+    events = events.filter((e) => e.platform_id === platformId);
   }
   return events;
 }
 
 export async function queryDepositEvents(accountId: string, network?: SupportedNetwork): Promise<DepositEvent[]> {
-    const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: DepositEvent } }[] } }>(
-    `query GetDeposits($type: String!) {
-      events(last: 50, filter: { type: $type }) {
-        nodes { timestamp, contents { json } }
+  const config = getConfig(network);
+  const data = await executeQuery<{ transactions: { nodes: { effects: { timestamp: string, events: { nodes: { contents: { type: { repr: string }, json: any } }[] } } }[] } }>(
+    `query GetDepositsTx($id: SuiAddress!) {
+      transactions(last: 50, filter: { affectedObject: $id }) {
+        nodes {
+          effects {
+            timestamp
+            events {
+              nodes {
+                contents { type { repr } json }
+              }
+            }
+          }
+        }
       }
     }`,
-    { type: `${config.PACKAGE_ID}::account::Deposit` },
+    { id: accountId },
     network
   );
-  return data.events.nodes
-    .map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as DepositEvent)
-    .filter((e) => e.account_id === accountId);
+  
+  const targetType = `${config.PACKAGE_ID}::account::Deposit`;
+  const events: DepositEvent[] = [];
+  
+  for (const tx of data.transactions?.nodes || []) {
+    for (const ev of tx.effects?.events?.nodes || []) {
+      if (ev.contents?.type?.repr.startsWith(targetType)) {
+        events.push({ ...ev.contents.json, timestamp: tx.effects.timestamp ? Number(new Date(tx.effects.timestamp)) : Date.now() });
+      }
+    }
+  }
+  
+  return events.filter((e) => e.account_id === accountId);
 }
 
 export async function queryRecentEventsByType(
