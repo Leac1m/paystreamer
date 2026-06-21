@@ -45,7 +45,7 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
   function handleDemoToggle(checked: boolean) {
     setUseDemoDefaults(checked);
     if (checked) {
-      setName(`Demo SaaS ${Math.floor(Math.random() * 1000)}`);
+      setName(`Demo SaaS ${Date.now() % 1000}`);
       setDescription("A demo platform for the PayStreamer hackathon. Subscribe for a few minutes of test billing.");
       setCategory("SaaS");
     } else {

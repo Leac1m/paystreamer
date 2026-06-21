@@ -71,7 +71,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
   function handleDemoToggle(checked: boolean) {
     setUseDemoDefaults(checked);
     if (checked) {
-      setName(`Demo Tier ${Math.floor(Math.random() * 1000)}`);
+      setName(`Demo Tier ${Date.now() % 1000}`);
       setAmount("10.00");
       setBillingCycle("custom");
       setCustomSeconds("60");
