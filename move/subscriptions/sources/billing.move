@@ -1,17 +1,9 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// `subscriptions::billing` — subscription lifecycle for PayStreamer v2.
 ///
 /// This module owns the per-platform subscription state machine:
 /// creation, pause, resume, cancellation, and the bookkeeping that
-/// happens on every successful or failed bill. The `SubscriptionV1`
 /// value type is declared in `account.move` (per the project Option-C
 /// pattern); this module adds the behavior — constructors (via
-/// `account::new_subscription_v1`), mutators, lifecycle event
 /// emissions, and the `can_bill` query.
-///
-/// Authority model (architecture §6.5):
 ///
 /// - `create_subscription` / `pause_subscription` / `resume_subscription` /
 ///   `cancel_subscription` require an `AccountCap` whose `account_id`
@@ -31,9 +23,7 @@
 ///
 /// All events carry `v: u16 = 2` for indexer discrimination (architecture
 /// §8). The `change_kind` field on `SubscriptionUpdated` uses the
-/// spec's mapping: 0 = tier change, 1 = resumed, 2 = cancelled, 3 = paused.
 ///
-/// Errors use the 0x06__ module-id range per the project convention.
 module subscriptions::billing {
     use sui::object;
     use sui::clock::Clock;

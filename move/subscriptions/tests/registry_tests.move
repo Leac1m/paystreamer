@@ -1,6 +1,3 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
 #[test_only]
 module subscriptions::registry_tests {
     use subscriptions::registry;

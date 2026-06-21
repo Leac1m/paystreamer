@@ -1,11 +1,6 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// Protocol-wide version constants for the PayStreamer v2 contracts.
 ///
 /// The protocol-wide `CORE` one-time witness is declared in
 /// `access_control.move` (per the OZ invariant: one OTW per module).
-/// Every v2 module that needs to mint `AccessControl<CORE>` imports it
 /// from there. This module owns the version triples; migration entry points
 /// across the package consult `version()` to decide whether to apply.
 module subscriptions::version {
@@ -17,7 +12,6 @@ module subscriptions::version {
     /// Minor version. Bumped on backward-compatible additions.
     const VERSION_MINOR: u16 = 0;
 
-    /// Patch version. Bumped on bug fixes.
     const VERSION_PATCH: u16 = 0;
 
     // === Accessors ===

@@ -1,13 +1,8 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
 /// `subscriptions::scheduler` — the on-chain, permissionless payment
 /// scheduler.
 ///
-/// Per architecture §5.6, §6.9, §7.3: the scheduler is the single
 /// entry point that lets **anyone** trigger a due payment. The
 /// off-chain indexer that previously signed payments with
-/// `SCHEDULER_SECRET` (v1) is gone; v2's indexer is read-only.
 ///
 /// ## Authority model
 ///
@@ -24,7 +19,6 @@
 ///
 /// ## Error code range
 ///
-/// 0x0A__ per the project convention; see `account.move`,
 /// `payment.move`, and `platform.move` for sibling ranges.
 #[allow(lint(share_owned))]
 module subscriptions::scheduler {
@@ -41,13 +35,11 @@ module subscriptions::scheduler {
     // === Events ===
     //
     // All events carry a `v: u16 = 2` field for indexer discrimination
-    // (architecture §8). The `v` field is bumped when the event *shape*
     // changes.
 
     /// Emitted on every successful `process_due_payment`. The
     /// `account_id` and `platform_id` are the canonical handles; the
     /// `submitted_by` field is the gas-paying address (any caller
-    /// is allowed, per architecture §7.3). Off-chain indexers
     /// pair this event with the `PaymentProcessed` event emitted
     /// by `payment.move` for the full state transition.
     public struct DuePaymentSubmitted has copy, drop {
@@ -110,7 +102,6 @@ module subscriptions::scheduler {
     /// `payment::process_due_payment` (schedule, amount,
     /// per-platform rate limiters, per-account policy eval).
     ///
-    /// Steps (architecture §6.9):
     ///  1. Delegate to `payment::process_due_payment` (which runs the
     ///     address-balance payment flow).
     ///  2. Stamp `last_processed_at = clock.timestamp_ms()`.

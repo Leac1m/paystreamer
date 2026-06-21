@@ -1,29 +1,17 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// `Platform` — the v2 platform registry: shared platform object, tier
 /// definitions, treasury timelock, per-platform rate limiters, and
 /// `subscriber_count` bookkeeping.
 ///
-/// Per architecture §5.5, §6.7: `Platform` is a SHARED object so any
 /// caller can read it; mutating functions (`update_platform`, tier
-/// management, treasury changes) require the platform owner. v2 does
-/// **not** mint a separate `PlatformOwnerCap` (v1 did; v2 simplifies):
 /// the owner is the address captured at `register_platform` time and
-/// stored in the `Platform.owner` field. The v2 auth model is a
 /// **bootstrap `admin_address` style check** — mirroring
 /// `subscriptions::registry` — with a doc comment noting the future
 /// hardening pass to OZ `Auth<PLATFORM_ADMIN_ROLE>` (see §6.2).
-///
-/// ## Authority model (architecture §7.2, §6.7)
 ///
 /// The platform is identified by `Platform.owner: address` (set at
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
 /// `ctx.sender() == platform.owner`. A future hardening pass will
 /// replace this with an embedded `AccessControl<AC>` and
 /// OZ `Auth<PLATFORM_ADMIN_ROLE>` (one role per module, OZ invariant).
-///
-/// ## Three rate limiters (architecture §6.7 step 7)
 ///
 /// 1. `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total
 ///    withdrawal volume per 30-day window.
@@ -36,14 +24,9 @@
 /// `try_consume_*` and observes `try_consume`'s all-or-nothing
 /// semantics (failure leaves persisted state untouched).
 ///
-/// ## Treasury timelock (architecture §7.8, §6.7)
-///
 /// Two-step `propose_treasury_change(new_addr)` →
 /// `accept_treasury_change(platform, clock)` (48h timelock) pattern,
-/// same shape as the OZ root-role transfer. Closes the v1
 /// treasury-hijack gap.
-///
-/// ## `subscriber_count` (BUG FIX #6)
 ///
 /// Maintained by `increment_subscriber_count` /
 /// `decrement_subscriber_count` (both `public(package)`). The only
@@ -52,10 +35,8 @@
 ///
 /// ## Build-order note
 ///
-/// `SubscriptionTier` is declared here (the v1 spec lives in this
 /// module; no other module needs the type). `billing.move` consumes
 /// `tier_amount` and `tier_frequency_ms` via the accessors exposed
-/// below. Per the v1 style (`platform_registry.move`), the tier is a
 /// value type (`store + copy + drop`) embedded in the platform's
 /// `VecMap<u64, SubscriptionTier>` keyed by `tier_index` (sequential)
 /// so the index is stable across deactivations.
@@ -113,7 +94,6 @@ module subscriptions::platform {
     // === SubscriptionTier ===
 
     /// A platform-defined billing tier. `copy + drop + store` so it can
-    /// live in a `VecMap`, be returned by value, and be inspected by
     /// off-chain indexers without lifetime gymnastics. `name` is the
     /// human-readable label (e.g. `"Basic"`, `"Pro"`); uniqueness is
     /// enforced at `create_tier` time.
@@ -196,7 +176,6 @@ module subscriptions::platform {
     /// described in `access_control.move` (yet to be wired in).
     ///
     /// `tiers` is keyed by `tier_index` (sequential insertion order)
-    /// so the index is stable across deactivations — `SubscriptionV1`
     /// stores `tier_index`, not a tier id, and re-uses the slot on
     /// `deactivate_tier_by_index` without renumbering.
     public struct Platform has key, store {
@@ -217,9 +196,7 @@ module subscriptions::platform {
         /// Optional webhook URL for off-chain notifications.
         webhook_url: std::option::Option<String>,
         /// Verified-platform flag. Flipped by a future moderation
-        /// extension; v2 ships the field only.
         is_verified: bool,
-        /// BUG FIX #6: actually maintained by `increment_subscriber_count` /
         /// `decrement_subscriber_count`. Off-chain indexers can use this
         /// directly for discovery / leaderboards.
         subscriber_count: u64,
@@ -244,7 +221,6 @@ module subscriptions::platform {
     }
 
     /// 48-hour treasury-change timelock. Same shape as the OZ root-role
-    /// transfer; closes the v1 treasury-hijack gap.
     const TREASURY_CHANGE_DELAY_MS: u64 = 48 * 60 * 60 * 1_000;
 
     /// Maximum number of tiers per platform. Caps on-chain footprint
@@ -254,7 +230,6 @@ module subscriptions::platform {
     // === Events ===
     //
     // Every event carries a `v: u16 = 2` field for indexer discrimination
-    // (architecture §8). The `v` field is bumped when the event *shape*
     // changes; adding a field is a minor version bump, removing a field
     // is a major version bump that requires a migration.
 
@@ -315,7 +290,6 @@ module subscriptions::platform {
     /// Emitted on every subscriber-count change (subscribe or cancel).
     /// `is_increment` is `true` for an increment, `false` for a
     /// decrement. `delta_magnitude` is the absolute delta (always `1`
-    /// in v2; reserved for future batched updates). `new_count` is
     /// the post-update value. The signed delta is reconstructable as
     /// `if (is_increment) delta_magnitude else 0 - delta_magnitude`.
     public struct SubscriberCountChanged has copy, drop {
@@ -333,8 +307,6 @@ module subscriptions::platform {
     /// can read it; mutating functions require the owner.
     ///
     /// The three rate limiters (`volume_limiter`, `frequency_limiter`,
-    /// `account_billing_limiter`) are created with the v2 defaults
-    /// documented in the spec. Off-chain indexers can read the
     /// limiter state via `volume_limiter(p)` / `frequency_limiter(p)` /
     /// `account_billing_limiter(p)`.
     ///
@@ -580,7 +552,6 @@ module subscriptions::platform {
     }
 
     /// Deactivate a tier by index. The slot remains in the map (so
-    /// historical `SubscriptionV1.tier_index` references keep
     /// pointing at the right place), but `is_active` flips to `false`
     /// and `payment.move` will reject it.
     ///
@@ -811,7 +782,6 @@ module subscriptions::platform {
     /// Role: any caller (read-only view).
     public fun is_verified(p: &Platform): bool { p.is_verified }
 
-    /// Lifetime subscriber count (BUG FIX #6: actually maintained).
     /// Role: any caller (read-only view).
     public fun subscriber_count(p: &Platform): u64 { p.subscriber_count }
 
@@ -850,8 +820,6 @@ module subscriptions::platform {
 
     /// Test-only constructor. Mirrors `register_platform` but returns
     /// the `Platform` by value without going through the shared-object
-    /// protocol. Matches the v1 `new_registry_for_testing` /
-    /// `new_account_for_testing` pattern in the package. Uses the v2
     /// limiter defaults so unit tests exercise the production path.
     #[test_only]
     public fun new_platform_for_testing(clock: &Clock, ctx: &mut TxContext): Platform {

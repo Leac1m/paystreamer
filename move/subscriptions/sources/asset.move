@@ -1,6 +1,3 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
 /// Asset tag and pluggable balance container — the confidential-transfer seam.
 ///
 /// This module owns two related types:
@@ -10,7 +7,6 @@
 ///    lookups, but is otherwise a phantom-tag: the actual funds live in a
 ///    `BalanceContainer<T>`, not in the `Asset<T>` itself.
 /// 2. `BalanceContainer<T>` — a tagged union of balance implementations.
-///    v2 ships only variant 0, a public `Balance<T>`. A future variant 1
 ///    (confidential `TokenAccount<T>` reference) lives in
 ///    `extensions::confidential` and is purely additive: a fresh enum
 ///    discriminant, a fresh constructor, and an implementation of the same
@@ -21,7 +17,6 @@
 /// underlying balance. `account.move`, `billing.move`, and `payment.move`
 /// call these functions and never touch `Balance<T>` directly.
 ///
-/// Per the v2 architecture doc (§5.1, §6.3, §7.5): core is asset-agnostic.
 /// When Sui confidential transfers stabilize on mainnet, the CT path is
 /// added as a new variant in `extensions/confidential.move` and the
 /// contract gains a new asset class without touching `account`,
@@ -36,7 +31,6 @@ module subscriptions::asset {
 
     /// Type-level tag identifying the asset a subscription is denominated
     /// in. Distinct from the balance container: `Asset<USDC>` is a public
-    /// stablecoin (v2), and `Asset<USDC, Confidential>` (future extension)
     /// would be the same denomination held in a confidential `TokenAccount`.
     ///
     /// The phantom `T` parameter carries the denomination type at the type
@@ -64,7 +58,6 @@ module subscriptions::asset {
 
     // === BalanceContainer (variant enum) ===
 
-    /// Pluggable balance container. v2 ships only variant 0
     /// (`public_balance`). A future variant 1 (confidential) is added in
     /// `extensions::confidential` and stores an opaque handle to a
     /// `TokenAccount<T>` reference (object ID, auditor PK, etc.).
@@ -79,11 +72,9 @@ module subscriptions::asset {
     /// directly; the `public_balance` and `extension_bytes` fields are
     /// module-private in spirit (the public surface is the interface).
     public struct BalanceContainer<phantom T> has store {
-        /// Discriminant: 0 = public balance (v2), 1 = confidential (later).
         variant: u8,
         /// Variant 0: the live public `Balance<T>`. Storing the actual
         /// `Balance<T>` (rather than a serialized `vector<u8>` encoding)
-        /// preserves `Balance`'s special abilities and avoids a
         /// serialize/deserialize round-trip on every operation. A future
         /// variant 1 would leave this empty and use `extension_bytes` for
         /// its own opaque state.
@@ -96,7 +87,6 @@ module subscriptions::asset {
     // === Errors ===
 
     /// A variant-typed function was called on a `BalanceContainer<T>` whose
-    /// discriminant is not the one the function implements. For v2, only
     /// variant 0 is legal; any other discriminant aborts.
     const EVariantMismatch: u64 = 0x03001;
 
@@ -125,7 +115,6 @@ module subscriptions::asset {
     }
 
     /// Variant discriminant of the container. Variant 0 = public balance
-    /// (v2); future variants (1, …) are confidential.
     ///
     /// Role: any caller (read-only view).
     public fun variant<T>(c: &BalanceContainer<T>): u8 { c.variant }
@@ -134,7 +123,6 @@ module subscriptions::asset {
 
     /// Read the current headroom in the smallest unit of `T`.
     /// For public balances, this is the live `balance::value` of the
-    /// stored `Balance<T>`. The `clock` argument is unused in v2; it is
     /// part of the fixed interface so the confidential extension can
     /// consult deny-list timing without changing callers.
     ///
@@ -184,7 +172,6 @@ module subscriptions::asset {
     /// hook; this always returns `false`. The confidential extension will
     /// override semantics here, consulting its issuer's auditor / freeze
     /// list. The address parameter is the would-be recipient or sender;
-    /// in v2 we accept it and ignore it so the interface is fixed across
     /// variants.
     public fun is_denied_for<T>(_c: &BalanceContainer<T>, _addr: address): bool { false }
 

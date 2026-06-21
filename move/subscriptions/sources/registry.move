@@ -1,6 +1,3 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
 /// Coin type registry: multisig-managed map from coin `TypeName` to
 /// `u8` discriminant.
 ///
@@ -9,16 +6,13 @@
 /// without a package upgrade. The registry is the single source of truth
 /// for which coin types are accepted by the protocol; `account.move` and
 /// `payment.move` look up the discriminant here at account-creation time
-/// and at deposit time (denomination enforcement, architecture §6.4).
 ///
-/// Per the v2 architecture doc (§5.7, §6.10): stablecoin diversity is
 /// **governance-extensible**. The bootstrap path uses the multisig
 /// `register_coin_type<T>(ctx)` flow.
 ///
 /// Discriminant 0 is reserved for native SUI.
 ///
 /// `AccessControl<AC>` (see `access_control.move`) is reserved
-/// for a future hardening pass. The v2 bootstrap uses a simple
 /// `admin_address` field as the authority. The bootstrap admin must be
 /// rotated to the multisig in the same publish tx that calls
 /// `init`-time registrations; the `rotate_admin` entry point handles the
@@ -147,7 +141,6 @@ module subscriptions::registry {
     /// Register a new coin type. The caller must equal
     /// `CoinTypeRegistry.admin_address`. The protocol-wide
     /// `AccessControl<AC>` is the source of truth for the
-    /// `REGISTRY_ADMIN_ROLE`; for v2 we use a simple `admin_address`
     /// check as a bootstrap mechanism (will be replaced by
     /// `Auth<REGISTRY_ADMIN_ROLE>` in a future hardening pass).
     ///

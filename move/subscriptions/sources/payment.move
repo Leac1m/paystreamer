@@ -1,11 +1,5 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// `subscriptions::payment` — the single money-moving path for v2.
 ///
-/// Per architecture §6.8 (with the per-Platform AC seam deferred to a
 /// future hardening pass, see `access_control.move`): `process_due_payment`
-/// is the **only** function in the v2 contract that withdraws user
 /// funds. It is called by `scheduler.move` (the permissionless on-chain
 /// entry point) after the global circuit breaker, the global pause flag,
 /// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked
@@ -23,7 +17,6 @@
 ///
 /// ## Error code range
 ///
-/// 0x09__ per the project convention; see `account.move` and
 /// `billing.move` for sibling ranges.
 #[allow(lint(share_owned))]
 module subscriptions::payment {
@@ -40,12 +33,9 @@ module subscriptions::payment {
     // === Errors ===
 
     /// `can_bill` returned `false` — the subscription is not active or
-    /// `now < next_billing_time`. Mirrors the v1 "not due" abort and
-    /// surfaces the same condition with a v2-typed code.
     const ENotDue: u64 = 0x09001;
 
     /// The subscription's `tier_amount` is invalid (e.g. `0`).
-    /// Reserved for future use; the spec currently treats `0` as a
     /// fatal misconfiguration and aborts before money moves.
     #[allow(unused_const)]
     const EInvalidAmount: u64 = 0x09002;
@@ -73,7 +63,6 @@ module subscriptions::payment {
     /// `vector<PolicyFailure>` is emitted in the `PaymentFailed` event
     /// so off-chain indexers can see *which* dimension failed and
     /// *why`. Persisted limiter state is untouched (a failed pass-1
-    /// does not consume tokens, by design — architecture §7.4).
     const EPolicyViolation: u64 = 0x09005;
 
     /// The subscription's `tier_amount` resolved to `0`. Treated as a
@@ -121,10 +110,8 @@ module subscriptions::payment {
     /// The scheduler withdraws from the account's balance and sends to treasury.
     /// This is a transitional model until address-balance APIs become public.
     ///
-    /// Steps (per design §6.8, scoped to the checks this function
     /// owns; the scheduler owns steps 1, 2, 4, 6):
     ///  1. Verify `can_bill` (subscription is active and due)
-    ///  2. Read `sub.tier_amount` (BUG FIX #5: tier amount is the
     ///     billed amount, not a caller-supplied value)
     ///  3. Check the platform's three rate limiters
     ///     (`volume`, `frequency`, `account_billing`)
@@ -134,7 +121,6 @@ module subscriptions::payment {
     ///  6. Send to treasury via `sui::coin::send_funds`
     ///  7. `record_payment` on the subscription (advances schedule,
     ///     bumps the per-subscription nonce) and `bump_nonce` on the
-    ///     account (bumps the per-account replay nonce; design §6.8
     ///     step 10)
     ///  8. Emit `PaymentProcessed` with the policy results
     ///
@@ -166,7 +152,6 @@ module subscriptions::payment {
             abort ENotDue
         };
 
-        // 2. amount == tier_amount (BUG FIX #5).
         let amount = account::tier_amount_via_sub(account, platform_id);
         assert!(amount > 0, EZeroAmount);
 

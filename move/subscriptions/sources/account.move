@@ -1,10 +1,5 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// `SubscriptionAccount<T>` — the core user-facing object in PayStreamer v2.
 ///
 /// This module owns:
-/// 1. The `SubscriptionV1` value type (per Option C in the design notes:
 ///    declared here with the full field set; `billing.move` augments with
 ///    mutators and event emissions without redefining the type).
 /// 2. The `PolicySet` value type (same pattern; `policies.move` augments
@@ -13,9 +8,6 @@
 /// 4. The shared `SubscriptionAccount<T>` object plus its discovery
 ///    handle `AccountCap`.
 ///
-/// ## Authority model (architecture §7.1)
-///
-/// The v2 authority model is `AccountCap` (discovery) + `AccountCap.permissions`
 /// (bitfield authority). There is no embedded `AccessControl<AC>`
 /// per account: the OZ `AccessControl` consumes its OTW exactly once at
 /// `init`, so per-account ACs are infeasible (and unnecessary — see
@@ -23,19 +15,12 @@
 /// `has_permission(cap, perm)` against the bitfield on the cap, not an
 /// embedded AC.
 ///
-/// Per the v2 design doc (§5.2, §6.4, §7.7), this module:
-///
-/// - holds a `VecMap<ID, SubscriptionV1>` per the project rules
-///   (CLAUDE.md: subscriptions remain embedded, not standalone objects);
-/// - cascades `pause_account` to all active subscriptions (BUG FIX #8);
 /// - emits `v: u16 = 2` on every event for indexer discrimination.
 ///
 /// ## Build-order note
 ///
-/// `SubscriptionV1` and `PolicySet` are declared here per Option C of the
 /// design notes. Downstream `billing.move` and `policies.move` add
 /// behavior (mutators, event emissions, evaluation) without redefining
-/// the types. The v1 module was the style reference for header, imports, and sectioning.
 #[allow(lint(share_owned, custom_state_change))]
 module subscriptions::account {
     use sui::object;
@@ -60,14 +45,10 @@ module subscriptions::account {
     // === SubscriptionV1 (declared here, augmented by billing.move) ===
 
     /// Per-platform subscription, embedded in the account's
-    /// `VecMap<ID, SubscriptionV1>` keyed by `platform_id`. Versioned
-    /// wrapper for in-place upgrades (`SubscriptionV2` will be a fresh
-    /// type with a `migrate(v1)` function).
     ///
     /// `status: u8` is the lifecycle discriminant: 0 = active, 1 = paused,
     /// 2 = cancelled. Cascading the account-level pause flips active subs
     /// to 1 (paused); resuming the account does NOT flip them back
-    /// (design §7.7 — explicit user action required to prevent surprise
     /// billing).
     public struct SubscriptionV1 has store, drop {
         platform_id: ID,
@@ -88,7 +69,6 @@ module subscriptions::account {
         updated_at: u64,
     }
 
-    /// Build a fresh `SubscriptionV1`. The account-module owner holds the
     /// canonical constructor; `billing.move` will expose higher-level
     /// `create_subscription(account, ...)` that calls this. Time fields
     /// are caller-supplied (use `clock.timestamp_ms()`) so the
@@ -175,7 +155,6 @@ module subscriptions::account {
 
     // === PolicySet (declared here, augmented by policies.move) ===
 
-    /// Per-account policy set. v2 ships a flat structure with raw caps;
     /// `policies.move` will wrap these in `Option<...>` and add the
     /// OZ `RateLimiter` machinery. For now the values are direct caps
     /// (0 = no cap on the corresponding dimension). `update_policies`
@@ -191,7 +170,6 @@ module subscriptions::account {
         frequency_min_ms: u64,
     }
 
-    /// Empty (no-cap) `PolicySet`. Equivalent to the v1 "effectively
     /// unlimited" defaults and a safe starting point for new accounts.
     /// Role: any caller.
     public fun empty_policy_set(): PolicySet {
@@ -259,8 +237,6 @@ module subscriptions::account {
         /// `deposit` before payments are processed.
         balance: Balance<T>,
         /// Per-platform subscriptions, keyed by `platform_id`. The
-        /// project rules (CLAUDE.md) keep them embedded; the wrapper
-        /// type `SubscriptionV1` enables in-place upgrade to V2.
         subscriptions: VecMap<ID, SubscriptionV1>,
         /// Policy set. Replaced wholesale via `update_policies`.
         policies: PolicySet,
@@ -300,7 +276,6 @@ module subscriptions::account {
     /// bit. Wrong role.
     const EUnauthorized: u64 = 0x01008;
     /// The cap is present but does not hold the `OWNER` permission;
-    /// specifically used by `mint_delegated_cap`.
     const ENotOwnerCap: u64 = 0x01009;
     /// `resume_account` was called on an account that is not paused.
     /// (Reusing `EAccountClosed` would be misleading; this is a separate
@@ -310,7 +285,6 @@ module subscriptions::account {
     // === Events ===
     //
     // All events carry a `v: u16 = 2` field for indexer discrimination
-    // (architecture §8). The `v` field is bumped when the event *shape*
     // changes; adding a field is a minor version bump, removing a field
     // is a major version bump that requires a migration.
 
@@ -344,7 +318,6 @@ module subscriptions::account {
     }
 
     /// Emitted on every successful `resume_account`. Subscriptions
-    /// are NOT auto-resumed (design §7.7); this event signals
     /// account-level state only.
     public struct AccountResumed has copy, drop {
         account_id: ID,
@@ -371,7 +344,6 @@ module subscriptions::account {
     /// Create a new `SubscriptionAccount<T>` and mint a fresh `AccountCap`
     /// with the OWNER permission bit set. The coin `T` must be registered
     /// in the `CoinTypeRegistry`; the `AccountType` is resolved at
-    /// creation time and stored in the account (BUG FIX #3).
     ///
     /// Returns the account and cap by value. The caller (PTB) is
     /// responsible for `share_account` to share the account and
@@ -505,7 +477,6 @@ module subscriptions::account {
     // === pause / resume / close ===
 
     /// Pause the account. Cascades to all active subscriptions
-    /// (sets each `status == 0` to `status == 1`, BUG FIX #8). The
     /// cap must hold the OWNER permission.
     ///
     /// #### Aborts
@@ -541,7 +512,6 @@ module subscriptions::account {
 
     /// Resume the account. Does NOT auto-resume subscriptions — the
     /// user must call `billing::resume_subscription` per platform to
-    /// prevent surprise billing (design §7.7). The cap must hold
     /// the OWNER permission.
     ///
     /// #### Aborts
@@ -685,7 +655,6 @@ module subscriptions::account {
     }
 
     /// Read the subscription's `tier_amount` by `platform_id`. Used by
-    /// `payment.move` to enforce BUG FIX #5: the amount billed is
     /// exactly `sub.tier_amount`, never a caller-supplied value. Public
     /// (read-only) view on the embedded subscription map; lookup uses
     /// the public `subscriptions` accessor to avoid duplicating the
@@ -794,7 +763,6 @@ module subscriptions::account {
 
     // === SubscriptionV1 mutators (public(package) — billing.move only) ===
     //
-    // `SubscriptionV1` fields are private to `account.move`. `billing.move`
     // is the only module that should mutate per-platform subscription
     // state, so we expose the necessary writes here as `public(package)`
     // helpers rather than making the fields themselves package-visible.
@@ -846,7 +814,6 @@ module subscriptions::account {
 
     /// Test-only constructor for `SubscriptionAccount<T>`. Mirrors
     /// `create_account` but returns the account by value without
-    /// going through the shared-object protocol. Mirrors the v1
     /// `new_registry_for_testing` pattern in `registry.move`.
     #[test_only]
     public fun new_account_for_testing<T>(
@@ -871,7 +838,6 @@ module subscriptions::account {
     /// Test-only destructor. `SubscriptionAccount<T>` has `key + store`
     /// but not `drop`, so unit tests need an explicit way to dispose of
     /// accounts they constructed. The `VecMap` is drained entry by entry
-    /// (its values are `SubscriptionV1` with `store + drop`).
     #[test_only]
     public fun destroy_account_for_testing<T>(account: SubscriptionAccount<T>) {
         let SubscriptionAccount<T> {

@@ -1,7 +1,3 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
-/// Protocol-wide access control primitives for PayStreamer v2.
 ///
 /// This module owns:
 /// 1. The protocol-wide `AC` one-time witness (OTW) — the
@@ -10,7 +6,6 @@
 ///    mint the protocol-wide `AccessControl<AC>` singleton.
 /// 2. The eight role types consumed by every other core module.
 /// 3. The user-facing `AccountCap` carrying the delegated permission
-///    bitfield (BUG FIX #1 from the v2 architecture doc, §2 and §5.2).
 ///
 /// Per the OpenZeppelin invariant, all role types live in the same
 /// module as the OTW. The `init` function mints and shares the
@@ -45,7 +40,6 @@ module subscriptions::ac {
 
     /// Platform scheduler: the on-chain `PLATFORM_SCHEDULER_ROLE` member
     /// whose role grant authorizes any caller to submit a due payment
-    /// against the platform (no signing key required; see architecture §7.3).
     public struct PLATFORM_SCHEDULER_ROLE {}
 
     /// Platform treasury: receives withdrawn subscription funds.
@@ -75,7 +69,6 @@ module subscriptions::ac {
     /// User-facing capability for a `SubscriptionAccount<T>`. Non-transferable
     /// by default (`key` only, not `store`). The bitfield `permissions`
     /// encodes which fine-grained actions the holder is allowed to perform
-    /// (BUG FIX #1). Pair with the embedded `AccessControl<AC>`
     /// on the account, which mints the corresponding `Auth<Role>` at call
     /// time.
     public struct AccountCap has key {
@@ -188,12 +181,10 @@ module subscriptions::ac {
     // === Test-only helpers ===
 
     /// Transfer a freshly-minted `AccountCap` to a recipient. Since
-    /// `AccountCap` is `key`-only (not `store`) per the design doc
     /// (§5.2: "non-transferable by default"), the only way to relocate
     /// it on chain is via this helper. This is intentionally narrow:
     /// the cap is minted and then handed to the user exactly once.
     /// Subsequent re-transfers are a future hardening pass (the
-    /// v1→v2 migration path will add a `transfer_account_cap_to`).
     ///
     /// Role: any caller. The cap is `key`-only, so the only entity
     /// that can pass it to this function is the one that just minted

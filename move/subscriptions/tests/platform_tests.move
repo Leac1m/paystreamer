@@ -1,6 +1,3 @@
-// Copyright (c) leac1m
-// SPDX-License-Identifier: Apache-2.0
-
 #[test_only]
 module subscriptions::platform_tests {
     use subscriptions::platform;
