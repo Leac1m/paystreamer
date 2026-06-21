@@ -16,7 +16,7 @@ Last year, we built an award-winning project for the Walrus hackathon called Fun
 
 ## 💡 The Solution
 
-PayStreamer is an on-chain, token-agnostic recurring payment protocol for Web3 platforms. It mimics the seamless UX of a Web2 credit card subscription—without users ever losing custody of their accounts. Users own and manage a single subscription account across all platforms, granting access to funds via highly customizable, time-based **"Policies"** (e.g., Platform X can withdraw 10 Tokens, but only every 30 days). Users keep their capital completely liquid in their own wallets right up until the exact moment a payment triggers.
+PayStreamer is an on-chain, token-agnostic recurring payment protocol for Web3 platforms. It mimics the seamless UX of a Web2 credit card subscription—without users ever losing custody of their accounts. Users own and manage a single subscription account across all platforms, granting access to funds via highly customizable, time-based **"Policies"**. By leveraging **OpenZeppelin's `rate_limiter`**, these policies strictly enforce how much and how often a platform can withdraw funds (e.g., Platform X can withdraw 10 Tokens, but only every 30 days). Users keep their capital completely liquid in their own wallets right up until the exact moment a payment triggers.
 
 ## 🏆 Why PayStreamer is Better
 
@@ -45,7 +45,7 @@ PayStreamer bridges the gap between Web3 infrastructure and Web2 business models
 ## 🏗️ Technical Architecture
 
 PayStreamer utilizes two main layers:
-1. **Move Smart Contracts** (`move/subscriptions/`): Built on Sui, utilizing advanced patterns like OZ AccessControl, permissionless schedulers, and BalanceContainers for secure fund management.
+1. **Move Smart Contracts** (`move/subscriptions/`): Built on Sui, heavily utilizing **OpenZeppelin (OZ)** libraries—specifically `AccessControl` for role management and `rate_limiter` for enforcing subscription policies—alongside permissionless schedulers and BalanceContainers for secure fund management.
 2. **Frontend dApp**: Built with React, Vite, Tailwind CSS v4, and integrated with `@mysten/dapp-kit-react` for seamless wallet connections. A Node.js backend handles the gas-sponsored transactions.
 
 ---
