@@ -2,5 +2,7 @@
   "useSubscribe": "useSubscribe",
   "usePlatform": "usePlatform",
   "useUserAccount": "useUserAccount",
-  "usePusdBalance": "usePusdBalance"
+  "usePusdBalance": "usePusdBalance",
+  "useMintTestPusd": "useMintTestPusd",
+  "useSponsoredTransaction": "useSponsoredTransaction"
 }
