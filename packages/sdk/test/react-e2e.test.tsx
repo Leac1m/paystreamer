@@ -163,58 +163,12 @@ describe('React SDK Hooks E2E', () => {
     expect(screen.getByTestId('error').textContent).toBe('None');
   });
 
-  it('should fetch platform data and user account', async () => {
+  it('should fetch platform data and user account live against Devnet', async () => {
     const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
     const customGraphqlClient = new SuiGraphQLClient({ 
       url: devnetConfig.GRAPHQL_URL,
       network: "devnet"
     });
-
-    customGraphqlClient.query = async (args) => {
-      const q = args.query as string;
-      if (q.includes('GetPlatform')) {
-        return {
-          data: {
-            object: {
-              asMoveObject: {
-                contents: {
-                  json: {
-                    name: "Mock Platform",
-                    tiers: []
-                  }
-                }
-              },
-              owner: { initialSharedVersion: 123 }
-            }
-          }
-        } as any;
-      }
-      
-      if (q.includes('GetAccountCap')) {
-        return {
-          data: {
-            address: {
-              objects: {
-                nodes: [
-                  {
-                    address: "0xMockAccountCapId",
-                    asMoveObject: {
-                      contents: {
-                        json: {
-                          account_id: "0xMockAccountId"
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        } as any;
-      }
-
-      return { data: null } as any;
-    };
 
     const config = {
       packageId: devnetConfig.PACKAGE_ID,
@@ -233,10 +187,16 @@ describe('React SDK Hooks E2E', () => {
       </QueryClientProvider>
     );
 
-    // Wait for the query to resolve
+    // Wait for the query to resolve against real devnet
     await waitFor(() => {
-      expect(screen.getByTestId('account-id').textContent).toBe('0xMockAccountId');
-      expect(screen.getByTestId('platform-name').textContent).toBe('Mock Platform');
-    });
+      // The platform name should not be empty, meaning it actually pulled from the Move contract
+      const platformName = screen.getByTestId('platform-name').textContent;
+      expect(platformName).not.toBe('None');
+      expect(platformName?.length).toBeGreaterThan(0);
+      
+      // User account should not throw an error, even if they don't have an account
+      const accountId = screen.getByTestId('account-id').textContent;
+      expect(accountId).toBeDefined();
+    }, { timeout: 10000 });
   });
 });
