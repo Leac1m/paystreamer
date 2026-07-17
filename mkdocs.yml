@@ -15,6 +15,9 @@ nav:
   - React Hooks:
     - useSubscribe: hooks/useSubscribe.md
     - useManageTier: hooks/useManageTier.md
+    - usePlatform: hooks/usePlatform.md
+    - useUserAccount: hooks/useUserAccount.md
+    - usePusdBalance: hooks/usePusdBalance.md
   - UI Components:
     - SetupSubscriptionModal: components/SetupSubscriptionModal.md
     - TierCard: components/TierCard.md

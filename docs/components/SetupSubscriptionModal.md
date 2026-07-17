@@ -13,11 +13,13 @@ import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
 <SetupSubscriptionModal
   isOpen={isOpen}
   onClose={() => setIsOpen(false)}
-  platformId="0x123..."
+  platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
   tierIndex={0}
-  tierAmount={10000000000n} // 10 PUSD in MIST
-  tierFrequencyMs={2592000000n} // 30 days
   onSuccess={(digest) => alert("Success! Tx: " + digest)}
+  theme={{
+    primary: "#6c63ff",
+    radius: "12px",
+  }}
 />
 ```
 
@@ -28,16 +30,30 @@ import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
 | `isOpen` | `boolean` | Whether the modal is currently visible. |
 | `onClose` | `() => void` | Callback fired when the user dismisses the modal. |
 | `platformId` | `string` | The object ID of your deployed platform. |
-| `tierIndex` | `number` | The array index of the tier the user is subscribing to. |
-| `tierAmount` | `bigint` | The cost per cycle in MIST (1 PUSD = 10^9 MIST). |
-| `tierFrequencyMs` | `bigint` | The length of the billing cycle in milliseconds. |
-| `accountId?` | `string` | Optional. If known, pass the user's existing Account ID. |
-| `accountCapId?` | `string` | Optional. If known, pass the user's existing AccountCap ID. |
-| `currentBalance?` | `bigint` | Optional. The user's current subscription account balance. |
-| `walletBalanceUsd?` | `number` | Optional. The amount of PUSD in the user's connected wallet. |
+| `tierIndex` | `number` | The array index of the tier the user is subscribing to (used to fetch tier details from on-chain). |
 | `onSuccess?` | `(txDigest: string) => void` | Callback fired after a successful transaction. |
-| `formatUsd?` | `(mist: bigint) => number` | Optional custom formatter for displaying USD/PUSD values. |
+| `formatUsd?` | `(amount: bigint \| number \| string) => number` | Optional custom formatter for displaying USD/PUSD values. |
+| `theme?` | `PayStreamerTheme` | Optional. Local theme variables to customize colors and radius. |
+
+### Theme Customization
+
+You can pass a custom `theme` object to override color variables and border-radius. Theme parameters can also be configured globally using `PayStreamerThemeProvider`.
+
+```typescript
+export interface PayStreamerTheme {
+  primary?: string;            // Primary button and accent color
+  primaryForeground?: string;  // Text color on primary buttons
+  background?: string;         // Modal root background
+  card?: string;               // Inner card background
+  cardForeground?: string;     // Inner card text color
+  muted?: string;              // Muted status and inputs background
+  mutedForeground?: string;    // Muted text color
+  border?: string;             // Borders color
+  radius?: string;             // Base border-radius (e.g., '12px')
+}
+```
 
 ## Styling Requirements
 
 This component leverages standard class names compatible with **TailwindCSS**. If you are importing this component, ensure your application either compiles Tailwind utilities or includes standard shadcn-ui styles.
+

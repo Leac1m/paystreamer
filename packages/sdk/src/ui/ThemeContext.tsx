@@ -35,7 +35,7 @@ export function useThemeStyles(localTheme?: PayStreamerTheme) {
   const contextTheme = usePayStreamerTheme();
   const theme = { ...contextTheme, ...localTheme };
 
-  const styles: React.CSSProperties = {};
+  const styles: Record<string, string> = {};
 
   if (theme.primary) {
     styles["--color-primary"] = theme.primary;
@@ -77,5 +77,5 @@ export function useThemeStyles(localTheme?: PayStreamerTheme) {
     styles["--border-radius"] = theme.radius;
   }
 
-  return styles;
+  return styles as React.CSSProperties;
 }

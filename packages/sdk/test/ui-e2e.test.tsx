@@ -5,7 +5,7 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PayStreamerProvider } from '../src/react';
-import { TierCard, SetupSubscriptionModal } from '../src/ui';
+import { TierCard, SetupSubscriptionModal, PayStreamerThemeProvider } from '../src/ui';
 // @ts-ignore
 import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
@@ -190,5 +190,76 @@ describe('React SDK UI Components E2E', () => {
       expect(subscribeBtn).toBeDefined();
       expect(subscribeBtn.hasAttribute('disabled')).toBe(true);
     });
+  });
+
+  it('should apply custom theme styles to the modal wrapper when passed via props', async () => {
+    mockPusdBalance = 50000000000n;
+    const queryClient = createTestQueryClient();
+    const customTheme = {
+      primary: '#ff0000',
+      background: '#00ff00',
+      radius: '16px'
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <SetupSubscriptionModal 
+            isOpen={true}
+            onClose={() => {}}
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            tierIndex={0}
+            theme={customTheme}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Setup Subscription')).toBeDefined();
+    });
+
+    const modalWrapper = screen.getByText('Setup Subscription').closest('.fixed') as HTMLElement;
+    expect(modalWrapper).not.toBeNull();
+    expect(modalWrapper.style.getPropertyValue('--color-primary')).toBe('#ff0000');
+    expect(modalWrapper.style.getPropertyValue('--primary')).toBe('#ff0000');
+    expect(modalWrapper.style.getPropertyValue('--color-background')).toBe('#00ff00');
+    expect(modalWrapper.style.getPropertyValue('--radius-xl')).toBe('16px');
+  });
+
+  it('should apply custom theme styles to the modal wrapper when passed via context', async () => {
+    mockPusdBalance = 50000000000n;
+    const queryClient = createTestQueryClient();
+    const contextTheme = {
+      primary: '#0000ff',
+      card: '#f0f0f0',
+      radius: '8px'
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <PayStreamerThemeProvider theme={contextTheme}>
+            <SetupSubscriptionModal 
+              isOpen={true}
+              onClose={() => {}}
+              platformId={activeConfig.DEMO_PLATFORM_ID}
+              tierIndex={0}
+            />
+          </PayStreamerThemeProvider>
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Setup Subscription')).toBeDefined();
+    });
+
+    const modalWrapper = screen.getByText('Setup Subscription').closest('.fixed') as HTMLElement;
+    expect(modalWrapper).not.toBeNull();
+    expect(modalWrapper.style.getPropertyValue('--color-primary')).toBe('#0000ff');
+    expect(modalWrapper.style.getPropertyValue('--primary')).toBe('#0000ff');
+    expect(modalWrapper.style.getPropertyValue('--color-card')).toBe('#f0f0f0');
+    expect(modalWrapper.style.getPropertyValue('--radius-xl')).toBe('8px');
   });
 });
