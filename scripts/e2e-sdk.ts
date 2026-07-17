@@ -31,7 +31,10 @@ function loadKeypair() {
 async function main() {
   const keypair = loadKeypair();
   const address = keypair.toSuiAddress();
-  const client = new SuiGraphQLClient({ url: "https://graphql.devnet.sui.io/graphql" });
+  const client = new SuiGraphQLClient({ 
+    url: "https://graphql.devnet.sui.io/graphql",
+    network: "devnet"
+  });
 
   console.log("Creating Account...");
   const tx1 = new Transaction();

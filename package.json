@@ -8,8 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
-    "seed:demo": "node --loader ts-node/esm scripts/v2/seed-demo-platform.ts",
-    "e2e": "node --loader ts-node/esm scripts/v2/e2e-payment-cycle.ts",
+    "seed:demo": "npx tsx scripts/v2/seed-demo-platform.ts",
+    "e2e": "npx tsx scripts/v2/e2e-payment-cycle.ts",
     "lint:no-fakes": "node scripts/lint-no-fakes.mjs"
   },
   "dependencies": {
