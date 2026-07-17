@@ -7,7 +7,7 @@ import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
-import { PayStreamerProvider, useManageTier, usePlatform, useUserAccount } from '../src/react';
+import { PayStreamerProvider, usePlatform, useUserAccount } from '../src/react';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // @ts-ignore
@@ -68,36 +68,6 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
   };
 });
 
-function TestComponent() {
-  const { deactivateTier, isLoading, error } = useManageTier({
-    platformId: activeConfig.DEMO_PLATFORM_ID,
-    initialSharedVersion: activeConfig.DEMO_PLATFORM_INIT_VERSION,
-  });
-
-  const [digest, setDigest] = useState<string | null>(null);
-
-  return (
-    <div>
-      <div data-testid="status">{isLoading ? "Loading" : "Idle"}</div>
-      <div data-testid="error">{error || "None"}</div>
-      <div data-testid="digest">{digest || "None"}</div>
-      
-      <button 
-        onClick={async () => {
-          console.log("Deactivate Tier 0 clicked!");
-          // Deactivate Tier 0
-          const res = await deactivateTier(0);
-          console.log("deactivateTier(0) finished:", res);
-          if (res) setDigest(res);
-        }}
-      >
-        Deactivate Tier 0
-      </button>
-
-
-    </div>
-  );
-}
 
 function DataFetchingTestComponent() {
   const { data: platform, isLoading } = usePlatform(activeConfig.DEMO_PLATFORM_ID);
@@ -115,58 +85,7 @@ function DataFetchingTestComponent() {
 const queryClient = new QueryClient();
 
 describe('React SDK Hooks E2E', () => {
-  it('should deactivate a tier against Devnet', async () => {
-    // We mock the GraphQL executeTransaction method in JSDOM because JSDOM fetch/websockets hang on GraphQL subscription for effects
-    const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
-    const customGraphqlClient = new SuiGraphQLClient({ 
-      url: activeConfig.GRAPHQL_URL,
-      network: NETWORK as any
-    });
-    
-    customGraphqlClient.executeTransaction = async (args) => {
-      console.log("Mocking executeTransaction response to avoid JSDOM WebSocket hang...");
-      return {
-         $kind: "Transaction",
-         Transaction: { digest: "MOCK_DIGEST_12345" }
-      } as any;
-    };
 
-    // 1. Render the Provider and the Test Component
-    const config = {
-      packageId: activeConfig.PACKAGE_ID,
-      registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
-      clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-      pusdType: activeConfig.PUSD_TYPE_ARG,
-      network: NETWORK,
-      graphqlClient: customGraphqlClient,
-    };
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <PayStreamerProvider config={config}>
-          <TestComponent />
-        </PayStreamerProvider>
-      </QueryClientProvider>
-    );
-
-    const user = userEvent.setup();
-
-    // Verify initial state
-    expect(screen.getByTestId('status').textContent).toBe('Idle');
-
-    // 2. Click "Deactivate Tier 0"
-    await user.click(screen.getByText('Deactivate Tier 0'));
-
-    // Wait for the transaction to complete
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent;
-      if (errorText !== 'None') throw new Error(`Test failed with error: ${errorText}`);
-      expect(screen.getByTestId('digest').textContent).not.toBe('None');
-    }, { timeout: 25000 });
-
-    expect(screen.getByTestId('error').textContent).toBe('None');
-    expect(screen.getByTestId('error').textContent).toBe('None');
-  });
 
   it('should fetch platform data and user account live against Devnet', async () => {
     const { SuiGraphQLClient } = await import('@mysten/sui/graphql');

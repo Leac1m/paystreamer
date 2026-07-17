@@ -5,7 +5,7 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PayStreamerProvider } from '../src/react';
-import { TierCard, SetupSubscriptionModal, PayStreamerThemeProvider } from '../src/ui';
+import { SetupSubscriptionModal, PayStreamerThemeProvider } from '../src/ui';
 // @ts-ignore
 import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
@@ -111,35 +111,6 @@ describe('React SDK UI Components E2E', () => {
     cleanup();
   });
 
-  it('should render the TierCard', async () => {
-    const tier = {
-      name: "Premium",
-      amount: "10000000000",
-      frequency: "monthly",
-      subscriber_count: 5,
-      is_active: true
-    };
-
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <PayStreamerProvider config={config}>
-          <TierCard 
-            platformId={activeConfig.DEMO_PLATFORM_ID}
-            initialSharedVersion={activeConfig.DEMO_PLATFORM_INIT_VERSION}
-            tier={tier}
-            tierIndex={0}
-          />
-        </PayStreamerProvider>
-      </QueryClientProvider>
-    );
-
-    expect(screen.getByText('Premium')).toBeDefined();
-    expect(screen.getByText('10 PUSD')).toBeDefined();
-    expect(screen.getByText('5 subscribers')).toBeDefined();
-    expect(screen.getByText('Deactivate')).toBeDefined();
-  });
 
   it('should render the SetupSubscriptionModal with sufficient balance', async () => {
     mockPusdBalance = 50000000000n; // 50 PUSD

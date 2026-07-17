@@ -5,9 +5,7 @@ import { readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import {
-  buildCreateAccountTx,
-  buildActivateTierTx,
-  buildDeactivateTierTx
+  buildCreateAccountTx
 } from "../packages/sdk/src/core/transactions";
 import { NETWORK_CONFIGS } from "../src/constants";
 

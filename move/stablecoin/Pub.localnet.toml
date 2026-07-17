@@ -7,9 +7,9 @@ chain-id = "32b18a95"
 
 [[published]]
 source = { local = "/workspace/move/stablecoin" }
-published-at = "0x25235be1a50082a663494193385dc873f027fb97054295ad9be70b0a9496440b"
-original-id = "0x25235be1a50082a663494193385dc873f027fb97054295ad9be70b0a9496440b"
+published-at = "0x95dec2c1c785e2d7ddc9fe4c6b8cd11b7f99cd78910f78ea033ff4aec984820e"
+original-id = "0x95dec2c1c785e2d7ddc9fe4c6b8cd11b7f99cd78910f78ea033ff4aec984820e"
 version = 1
 toolchain-version = "1.75.2"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0xbbda92138b8dc3e7a8f648a49bc05d2dc86611ab14a3172fda95bc7322f51af9"
+upgrade-capability = "0xbda1afeb32a9778194ba233250e3c14d39390e99b8ddbd8706196853bb1b4be5"
