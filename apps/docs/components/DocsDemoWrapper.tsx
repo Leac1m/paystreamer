@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 const ConnectButton = dynamic(
   () => import('@mysten/dapp-kit-react/ui').then((mod) => mod.ConnectButton),
   { ssr: false }
-);
+) as any;
 
 export function DocsDemoWrapper({ children }: { children: React.ReactNode }) {
   const account = useCurrentAccount();

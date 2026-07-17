@@ -31,7 +31,8 @@ const config = {
   registryId: "0x48ccd75e970e510e6d94ca4fb94fb117c8c5ed760ef71e8594c311ebba23ca07",
   clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
   pusdType: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f::pusd::PUSD",
-  network: "testnet"
+  network: "testnet",
+  sponsorApiUrl: "/api/sponsor"
 };
 
 const queryClient = new QueryClient();
