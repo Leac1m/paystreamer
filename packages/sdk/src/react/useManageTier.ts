@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { usePayStreamerConfig } from "./provider";
-import { buildActivateTierTx, buildDeactivateTierTx } from "../core/transactions";
+import { buildDeactivateTierTx } from "../core/transactions";
 import { useSponsoredTransaction } from "./useSponsoredTransaction";
 
 export interface UseManageTierParams {
