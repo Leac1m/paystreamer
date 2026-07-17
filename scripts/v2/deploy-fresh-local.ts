@@ -23,7 +23,7 @@ for (const change of pusdRes.objectChanges) {
   if (change.type === "published") {
     pusdPackageId = change.packageId;
   } else if (change.type === "created") {
-    if (change.objectType.endsWith("::pusd::TreasuryCap")) {
+    if (change.objectType.includes("::coin::TreasuryCap")) {
       pusdTreasuryCapId = change.objectId;
       pusdTreasuryCapVersion = Number(change.version);
     }

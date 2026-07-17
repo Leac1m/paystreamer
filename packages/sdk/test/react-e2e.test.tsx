@@ -13,8 +13,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // @ts-ignore
 import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
+import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
+
 // We need to load the local sui keystore to sign the transactions during the test
 function loadKeypair() {
+  if (process.env.E2E_PRIVATE_KEY) {
+    return Ed25519Keypair.fromSecretKey(decodeSuiPrivateKey(process.env.E2E_PRIVATE_KEY).secretKey);
+  }
   const path = join(homedir(), ".sui/sui_config/sui.keystore");
   const parsed = JSON.parse(readFileSync(path, "utf8"));
   const first = parsed[0];

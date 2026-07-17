@@ -170,6 +170,7 @@ async function executeStep(
     const digest = result.Transaction?.digest || "";
     console.log(`  status: success   digest: ${digest}`);
     summary.digests[step.name] = digest;
+    await new Promise((r) => setTimeout(r, 2500));
     return { step: step.name, digest, status: "success" };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -177,6 +178,7 @@ async function executeStep(
     const matched = Object.keys(knownAborts).find((c) => message.includes(c));
     if (matched !== undefined) {
       console.log(`  status: expected EXCEPTION (${knownAborts[Number(matched)]} — likely re-run against existing on-chain state)`);
+      await new Promise((r) => setTimeout(r, 2500));
       return { step: step.name, digest: "", status: "success" };
     }
     console.log(`  status: EXCEPTION (${message})`);
@@ -256,6 +258,7 @@ async function fetchTreasuryCoinBalance(
 const SHARED_INIT_VERSION_REGISTRY = V3_COIN_TYPE_REGISTRY_INIT_VERSION;
 const SHARED_INIT_VERSION_SCHEDULER = PAYMENT_SCHEDULER_INIT_VERSION;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
+let ACCOUNT_INITIAL_VERSION = 10;
 
 function sharedObjectMut(id: string, initialVersion: number) {
   return (tx: Transaction) =>
@@ -523,6 +526,14 @@ async function main() {
         if (summary.ids.accountId && summary.ids.capId) break;
         await new Promise((r) => setTimeout(r, 1500));
       }
+      
+      const objRes = await graphqlClient.query({
+        query: `query GetAcctObj($id: SuiAddress!) {
+          object(address: $id) { owner { ... on Shared { initialSharedVersion } } } }`,
+        variables: { id: summary.ids.accountId },
+      });
+      const v = (objRes.data as any)?.object?.owner?.initialSharedVersion;
+      if (typeof v === "number") ACCOUNT_INITIAL_VERSION = v;
     }
   }
 
@@ -571,7 +582,7 @@ async function main() {
             typeArguments: [PUSD_TYPE_ARG],
             arguments: [
               tx.object(summary.ids.capId),
-              tx.object(summary.ids.accountId),
+              sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
               tx.object(mintedCoinId),
               tx.object(CLOCK_OBJECT_ID),
             ],
@@ -594,7 +605,7 @@ async function main() {
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
-          tx.object(summary.ids.accountId),
+          sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
           tx.pure.id(summary.ids.platformId!),
           tx.pure.u64(summary.ids.tierIndex ?? 0),
           tx.pure.u64(TIER_AMOUNT),
@@ -613,7 +624,7 @@ async function main() {
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
-            tx.object(summary.ids.accountId),
+            sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
             tx.pure.id(summary.ids.platformId!),
             tx.pure.u64(summary.ids.tierIndex ?? 0),
             tx.pure.u64(TIER_AMOUNT),
@@ -651,7 +662,7 @@ async function main() {
       arguments: [
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
-        tx.object(summary.ids.accountId!),
+        sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
         limiters,
         tx.object(CLOCK_OBJECT_ID),
       ],
@@ -691,7 +702,7 @@ async function main() {
       arguments: [
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
-        tx.object(summary.ids.accountId!),
+        sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
         limiters,
         tx.object(CLOCK_OBJECT_ID),
       ],
@@ -716,7 +727,7 @@ async function main() {
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
-          tx.object(summary.ids.accountId),
+          sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
           tx.pure.id(summary.ids.platformId!),
           tx.object(CLOCK_OBJECT_ID),
         ],
@@ -732,7 +743,7 @@ async function main() {
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
-            tx.object(summary.ids.accountId),
+            sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
             tx.pure.id(summary.ids.platformId!),
             tx.object(CLOCK_OBJECT_ID),
           ],
