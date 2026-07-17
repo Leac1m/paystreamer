@@ -25,7 +25,7 @@ cd move/subscriptions && sui move test
 
 # Scripts
 pnpm seed:demo    # Seed demo platform (idempotent)
-pnpm e2e           # Run payment cycle test
+pnpm e2e           # Run payment cycle test (Note: for all e2e tests use devnet unless said otherwise. deploy a fresh devnet instance if needed.)
 ```
 
 ## Critical SDK Patterns
