@@ -7,9 +7,9 @@ chain-id = "32b18a95"
 
 [[published]]
 source = { local = "/workspace/move/subscriptions" }
-published-at = "0xa6dbac60b1eac0ccf7503bd8e0743f359c41aea5f9f7b8baa7103e6b3545f02e"
-original-id = "0xa6dbac60b1eac0ccf7503bd8e0743f359c41aea5f9f7b8baa7103e6b3545f02e"
+published-at = "0xbfea6bef00de62dfa4e93bd037f5deaf13778986432c96c2f29abb10c1857a45"
+original-id = "0xbfea6bef00de62dfa4e93bd037f5deaf13778986432c96c2f29abb10c1857a45"
 version = 1
 toolchain-version = "1.75.2"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0xb332bc7dec072d8ce3b7fdf5f74d23ac974b39c4f30d0f5df051397bea804f12"
+upgrade-capability = "0xfc1d5725d6398d3988a8ee629bd30f8d6ac2c13f6d57e5f1e832864f4eafa0af"
