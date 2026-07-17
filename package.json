@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
     "seed:demo": "npx tsx scripts/v2/seed-demo-platform.ts",
-    "e2e": "npx tsx scripts/v2/e2e-payment-cycle.ts",
+    "e2e": "bash scripts/e2e.sh",
     "lint:no-fakes": "node scripts/lint-no-fakes.mjs"
   },
   "dependencies": {

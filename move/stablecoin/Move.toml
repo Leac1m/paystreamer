@@ -11,3 +11,4 @@ stablecoin = "0x0"
 
 [environments]
 devnet = "5ea2c653"
+localnet = "5ea2c653"

@@ -1,7 +1,7 @@
 // PayStreamer v3 — Devnet deployment (2026-06-16)
 // All deployment-specific IDs live here. Update on every redeployment.
 
-export type SupportedNetwork = "devnet" | "testnet" | "mainnet";
+export type SupportedNetwork = "local" | "devnet" | "testnet" | "mainnet";
 
 export interface NetworkConfig {
   PACKAGE_ID: string;
@@ -20,6 +20,21 @@ export interface NetworkConfig {
 }
 
 export const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
+  local: {
+    PACKAGE_ID: "0x0",
+    COIN_TYPE_REGISTRY_ID: "0x0",
+    COIN_TYPE_REGISTRY_INIT_VERSION: 0,
+    PAYMENT_SCHEDULER_ID: "0x0",
+    PAYMENT_SCHEDULER_INIT_VERSION: 0,
+    ACCESS_CONTROL_ID: "0x0",
+    GRAPHQL_URL: "http://127.0.0.1:8000/graphql",
+    PUSD_PACKAGE_ID: "0x0",
+    PUSD_TYPE_ARG: "0x0::pusd::PUSD",
+    PUSD_TREASURY_CAP_ID: "0x0",
+    PUSD_TREASURY_CAP_INIT_VERSION: 0,
+    DEMO_PLATFORM_ID: "0x0",
+    DEMO_PLATFORM_INIT_VERSION: 0,
+  },
   devnet: {
     PACKAGE_ID: "0x0808b08199b07c7786c65fdbca996b2a2a0ccae29de8bd467d36225d2a7a9d73",
     COIN_TYPE_REGISTRY_ID: "0x211eeac09d39bac8553147c08f1c33701dcdf106a6886e7b852c5edc84e0e583",
@@ -59,7 +74,7 @@ const getEnvNetwork = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NETWORK) return import.meta.env.VITE_NETWORK;
   return null;
 };
-export const NETWORK = getEnvNetwork() || "testnet";
+export const NETWORK = getEnvNetwork() || "local";
 
 export function getConfig(network?: SupportedNetwork): NetworkConfig {
   const targetNetwork = network || (NETWORK as SupportedNetwork);

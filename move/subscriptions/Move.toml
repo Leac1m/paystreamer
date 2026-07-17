@@ -12,3 +12,4 @@ subscriptions = "0x0"
 
 [environments]
 devnet = "3b6f3fa4"
+localnet = "3b6f3fa4"
