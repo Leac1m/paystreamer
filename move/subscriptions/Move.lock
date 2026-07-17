@@ -5,13 +5,13 @@
 version = 4
 
 [pinned.devnet.MoveStdlib]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "718ae563a42fb4ba0d055588f81c704dcef58c25" }
+source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "367fd808279bed26f7c64fc63160062a2ee29ab7" }
 use_environment = "devnet"
 manifest_digest = "C4FE4C91DE74CBF223B2E380AE40F592177D21870DC2D7EB6227D2D694E05363"
 deps = {}
 
 [pinned.devnet.Sui]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "718ae563a42fb4ba0d055588f81c704dcef58c25" }
+source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "367fd808279bed26f7c64fc63160062a2ee29ab7" }
 use_environment = "devnet"
 manifest_digest = "E2EF92175C2575B1EA85274B70A9CFD8DE08662B35A68669746BBE7BAC06C17A"
 deps = { MoveStdlib = "MoveStdlib" }
@@ -28,38 +28,8 @@ use_environment = "devnet"
 manifest_digest = "41D1BDD28F3C119A169CE18934867517916EFC7FB9628B27D00844D146B950C3"
 deps = { std = "MoveStdlib", sui = "Sui" }
 
-[pinned.devnet.paystreamer_v2]
+[pinned.devnet.subscriptions]
 source = { root = true }
 use_environment = "devnet"
 manifest_digest = "EF601EF704A134D7FEBF16BF7D78C6DB75805913005AAF793303F619C25047F9"
-deps = { openzeppelin_access = "openzeppelin_access", openzeppelin_utils = "openzeppelin_utils", std = "MoveStdlib", sui = "Sui" }
-
-[pinned.testnet.MoveStdlib]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "718ae563a42fb4ba0d055588f81c704dcef58c25" }
-use_environment = "testnet"
-manifest_digest = "C4FE4C91DE74CBF223B2E380AE40F592177D21870DC2D7EB6227D2D694E05363"
-deps = {}
-
-[pinned.testnet.Sui]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "718ae563a42fb4ba0d055588f81c704dcef58c25" }
-use_environment = "testnet"
-manifest_digest = "7AFB66695545775FBFBB2D3078ADFD084244D5002392E837FDE21D9EA1C6D01C"
-deps = { MoveStdlib = "MoveStdlib" }
-
-[pinned.testnet.openzeppelin_access]
-source = { git = "https://github.com/OpenZeppelin/contracts-sui.git", subdir = "contracts/access", rev = "a116bf757c075a6404e57bb14003b233fb2a912b" }
-use_environment = "testnet"
-manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
-deps = { std = "MoveStdlib", sui = "Sui" }
-
-[pinned.testnet.openzeppelin_utils]
-source = { git = "https://github.com/OpenZeppelin/contracts-sui.git", subdir = "contracts/utils", rev = "a116bf757c075a6404e57bb14003b233fb2a912b" }
-use_environment = "testnet"
-manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
-deps = { std = "MoveStdlib", sui = "Sui" }
-
-[pinned.testnet.paystreamer_v2]
-source = { root = true }
-use_environment = "testnet"
-manifest_digest = "58183227B6897C4DD367DF0A68BF2F338FA32BDF9375C49C8245F9935AFE7EEB"
 deps = { openzeppelin_access = "openzeppelin_access", openzeppelin_utils = "openzeppelin_utils", std = "MoveStdlib", sui = "Sui" }

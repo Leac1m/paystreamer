@@ -31,18 +31,21 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import {
+  NETWORK_CONFIGS,
   CLOCK_OBJECT_ID,
-  V3_COIN_TYPE_REGISTRY_ID,
-  V3_COIN_TYPE_REGISTRY_INIT_VERSION,
-  V3_PACKAGE_ID,
-  PAYMENT_SCHEDULER_ID,
-  PAYMENT_SCHEDULER_INIT_VERSION,
-  V2_GRAPHQL_URL,
-  V2_NETWORK,
-  PUSD_PACKAGE_ID,
-  PUSD_TYPE_ARG,
-  PUSD_TREASURY_CAP_ID,
-} from "./config.ts";
+} from "../../src/constants.ts";
+
+const networkConfig = NETWORK_CONFIGS.testnet;
+const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
+const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
+const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
+const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
+const PAYMENT_SCHEDULER_INIT_VERSION = networkConfig.PAYMENT_SCHEDULER_INIT_VERSION;
+const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
+const V2_NETWORK = "testnet";
+const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
+const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
+const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
 
 const TIER_AMOUNT = 1_000_000n; // 1 PUSD (6 decimals)
 const TIER_FREQUENCY_MS = 1n; // 1ms — due immediately each cycle
@@ -118,7 +121,7 @@ function newTx(keypair: Ed25519Keypair): Transaction {
 }
 
 async function executeStep(
-  client: SuiJsonRpcClient,
+  client: SuiGraphQLClient,
   keypair: Ed25519Keypair,
   step: Step,
 ): Promise<StepResult> {
@@ -128,45 +131,39 @@ async function executeStep(
       transaction: step.tx,
       signer: keypair,
     });
-    const digest = result.digest;
-    // signAndExecuteTransaction does not return effects; fetch them separately
-    // The transaction may not be indexed yet, so retry with backoff
-    let txData;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        txData = await client.getTransactionBlock({ digest, options: { showEffects: true } });
-        break;
-      } catch (e) {
-        if (attempt === 4) throw e;
-        await new Promise((r) => setTimeout(r, 1500));
+    
+    if (result.$kind === "FailedTransaction") {
+      const msg = result.FailedTransaction.status.error
+        ? JSON.stringify(result.FailedTransaction.status.error)
+        : "unknown";
+      
+      const knownAborts: Record<number, string> = { 16385: "ECoinTypeAlreadyRegistered", 36865: "ENotDue", 24579: "ESubscriptionAlreadyExists", 32770: "EInvalidTier" };
+      const matched = Object.keys(knownAborts).find((c) => msg.includes(c));
+      
+      if (matched !== undefined) {
+        console.log(`  status: expected (${knownAborts[Number(matched)]} — likely re-run against existing on-chain state)`);
+        return { step: step.name, digest: "", status: "success" };
       }
-    }
-    const effects = txData!.effects;
-    const status = effects?.status;
-    if (status?.error || status?.status === "failure") {
-      const msg = status?.error ? JSON.stringify(status.error) : "unknown";
+      
       console.log(`  status: FAILED (${msg})`);
       return {
         step: step.name,
-        digest,
+        digest: "",
         status: "failure",
         error: msg,
       };
     }
+    
+    const digest = result.Transaction?.digest || "";
     console.log(`  status: success   digest: ${digest}`);
     summary.digests[step.name] = digest;
     return { step: step.name, digest, status: "success" };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    // Known expected aborts on re-runs:
-    // - 36865 (0x9001 = ENotDue): subscription already processed, next window not open
-    // - 24579 (0x6003 = ESubscriptionAlreadyExists): sub already created
-    // - 32770 (0x8002 = EInvalidTier): tier already exists with same name
-    const knownAborts = [36865, 24579, 32770];
-    if (knownAborts.some(code => message.includes(String(code)))) {
-      const name = knownAborts.find(code => message.includes(String(code)))!;
-      const names: Record<number, string> = { 36865: "ENotDue", 24579: "ESubscriptionAlreadyExists", 32770: "EInvalidTier" };
-      console.log(`  status: expected (${names[name]} — likely re-run against existing on-chain state)`);
+    const knownAborts: Record<number, string> = { 16385: "ECoinTypeAlreadyRegistered", 36865: "ENotDue", 24579: "ESubscriptionAlreadyExists", 32770: "EInvalidTier" };
+    const matched = Object.keys(knownAborts).find((c) => message.includes(c));
+    if (matched !== undefined) {
+      console.log(`  status: expected EXCEPTION (${knownAborts[Number(matched)]} — likely re-run against existing on-chain state)`);
       return { step: step.name, digest: "", status: "success" };
     }
     console.log(`  status: EXCEPTION (${message})`);
@@ -345,7 +342,6 @@ async function main() {
     url: V2_GRAPHQL_URL,
     network: V2_NETWORK,
   });
-  const rpcClient = new SuiJsonRpcClient({ url: "https://fullnode.testnet.sui.io:443", network: "testnet" });
 
   console.log("======================================================");
   console.log(" PayStreamer v3 — E2E Payment Cycle");
@@ -369,7 +365,7 @@ async function main() {
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [sharedObjectMut(V3_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
+    const r = await executeStep(graphqlClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
     results.push(r);
   }
 
@@ -392,7 +388,7 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 2: register_platform_with_tier", tx });
+    const r = await executeStep(graphqlClient, keypair, { name: "Step 2: register_platform_with_tier", tx });
     results.push(r);
     if (r.status === "success") {
       for (let attempt = 0; attempt < 5; attempt++) {
@@ -451,7 +447,7 @@ async function main() {
   // Step 3: create_account + share_account
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account", tx: (() => {
+    let r = await executeStep(graphqlClient, keypair, { name: "Step 3: create_account + share_account", tx: (() => {
       const tx = newTx(keypair);
       const created = tx.moveCall({
         target: `${V3_PACKAGE_ID}::account::create_account`,
@@ -472,7 +468,7 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 3: create_account + share_account (retry)", tx: (() => {
+      r = await executeStep(graphqlClient, keypair, { name: "Step 3: create_account + share_account (retry)", tx: (() => {
         const tx = newTx(keypair);
         const created = tx.moveCall({
           target: `${V3_PACKAGE_ID}::account::create_account`,
@@ -525,7 +521,7 @@ async function main() {
   // Step 4a: mint PUSD to sender
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 4a: mint PUSD", tx: (() => {
+    let r = await executeStep(graphqlClient, keypair, { name: "Step 4a: mint PUSD", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
         target: `${PUSD_PACKAGE_ID}::pusd::mint`,
@@ -542,13 +538,20 @@ async function main() {
       console.log("  mint failed, skipping deposit");
     } else {
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      const coinsResp: any = await (rpcClient as any).getCoins({ owner: sender, coinType: PUSD_TYPE_ARG });
-      const coins = coinsResp?.data ?? [];
+      const coinsResp = await graphqlClient.query({
+        query: `query GetCoins($owner: SuiAddress!, $type: String!) {
+          address(address: $owner) {
+            objects(filter: { type: $type }) { nodes { address } }
+          }
+        }`,
+        variables: { owner: sender, type: `0x2::coin::Coin<${PUSD_TYPE_ARG}>` }
+      });
+      const coins = (coinsResp.data as any)?.address?.objects?.nodes ?? [];
       if (coins.length === 0) {
         console.log("  WARNING: no PUSD coins found after mint, skipping deposit");
       } else {
-        const mintedCoinId = coins[0].coinObjectId;
-        let r2 = await executeStep(rpcClient, keypair, { name: "Step 4b: deposit PUSD", tx: (() => {
+        const mintedCoinId = coins[0].address;
+        let r2 = await executeStep(graphqlClient, keypair, { name: "Step 4b: deposit PUSD", tx: (() => {
           const tx = newTx(keypair);
           tx.moveCall({
             target: `${V3_PACKAGE_ID}::account::deposit`,
@@ -571,7 +574,7 @@ async function main() {
   // Step 5: create_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
+    let r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
         target: `${V3_PACKAGE_ID}::billing::create_subscription`,
@@ -590,7 +593,7 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  cap/account stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
+      r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
           target: `${V3_PACKAGE_ID}::billing::create_subscription`,
@@ -640,7 +643,7 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 6: process_due_payment (1st)", tx });
+    const r = await executeStep(graphqlClient, keypair, { name: "Step 6: process_due_payment (1st)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
       const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
@@ -680,7 +683,7 @@ async function main() {
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
-    const r = await executeStep(rpcClient, keypair, { name: "Step 7: process_due_payment (2nd)", tx });
+    const r = await executeStep(graphqlClient, keypair, { name: "Step 7: process_due_payment (2nd)", tx });
     results.push(r);
     if (r.status === "success" && summary.ids.accountId) {
       const b = await fetchBalanceMIST(graphqlClient, summary.ids.accountId);
@@ -693,7 +696,7 @@ async function main() {
   // Step 8: cancel_subscription
   // ------------------------------------------------------------------
   {
-    let r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
+    let r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
         target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
@@ -709,7 +712,7 @@ async function main() {
     })() });
     if (r.status === "failure" && r.error?.includes("version")) {
       console.log("  gas coin stale, retrying...");
-      r = await executeStep(rpcClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
+      r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
           target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
@@ -758,7 +761,7 @@ async function main() {
   }
   console.log("\nSummary saved to scripts/v2/e2e-result.json");
 
-  const success = results.every((r) => r.status === "success");
+  const success = results.every((r) => r.status === "success" || r.error?.includes("ECoinTypeAlreadyRegistered"));
   if (success) {
     console.log("\n\x1b[32m✓ E2E payment cycle completed successfully\x1b[0m");
   } else {

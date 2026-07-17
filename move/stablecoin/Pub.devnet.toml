@@ -3,13 +3,13 @@
 # this file should not be committed to source control
 
 build-env = "devnet"
-chain-id = "5ea2c653"
+chain-id = "3b6f3fa4"
 
 [[published]]
-source = { local = "/home/michael/projects/sui-next-demo/move/stablecoin" }
-published-at = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160"
-original-id = "0x7b09f1813d3e96e7759983486e40b4ec4ac32dc802095cbe9ff384d421383160"
+source = { local = "/home/michael/projects/demo/new/paystreamer/move/stablecoin" }
+published-at = "0x6fbabf6db1daa7343e34c01a10c196bc6fa324500114c51172547305c5181107"
+original-id = "0x6fbabf6db1daa7343e34c01a10c196bc6fa324500114c51172547305c5181107"
 version = 1
 toolchain-version = "1.72.2"
 build-config = { flavor = "sui", edition = "2024" }
-upgrade-capability = "0x75e1974800b7fba317cd98e8c000da5f0173fe6c815218c93214f325fa5c1147"
+upgrade-capability = "0x0ab41cc98a5287d0656a73bd1e31ee542af55acae07e6c8f036e62f07c369f50"

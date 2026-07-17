@@ -11,4 +11,4 @@ openzeppelin_utils = { git = "https://github.com/OpenZeppelin/contracts-sui.git"
 subscriptions = "0x0"
 
 [environments]
-devnet = "5ea2c653"
+devnet = "3b6f3fa4"
