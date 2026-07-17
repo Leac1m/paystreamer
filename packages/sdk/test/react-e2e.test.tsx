@@ -11,7 +11,7 @@ import { PayStreamerProvider, useManageTier, usePlatform, useUserAccount } from 
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // @ts-ignore
-import { NETWORK_CONFIGS } from '../../../src/constants';
+import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
 // We need to load the local sui keystore to sign the transactions during the test
 function loadKeypair() {
@@ -24,7 +24,7 @@ function loadKeypair() {
 
 const keypair = loadKeypair();
 const userAddress = keypair.toSuiAddress();
-const devnetConfig = NETWORK_CONFIGS.devnet;
+const activeConfig = NETWORK_CONFIGS[NETWORK];
 
 // Mock the dAppKit hooks
 vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
@@ -49,8 +49,8 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
         console.log("Mock signTransaction called");
         if (!transaction.sender) transaction.setSender(userAddress);
         const mockClient = new (await import('@mysten/sui/graphql')).SuiGraphQLClient({ 
-          url: devnetConfig.GRAPHQL_URL,
-          network: "devnet"
+          url: activeConfig.GRAPHQL_URL,
+          network: NETWORK as any
         });
         console.log("Mock client created, building transaction...");
         const builtBytes = await transaction.build({ client: mockClient });
@@ -65,8 +65,8 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 
 function TestComponent() {
   const { deactivateTier, isLoading, error } = useManageTier({
-    platformId: devnetConfig.DEMO_PLATFORM_ID,
-    initialSharedVersion: devnetConfig.DEMO_PLATFORM_INIT_VERSION,
+    platformId: activeConfig.DEMO_PLATFORM_ID,
+    initialSharedVersion: activeConfig.DEMO_PLATFORM_INIT_VERSION,
   });
 
   const [digest, setDigest] = useState<string | null>(null);
@@ -95,7 +95,7 @@ function TestComponent() {
 }
 
 function DataFetchingTestComponent() {
-  const { data: platform, isLoading } = usePlatform(devnetConfig.DEMO_PLATFORM_ID);
+  const { data: platform, isLoading } = usePlatform(activeConfig.DEMO_PLATFORM_ID);
   const { userAccount } = useUserAccount();
 
   return (
@@ -114,8 +114,8 @@ describe('React SDK Hooks E2E', () => {
     // We mock the GraphQL executeTransaction method in JSDOM because JSDOM fetch/websockets hang on GraphQL subscription for effects
     const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
     const customGraphqlClient = new SuiGraphQLClient({ 
-      url: devnetConfig.GRAPHQL_URL,
-      network: "devnet"
+      url: activeConfig.GRAPHQL_URL,
+      network: NETWORK as any
     });
     
     customGraphqlClient.executeTransaction = async (args) => {
@@ -128,11 +128,11 @@ describe('React SDK Hooks E2E', () => {
 
     // 1. Render the Provider and the Test Component
     const config = {
-      packageId: devnetConfig.PACKAGE_ID,
-      registryId: devnetConfig.COIN_TYPE_REGISTRY_ID,
+      packageId: activeConfig.PACKAGE_ID,
+      registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
       clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-      pusdType: devnetConfig.PUSD_TYPE_ARG,
-      network: "devnet",
+      pusdType: activeConfig.PUSD_TYPE_ARG,
+      network: NETWORK,
       graphqlClient: customGraphqlClient,
     };
 
@@ -166,16 +166,16 @@ describe('React SDK Hooks E2E', () => {
   it('should fetch platform data and user account live against Devnet', async () => {
     const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
     const customGraphqlClient = new SuiGraphQLClient({ 
-      url: devnetConfig.GRAPHQL_URL,
-      network: "devnet"
+      url: activeConfig.GRAPHQL_URL,
+      network: NETWORK as any
     });
 
     const config = {
-      packageId: devnetConfig.PACKAGE_ID,
-      registryId: devnetConfig.COIN_TYPE_REGISTRY_ID,
+      packageId: activeConfig.PACKAGE_ID,
+      registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
       clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-      pusdType: devnetConfig.PUSD_TYPE_ARG,
-      network: "devnet",
+      pusdType: activeConfig.PUSD_TYPE_ARG,
+      network: NETWORK,
       graphqlClient: customGraphqlClient,
     };
 

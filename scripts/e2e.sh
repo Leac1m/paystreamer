@@ -24,14 +24,14 @@ sleep 3
 
 rm -f move/*/Pub.*.toml
 
-docker compose exec -T -w /workspace/move/stablecoin sui-node sui client test-publish --skip-dependency-verification --with-unpublished-dependencies --build-env testnet --gas-budget 200000000 --json > move/stablecoin/pusd_output.json
-docker compose exec -T -w /workspace/move/subscriptions sui-node sui client test-publish --skip-dependency-verification --with-unpublished-dependencies --build-env testnet --gas-budget 200000000 --json > move/subscriptions/sub_output.json
+docker compose exec -T -w /workspace/move/stablecoin sui-node sui client test-publish --skip-dependency-verification --with-unpublished-dependencies --build-env testnet --gas-budget 1000000000 --json > move/stablecoin/pusd_output.json
+docker compose exec -T -w /workspace/move/subscriptions sui-node sui client test-publish --skip-dependency-verification --with-unpublished-dependencies --build-env testnet --gas-budget 1000000000 --json > move/subscriptions/sub_output.json
 
 export VITE_NETWORK="local"
-npx tsx scripts/v2/deploy-fresh-local.ts
+pnpm dlx tsx scripts/v2/deploy-fresh-local.ts
 
-E2E_KEYS=$(docker compose exec -T sui-node cat /root/.sui/sui_config/sui.keystore)
-export E2E_PRIVATE_KEY=$(node -e "console.log(JSON.parse('$E2E_KEYS')[0])")
+E2E_PRIVATE_KEY=$(docker compose exec -T sui-node sui keytool export --key-identity "$ACTIVE_ADDRESS" | grep -o "suiprivkey[a-zA-Z0-9]*")
+export E2E_PRIVATE_KEY
 
 echo "======================================================"
 echo " 🌱 Seeding Demo Platform..."
@@ -41,9 +41,9 @@ pnpm seed:demo
 echo "======================================================"
 echo " 🧪 Running Backend E2E Payment Cycle..."
 echo "======================================================"
-npx tsx scripts/v2/e2e-payment-cycle.ts
+pnpm dlx tsx scripts/v2/e2e-payment-cycle.ts
 
 echo "======================================================"
 echo " ⚛️  Running React SDK E2E Tests..."
 echo "======================================================"
-cd packages/sdk && npx vitest run test/react-e2e.test.tsx
+cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx

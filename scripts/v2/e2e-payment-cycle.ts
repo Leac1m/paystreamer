@@ -28,20 +28,22 @@ config();
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
+import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 
 import {
   NETWORK_CONFIGS,
   CLOCK_OBJECT_ID,
+  NETWORK,
 } from "../../src/constants.ts";
 
-const networkConfig = NETWORK_CONFIGS.devnet;
+const networkConfig = NETWORK_CONFIGS[NETWORK];
 const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
 const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
 const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
 const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
 const PAYMENT_SCHEDULER_INIT_VERSION = networkConfig.PAYMENT_SCHEDULER_INIT_VERSION;
 const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
-const V2_NETWORK = "devnet";
+const V2_NETWORK = NETWORK;
 const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
 const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
 const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
@@ -101,7 +103,6 @@ function loadKeypair(): Ed25519Keypair {
   }
   
   if (first.startsWith("suiprivkey")) {
-    const { decodeSuiPrivateKey } = require("@mysten/sui/cryptography");
     const parsed = decodeSuiPrivateKey(first);
     return Ed25519Keypair.fromSecretKey(parsed.secretKey);
   }

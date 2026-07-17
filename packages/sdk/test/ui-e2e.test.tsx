@@ -7,9 +7,9 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { PayStreamerProvider } from '../src/react';
 import { TierCard, SetupSubscriptionModal } from '../src/ui';
 // @ts-ignore
-import { NETWORK_CONFIGS } from '../../../src/constants';
+import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
-const devnetConfig = NETWORK_CONFIGS.devnet;
+const activeConfig = NETWORK_CONFIGS[NETWORK];
 
 // Mock the dAppKit hooks
 vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
@@ -30,11 +30,11 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 
 describe('React SDK UI Components E2E', () => {
   const config = {
-    packageId: devnetConfig.PACKAGE_ID,
-    registryId: devnetConfig.COIN_TYPE_REGISTRY_ID,
+    packageId: activeConfig.PACKAGE_ID,
+    registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
     clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-    pusdType: devnetConfig.PUSD_TYPE_ARG,
-    network: "devnet",
+    pusdType: activeConfig.PUSD_TYPE_ARG,
+    network: NETWORK,
     graphqlClient: {} as any, // Mock client
   };
 
@@ -50,8 +50,8 @@ describe('React SDK UI Components E2E', () => {
     render(
       <PayStreamerProvider config={config}>
         <TierCard 
-          platformId={devnetConfig.DEMO_PLATFORM_ID}
-          initialSharedVersion={devnetConfig.DEMO_PLATFORM_INIT_VERSION}
+          platformId={activeConfig.DEMO_PLATFORM_ID}
+          initialSharedVersion={activeConfig.DEMO_PLATFORM_INIT_VERSION}
           tier={tier}
           tierIndex={0}
         />
@@ -70,7 +70,7 @@ describe('React SDK UI Components E2E', () => {
         <SetupSubscriptionModal 
           isOpen={true}
           onClose={() => {}}
-          platformId={devnetConfig.DEMO_PLATFORM_ID}
+          platformId={activeConfig.DEMO_PLATFORM_ID}
           tierIndex={0}
           tierAmount={10000000000n}
           tierFrequencyMs={2592000000n}

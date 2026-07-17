@@ -44,15 +44,16 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import {
   CLOCK_OBJECT_ID,
   NETWORK_CONFIGS,
-  SUI_TYPE_ARG
+  SUI_TYPE_ARG,
+  NETWORK
 } from "../../src/constants.ts";
 
-const networkConfig = NETWORK_CONFIGS.devnet;
+const networkConfig = NETWORK_CONFIGS[NETWORK];
 const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
 const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
 const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
 const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
-const V2_NETWORK = "devnet";
+const V2_NETWORK = NETWORK;
 const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
 const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
 const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
@@ -494,34 +495,22 @@ function patchConstants(result: SeedResult): { patched: boolean; reason: string 
     return { patched: false, reason: `could not read ${constantsPath}: ${String(e)}` };
   }
 
-  const idReplacement = `export const DEMO_PLATFORM_ID: string | undefined = "${result.platformId}";`;
-  const versionReplacement = `export const DEMO_PLATFORM_INIT_VERSION: number | undefined = ${result.platformInitVersion};`;
+  const targetNetwork = V2_NETWORK;
+  const targetConfigRegex = new RegExp(`(${targetNetwork}:\\s*\\{[^}]+\\})`);
+  const match = src.match(targetConfigRegex);
 
-  const idLineRegex =
-    /export const DEMO_PLATFORM_ID:[^=]*=\s*("[^"]*"|undefined)([^;\n]*);/;
-  const verLineRegex =
-    /export const DEMO_PLATFORM_INIT_VERSION:[^=]*=\s*(\d+|undefined)([^;\n]*);/;
-
-  const newIdLine = src.match(idLineRegex);
-  const newVerLine = src.match(verLineRegex);
-  if (!newIdLine || !newVerLine) {
+  if (!match) {
     return {
       patched: false,
-      reason: `expected DEMO_PLATFORM_ID / DEMO_PLATFORM_INIT_VERSION lines not found in ${constantsPath}`,
+      reason: `could not find ${targetNetwork} configuration block in src/constants.ts`,
     };
   }
 
-  const currentId = newIdLine[1];
-  const currentVer = newVerLine[1];
-  const desiredId = `"${result.platformId}"`;
-  const desiredVer = String(result.platformInitVersion);
-  if (currentId === desiredId && currentVer === desiredVer) {
-    return { patched: false, reason: "constants already up to date" };
-  }
+  let targetBlock = match[1];
+  targetBlock = targetBlock.replace(/DEMO_PLATFORM_ID: "[^"]*"/, `DEMO_PLATFORM_ID: "${result.platformId}"`);
+  targetBlock = targetBlock.replace(/DEMO_PLATFORM_INIT_VERSION: \d+/, `DEMO_PLATFORM_INIT_VERSION: ${result.platformInitVersion}`);
 
-  const next = src
-    .replace(idLineRegex, `${idReplacement} // populated by pnpm seed:demo`)
-    .replace(verLineRegex, `${versionReplacement} // populated by pnpm seed:demo`);
+  const next = src.replace(targetConfigRegex, targetBlock);
 
   try {
     writeFileSync(constantsPath, next, "utf8");

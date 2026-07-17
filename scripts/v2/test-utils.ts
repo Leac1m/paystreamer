@@ -15,16 +15,27 @@ import { join } from "node:path";
 import { Inputs, Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
+import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+
 export function loadKeypair(): Ed25519Keypair {
-  const keystorePath = join(homedir(), ".sui", "sui_config", "sui.keystore");
-  const raw = readFileSync(keystorePath, "utf8").trim();
-  const parsed = JSON.parse(raw) as unknown;
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error(`No keys found in ${keystorePath}`);
+  let first = "";
+  if (process.env.E2E_PRIVATE_KEY) {
+    first = process.env.E2E_PRIVATE_KEY;
+  } else {
+    const keystorePath = join(homedir(), ".sui", "sui_config", "sui.keystore");
+    const raw = readFileSync(keystorePath, "utf8").trim();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error(`No keys found in ${keystorePath}`);
+    }
+    first = parsed[0];
   }
-  const first = parsed[0];
   if (typeof first !== "string") {
     throw new Error("Unexpected keypair entry shape (expected base64 string)");
+  }
+  if (first.startsWith("suiprivkey")) {
+    const parsedKey = decodeSuiPrivateKey(first);
+    return Ed25519Keypair.fromSecretKey(parsedKey.secretKey);
   }
   // Sui 1.73.x keystore stores keys as: 1-byte scheme flag || 32-byte secret.
   const raw_bytes = new Uint8Array(Buffer.from(first, "base64"));

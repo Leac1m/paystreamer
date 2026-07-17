@@ -4,3 +4,12 @@
 
 build-env = "testnet"
 chain-id = "32b18a95"
+
+[[published]]
+source = { local = "/workspace/move/subscriptions" }
+published-at = "0x4d8b39d082d4d12606a1afbb397023a49b406809c1646143f08ec2e6891b273b"
+original-id = "0x4d8b39d082d4d12606a1afbb397023a49b406809c1646143f08ec2e6891b273b"
+version = 1
+toolchain-version = "1.75.2"
+build-config = { flavor = "sui", edition = "2024" }
+upgrade-capability = "0x7ad2c86f49efb56c2822c0896908e53f863e4e91a5541c5c504bcfc492d42030"
