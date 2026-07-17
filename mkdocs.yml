@@ -1,0 +1,20 @@
+site_name: PayStreamer SDK
+site_description: Official documentation for the PayStreamer SDK on Sui
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+  palette:
+    primary: deep purple
+    accent: deep purple
+nav:
+  - Overview: index.md
+  - Quickstart: quickstart.md
+  - React Hooks:
+    - useSubscribe: hooks/useSubscribe.md
+    - useManageTier: hooks/useManageTier.md
+  - UI Components:
+    - SetupSubscriptionModal: components/SetupSubscriptionModal.md
+    - TierCard: components/TierCard.md
