@@ -11,7 +11,9 @@ package_summaries/
 .claude/skills/
 .tmp/
 deploy/
-move/subscriptions_v2/Pub.*.toml
+move/*/Pub.*.toml
+move/*/*_output.json
 scripts/v2/config.ts
 scripts/v2/e2e-result.json
 package-lock.json
+.next
