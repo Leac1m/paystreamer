@@ -6,6 +6,8 @@ export interface PayStreamerConfig {
   registryId: string;
   clockId: string;
   pusdType: string;
+  pusdPackageId?: string;
+  pusdTreasuryCapId?: string;
   sponsorApiUrl?: string;
   network?: string; // "devnet", "testnet", "mainnet"
   graphqlUrl?: string; // e.g. "https://graphql.testnet.sui.io/graphql"

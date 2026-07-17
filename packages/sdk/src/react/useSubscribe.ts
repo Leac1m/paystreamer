@@ -27,9 +27,12 @@ export function useSubscribe(params: UseSubscribeParams) {
 
   // Calculate recommended deposit (e.g. 3 months worth)
   const THREE_MONTHS_MS = 90n * 24n * 60n * 60n * 1000n;
-  let cyclesBuffer = THREE_MONTHS_MS / params.tierFrequencyMs;
-  if (cyclesBuffer < 3n) cyclesBuffer = 3n;
-  if (cyclesBuffer > 10n) cyclesBuffer = 10n;
+  let cyclesBuffer = 3n;
+  if (params.tierFrequencyMs > 0n) {
+    cyclesBuffer = THREE_MONTHS_MS / params.tierFrequencyMs;
+    if (cyclesBuffer < 3n) cyclesBuffer = 3n;
+    if (cyclesBuffer > 10n) cyclesBuffer = 10n;
+  }
   const recommendedDeposit = params.tierAmount * cyclesBuffer;
 
   const subscribe = useCallback(

@@ -5,6 +5,7 @@ import { usePayStreamerConfig } from './provider';
 export interface PayStreamerUserAccount {
   accountCapId: string;
   accountId: string;
+  balance: bigint;
 }
 
 export function useUserAccount() {
@@ -48,27 +49,53 @@ export function useUserAccount() {
         throw new Error(result.errors[0].message);
       }
 
-      return result.data as any;
+      const resData = result.data as any;
+      let accountCapId = '';
+      let accountId = '';
+      let balance = 0n;
+
+      if (resData?.address?.objects?.nodes && resData.address.objects.nodes.length > 0) {
+        const obj = resData.address.objects.nodes[0];
+        const json = obj.asMoveObject?.contents?.json;
+        if (json?.account_id) {
+          accountCapId = obj.address || '';
+          accountId = json.account_id;
+
+          const balQuery = `
+            query GetAccountBal($id: SuiAddress!) {
+              object(address: $id) {
+                asMoveObject {
+                  contents {
+                    json
+                  }
+                }
+              }
+            }
+          `;
+
+          const balResult = await config.graphqlClient.query({
+            query: balQuery,
+            variables: { id: accountId }
+          });
+
+          const balStr = (balResult.data as any)?.object?.asMoveObject?.contents?.json?.balance || "0";
+          balance = BigInt(balStr);
+        }
+      }
+
+      if (!accountId) return null;
+
+      return {
+        accountCapId,
+        accountId,
+        balance,
+      };
     },
     enabled: !!account?.address && !!config.packageId,
   });
 
-  let userAccount: PayStreamerUserAccount | null = null;
-
-  if (data?.address?.objects?.nodes && data.address.objects.nodes.length > 0) {
-    const obj = data.address.objects.nodes[0];
-    const json = obj.asMoveObject?.contents?.json;
-    
-    if (json?.account_id) {
-      userAccount = {
-        accountCapId: obj.address || '',
-        accountId: json.account_id,
-      };
-    }
-  }
-
   return {
-    userAccount,
+    userAccount: data || null,
     isLoading,
     error,
   };

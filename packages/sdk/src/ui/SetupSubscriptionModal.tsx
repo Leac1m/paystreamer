@@ -5,20 +5,20 @@ import { X, Wallet, CheckCircle } from "lucide-react";
 import { Button } from "./components/button";
 import { useSubscribe } from "../react/useSubscribe";
 
+import { usePlatform } from "../react/usePlatform";
+import { useUserAccount } from "../react/useUserAccount";
+import { usePusdBalance } from "../react/usePusdBalance";
+import { PayStreamerTheme, useThemeStyles } from "./ThemeContext";
+
 export interface SetupSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   platformId: string;
   tierIndex: number;
-  tierAmount: bigint;
-  tierFrequencyMs: bigint;
-  accountId?: string;
-  accountCapId?: string;
-  currentBalance?: bigint;
-  walletBalanceUsd?: number;
   onSuccess?: (txDigest: string) => void;
   // Format utility
-  formatUsd?: (mist: bigint | number | string) => number;
+  formatUsd?: (amount: bigint | number | string) => number;
+  theme?: PayStreamerTheme;
 }
 
 export function SetupSubscriptionModal({
@@ -26,34 +26,44 @@ export function SetupSubscriptionModal({
   onClose,
   platformId,
   tierIndex,
-  tierAmount,
-  tierFrequencyMs,
-  accountId,
-  accountCapId,
-  currentBalance = 0n,
-  walletBalanceUsd = 0,
   onSuccess,
   formatUsd = (amount) => Number(amount) / 1e9,
+  theme,
 }: SetupSubscriptionModalProps) {
-  const { subscribe, isLoading, error, recommendedDeposit, hasAccount } = useSubscribe({
+  const styles = useThemeStyles(theme);
+  const { data: platform, isLoading: isPlatformLoading } = usePlatform(platformId);
+  const { userAccount, isLoading: isAccountLoading } = useUserAccount();
+  const { data: walletBalance, isLoading: isBalanceLoading } = usePusdBalance();
+
+  const tier = platform?.tiers?.[tierIndex];
+  const resolvedTierAmount = tier ? BigInt(tier.amount) : 0n;
+  const resolvedTierFrequencyMs = tier ? BigInt(tier.frequency) : 0n;
+  const currentBalance = userAccount?.balance ?? 0n;
+  const walletBalanceVal = walletBalance ?? 0n;
+  const walletBalanceUsd = formatUsd(walletBalanceVal);
+
+  const { subscribe, isLoading: isSubscribeLoading, error: subscribeError, recommendedDeposit, hasAccount } = useSubscribe({
     platformId,
     tierIndex,
-    tierAmount,
-    tierFrequencyMs,
-    accountId,
-    accountCapId,
+    tierAmount: resolvedTierAmount,
+    tierFrequencyMs: resolvedTierFrequencyMs,
+    accountId: userAccount?.accountId,
+    accountCapId: userAccount?.accountCapId,
   });
 
   const shortfall = currentBalance < recommendedDeposit ? recommendedDeposit - currentBalance : 0n;
-  const absoluteMinRequired = currentBalance < tierAmount ? tierAmount - currentBalance : 0n;
+  const absoluteMinRequired = currentBalance < resolvedTierAmount ? resolvedTierAmount - currentBalance : 0n;
 
   const minDepositUsd = formatUsd(absoluteMinRequired);
   const defaultDepositUsd = formatUsd(shortfall);
   const currentBalanceUsd = formatUsd(currentBalance);
-  const tierAmountUsd = formatUsd(tierAmount);
+  const tierAmountUsd = formatUsd(resolvedTierAmount);
 
   const [depositAmount, setDepositAmount] = useState(defaultDepositUsd.toString());
   const [step, setStep] = useState<"input" | "success">("input");
+
+  const requiredDeposit = Math.max(minDepositUsd, parseFloat(depositAmount || "0"));
+  const hasInsufficientWalletBalance = walletBalanceUsd < requiredDeposit;
 
   useEffect(() => {
     if (isOpen) {
@@ -61,6 +71,8 @@ export function SetupSubscriptionModal({
       setDepositAmount(defaultDepositUsd.toString());
     }
   }, [isOpen, platformId, tierIndex, defaultDepositUsd]);
+
+  const isLoading = isPlatformLoading || isAccountLoading || isBalanceLoading || isSubscribeLoading;
 
   if (!isOpen) return null;
 
@@ -75,12 +87,10 @@ export function SetupSubscriptionModal({
     }
   };
 
-  const requiredDeposit = Math.max(minDepositUsd, parseFloat(depositAmount || "0"));
-  const hasInsufficientWalletBalance = walletBalanceUsd < requiredDeposit;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={styles}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -163,9 +173,9 @@ export function SetupSubscriptionModal({
                   </div>
                 )}
 
-                {error && (
+                {subscribeError && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                    {error}
+                    {subscribeError}
                   </div>
                 )}
 

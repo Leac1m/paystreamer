@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PayStreamerProvider } from '../src/react';
 import { TierCard, SetupSubscriptionModal } from '../src/ui';
@@ -29,14 +29,87 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 });
 
 describe('React SDK UI Components E2E', () => {
+  let mockPusdBalance = 50000000000n; // 50 PUSD by default
+
+  const mockGraphqlClient = {
+    query: vi.fn().mockImplementation(async ({ query, variables }: any) => {
+      if (query.includes('GetPlatform')) {
+        return {
+          data: {
+            object: {
+              asMoveObject: {
+                contents: {
+                  json: {
+                    id: variables.id,
+                    name: "Test Platform",
+                    tiers: [
+                      {
+                        name: "Premium",
+                        amount: "10000000000", // 10 PUSD
+                        frequency: "2592000000", // 30 days in ms
+                        subscriber_count: 5,
+                        is_active: true
+                      }
+                    ]
+                  }
+                }
+              },
+              owner: {
+                initialSharedVersion: 1
+              }
+            }
+          }
+        };
+      }
+      if (query.includes('GetAccountCap')) {
+        return {
+          data: {
+            address: {
+              objects: {
+                nodes: []
+              }
+            }
+          }
+        };
+      }
+      if (query.includes('GetPusdBalance')) {
+        return {
+          data: {
+            address: {
+              balance: {
+                totalBalance: mockPusdBalance.toString()
+              }
+            }
+          }
+        };
+      }
+      return { data: {} };
+    }),
+    executeTransaction: vi.fn(),
+  };
+
   const config = {
     packageId: activeConfig.PACKAGE_ID,
     registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
     clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
     pusdType: activeConfig.PUSD_TYPE_ARG,
     network: NETWORK,
-    graphqlClient: {} as any, // Mock client
+    graphqlClient: mockGraphqlClient as any,
   };
+
+  const createTestQueryClient = () => new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+      },
+    },
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
 
   it('should render the TierCard', async () => {
     const tier = {
@@ -47,15 +120,19 @@ describe('React SDK UI Components E2E', () => {
       is_active: true
     };
 
+    const queryClient = createTestQueryClient();
+
     render(
-      <PayStreamerProvider config={config}>
-        <TierCard 
-          platformId={activeConfig.DEMO_PLATFORM_ID}
-          initialSharedVersion={activeConfig.DEMO_PLATFORM_INIT_VERSION}
-          tier={tier}
-          tierIndex={0}
-        />
-      </PayStreamerProvider>
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <TierCard 
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            initialSharedVersion={activeConfig.DEMO_PLATFORM_INIT_VERSION}
+            tier={tier}
+            tierIndex={0}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
     );
 
     expect(screen.getByText('Premium')).toBeDefined();
@@ -64,22 +141,54 @@ describe('React SDK UI Components E2E', () => {
     expect(screen.getByText('Deactivate')).toBeDefined();
   });
 
-  it('should render the SetupSubscriptionModal', async () => {
+  it('should render the SetupSubscriptionModal with sufficient balance', async () => {
+    mockPusdBalance = 50000000000n; // 50 PUSD
+    const queryClient = createTestQueryClient();
+
     render(
-      <PayStreamerProvider config={config}>
-        <SetupSubscriptionModal 
-          isOpen={true}
-          onClose={() => {}}
-          platformId={activeConfig.DEMO_PLATFORM_ID}
-          tierIndex={0}
-          tierAmount={10000000000n}
-          tierFrequencyMs={2592000000n}
-        />
-      </PayStreamerProvider>
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <SetupSubscriptionModal 
+            isOpen={true}
+            onClose={() => {}}
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            tierIndex={0}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
     );
 
-    expect(screen.getByText('Setup Subscription')).toBeDefined();
-    expect(screen.getByText('10.00 PUSD')).toBeDefined();
-    expect(screen.getByText('Setup & Subscribe')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('Setup Subscription')).toBeDefined();
+      expect(screen.getByText('10.00 PUSD')).toBeDefined();
+      const subscribeBtn = screen.getByRole('button', { name: /Setup & Subscribe/i });
+      expect(subscribeBtn).toBeDefined();
+      expect(subscribeBtn.hasAttribute('disabled')).toBe(false);
+    });
+  });
+
+  it('should render the SetupSubscriptionModal with insufficient balance and disable button', async () => {
+    mockPusdBalance = 5000000000n; // 5 PUSD (Required is 30 PUSD recommended, or at least 10 PUSD minimum)
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <SetupSubscriptionModal 
+            isOpen={true}
+            onClose={() => {}}
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            tierIndex={0}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Insufficient PUSD in your wallet to fund this deposit.')).toBeDefined();
+      const subscribeBtn = screen.getByRole('button', { name: /Setup & Subscribe/i });
+      expect(subscribeBtn).toBeDefined();
+      expect(subscribeBtn.hasAttribute('disabled')).toBe(true);
+    });
   });
 });
