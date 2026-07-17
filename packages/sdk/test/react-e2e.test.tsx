@@ -7,8 +7,9 @@ import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
-import { PayStreamerProvider, useManageTier } from '../src/react';
+import { PayStreamerProvider, useManageTier, usePlatform, useUserAccount } from '../src/react';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // @ts-ignore
 import { NETWORK_CONFIGS } from '../../../src/constants';
 
@@ -31,6 +32,18 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
   return {
     ...actual,
     useCurrentAccount: () => ({ address: userAddress }),
+    useCurrentClient: () => ({
+      getOwnedObjects: async () => ({
+        data: [
+          {
+            data: {
+              objectId: "0xMockAccountCapId",
+              content: { fields: { account_id: "0xMockAccountId" } }
+            }
+          }
+        ]
+      })
+    }),
     useDAppKit: () => ({
       signTransaction: async ({ transaction }: any) => {
         console.log("Mock signTransaction called");
@@ -81,6 +94,21 @@ function TestComponent() {
   );
 }
 
+function DataFetchingTestComponent() {
+  const { data: platform, isLoading } = usePlatform(devnetConfig.DEMO_PLATFORM_ID);
+  const { userAccount } = useUserAccount();
+
+  return (
+    <div>
+      <div data-testid="platform-loading">{isLoading ? "Loading" : "Idle"}</div>
+      <div data-testid="platform-name">{platform?.name || "None"}</div>
+      <div data-testid="account-id">{userAccount?.accountId || "None"}</div>
+    </div>
+  );
+}
+
+const queryClient = new QueryClient();
+
 describe('React SDK Hooks E2E', () => {
   it('should deactivate a tier against Devnet', async () => {
     // We mock the GraphQL executeTransaction method in JSDOM because JSDOM fetch/websockets hang on GraphQL subscription for effects
@@ -109,9 +137,11 @@ describe('React SDK Hooks E2E', () => {
     };
 
     render(
-      <PayStreamerProvider config={config}>
-        <TestComponent />
-      </PayStreamerProvider>
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <TestComponent />
+        </PayStreamerProvider>
+      </QueryClientProvider>
     );
 
     const user = userEvent.setup();
@@ -131,5 +161,82 @@ describe('React SDK Hooks E2E', () => {
 
     expect(screen.getByTestId('error').textContent).toBe('None');
     expect(screen.getByTestId('error').textContent).toBe('None');
+  });
+
+  it('should fetch platform data and user account', async () => {
+    const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
+    const customGraphqlClient = new SuiGraphQLClient({ 
+      url: devnetConfig.GRAPHQL_URL,
+      network: "devnet"
+    });
+
+    customGraphqlClient.query = async (args) => {
+      const q = args.query as string;
+      if (q.includes('GetPlatform')) {
+        return {
+          data: {
+            object: {
+              asMoveObject: {
+                contents: {
+                  json: {
+                    name: "Mock Platform",
+                    tiers: []
+                  }
+                }
+              },
+              owner: { initialSharedVersion: 123 }
+            }
+          }
+        } as any;
+      }
+      
+      if (q.includes('GetAccountCap')) {
+        return {
+          data: {
+            address: {
+              objects: {
+                nodes: [
+                  {
+                    address: "0xMockAccountCapId",
+                    asMoveObject: {
+                      contents: {
+                        json: {
+                          account_id: "0xMockAccountId"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        } as any;
+      }
+
+      return { data: null } as any;
+    };
+
+    const config = {
+      packageId: devnetConfig.PACKAGE_ID,
+      registryId: devnetConfig.COIN_TYPE_REGISTRY_ID,
+      clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
+      pusdType: devnetConfig.PUSD_TYPE_ARG,
+      network: "devnet",
+      graphqlClient: customGraphqlClient,
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <DataFetchingTestComponent />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    // Wait for the query to resolve
+    await waitFor(() => {
+      expect(screen.getByTestId('account-id').textContent).toBe('0xMockAccountId');
+      expect(screen.getByTestId('platform-name').textContent).toBe('Mock Platform');
+    });
   });
 });
