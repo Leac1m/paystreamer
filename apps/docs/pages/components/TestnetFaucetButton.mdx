@@ -1,24 +1,14 @@
-import { useState, useEffect } from 'react';
 import { TestnetFaucetButton } from '@paystreamer/sdk/ui';
+import { DocsDemoWrapper } from '../../components/DocsDemoWrapper';
 
 export const LiveButton = () => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="p-6 mt-4 border rounded-xl bg-slate-50 dark:bg-slate-900 animate-pulse h-16" />;
-  }
-
   return (
-    <div className="p-6 mt-4 border rounded-xl flex justify-center bg-slate-50 dark:bg-slate-900">
+    <DocsDemoWrapper>
       <TestnetFaucetButton 
         onSuccess={(digest) => alert('Minted PUSD! Digest: ' + digest)}
         onError={(err) => alert('Mint failed: ' + err)}
       />
-    </div>
+    </DocsDemoWrapper>
   );
 };
 

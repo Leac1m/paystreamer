@@ -1,34 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SetupSubscriptionModal } from '@paystreamer/sdk/ui';
+import { DocsDemoWrapper } from '../../components/DocsDemoWrapper';
 
 export const LiveModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="p-6 mt-4 border rounded-xl bg-slate-50 dark:bg-slate-900 animate-pulse h-32" />;
-  }
 
   return (
-    <div className="p-6 mt-4 border rounded-xl flex flex-col items-center gap-4 bg-slate-50 dark:bg-slate-900">
-      <p className="text-sm text-slate-500">Interactive Example (Requires Connected Wallet)</p>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition"
-      >
-        Open Setup Modal
-      </button>
-      <SetupSubscriptionModal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
-        tierIndex={0}
-      />
-    </div>
+    <DocsDemoWrapper>
+      <div className="flex flex-col items-center gap-4">
+        <button 
+          onClick={() => setIsOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition"
+        >
+          Open Setup Modal
+        </button>
+        <SetupSubscriptionModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
+          tierIndex={0}
+        />
+      </div>
+    </DocsDemoWrapper>
   );
 };
 
