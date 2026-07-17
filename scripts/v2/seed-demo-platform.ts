@@ -43,16 +43,19 @@ import { SuiGraphQLClient } from "@mysten/sui/graphql";
 
 import {
   CLOCK_OBJECT_ID,
-  PUSD_PACKAGE_ID,
-  PUSD_TREASURY_CAP_ID,
-  PUSD_TYPE_ARG,
-  SUI_TYPE_ARG,
-  V3_COIN_TYPE_REGISTRY_ID,
-  V3_COIN_TYPE_REGISTRY_INIT_VERSION,
-  V3_PACKAGE_ID,
-  V2_GRAPHQL_URL,
-  V2_NETWORK,
-} from "./config.ts";
+  NETWORK_CONFIGS,
+  SUI_TYPE_ARG
+} from "../../src/constants.ts";
+
+const networkConfig = NETWORK_CONFIGS.devnet;
+const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
+const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
+const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
+const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
+const V2_NETWORK = "devnet";
+const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
+const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
+const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
 import { loadKeypair, newTx, sharedObjectMut } from "./test-utils.ts";
 
 const DEMO_PLATFORM_NAME = "Demo SaaS 2";

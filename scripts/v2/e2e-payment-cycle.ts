@@ -28,21 +28,20 @@ config();
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
-import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import {
   NETWORK_CONFIGS,
   CLOCK_OBJECT_ID,
 } from "../../src/constants.ts";
 
-const networkConfig = NETWORK_CONFIGS.testnet;
+const networkConfig = NETWORK_CONFIGS.devnet;
 const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
 const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
 const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
 const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
 const PAYMENT_SCHEDULER_INIT_VERSION = networkConfig.PAYMENT_SCHEDULER_INIT_VERSION;
 const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
-const V2_NETWORK = "testnet";
+const V2_NETWORK = "devnet";
 const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
 const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
 const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;

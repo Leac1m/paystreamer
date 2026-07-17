@@ -35,7 +35,10 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
       signTransaction: async ({ transaction }: any) => {
         console.log("Mock signTransaction called");
         if (!transaction.sender) transaction.setSender(userAddress);
-        const mockClient = new (await import('@mysten/sui/graphql')).SuiGraphQLClient({ url: "https://graphql.testnet.sui.io/graphql" });
+        const mockClient = new (await import('@mysten/sui/graphql')).SuiGraphQLClient({ 
+          url: devnetConfig.GRAPHQL_URL,
+          network: "devnet"
+        });
         console.log("Mock client created, building transaction...");
         const builtBytes = await transaction.build({ client: mockClient });
         console.log("Transaction built, signing...");
@@ -49,8 +52,8 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 
 function TestComponent() {
   const { deactivateTier, isLoading, error } = useManageTier({
-    platformId: "0xadf48d90be4a7b7d01c9bca06c73ed5c60f0707ffbf28195282c7178de516322",
-    initialSharedVersion: 1,
+    platformId: devnetConfig.DEMO_PLATFORM_ID,
+    initialSharedVersion: devnetConfig.DEMO_PLATFORM_INIT_VERSION,
   });
 
   const [digest, setDigest] = useState<string | null>(null);
@@ -79,10 +82,13 @@ function TestComponent() {
 }
 
 describe('React SDK Hooks E2E', () => {
-  it('should deactivate and activate a tier against Testnet', async () => {
+  it('should deactivate a tier against Devnet', async () => {
     // We mock the GraphQL executeTransaction method in JSDOM because JSDOM fetch/websockets hang on GraphQL subscription for effects
     const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
-    const customGraphqlClient = new SuiGraphQLClient({ url: "https://graphql.testnet.sui.io/graphql" });
+    const customGraphqlClient = new SuiGraphQLClient({ 
+      url: devnetConfig.GRAPHQL_URL,
+      network: "devnet"
+    });
     
     customGraphqlClient.executeTransaction = async (args) => {
       console.log("Mocking executeTransaction response to avoid JSDOM WebSocket hang...");
@@ -94,11 +100,11 @@ describe('React SDK Hooks E2E', () => {
 
     // 1. Render the Provider and the Test Component
     const config = {
-      packageId: "0x48c2c4ea663d95748ae53f3945f58433cf259b42c3aedfd62ba6a13ba4f2d38c",
-      registryId: "0x48ccd75e970e510e6d94ca4fb94fb117c8c5ed760ef71e8594c311ebba23ca07",
+      packageId: devnetConfig.PACKAGE_ID,
+      registryId: devnetConfig.COIN_TYPE_REGISTRY_ID,
       clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-      pusdType: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f::pusd::PUSD",
-      network: "testnet",
+      pusdType: devnetConfig.PUSD_TYPE_ARG,
+      network: "devnet",
       graphqlClient: customGraphqlClient,
     };
 
