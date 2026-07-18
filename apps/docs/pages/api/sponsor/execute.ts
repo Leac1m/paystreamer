@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,16 +28,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const client = new SuiGrpcClient({
+    const client = new SuiGraphQLClient({
+      url: 'https://graphql.testnet.sui.io/graphql',
       network: 'testnet',
-      baseUrl: 'https://fullnode.testnet.sui.io:443',
     });
 
     // Decode the transaction bytes
     const transactionBytes = Buffer.from(bytesBase64, 'base64');
 
     // Recover sponsor keypair
-    const sponsorKeypair = Ed25519Keypair.fromSecretKey(sponsorPrivateKey);
+    let sponsorKeypair: Ed25519Keypair;
+    if (sponsorPrivateKey.startsWith('suiprivkey')) {
+      const { secretKey } = decodeSuiPrivateKey(sponsorPrivateKey);
+      sponsorKeypair = Ed25519Keypair.fromSecretKey(secretKey);
+    } else {
+      sponsorKeypair = Ed25519Keypair.fromSecretKey(
+        new Uint8Array(Buffer.from(sponsorPrivateKey, 'hex'))
+      );
+    }
 
     // Sponsor signs the transaction
     const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(transactionBytes);
@@ -45,13 +54,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const signatures = [userSignature, sponsorSignature];
 
     // Execute the transaction
-    const result = await client.core.executeTransaction({
+    const result = await client.executeTransaction({
       transaction: transactionBytes,
       signatures,
-      include: {
-        effects: true,
-        events: true,
-      },
     });
 
     if (result.$kind === 'FailedTransaction') {

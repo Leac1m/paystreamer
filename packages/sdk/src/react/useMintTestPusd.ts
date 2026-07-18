@@ -40,7 +40,6 @@ export function useMintTestPusd(): UseMintTestPusdResult {
         const tx = new Transaction();
         tx.moveCall({
           target: `${pusdPackageId}::pusd::mint`,
-          typeArguments: [config.pusdType],
           arguments: [
             tx.object(treasuryCapId),
             tx.pure.address(account.address),

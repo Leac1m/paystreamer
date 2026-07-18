@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Transaction } from '@mysten/sui/transactions';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -23,9 +23,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const client = new SuiGrpcClient({
+    const client = new SuiGraphQLClient({
+      url: 'https://graphql.testnet.sui.io/graphql',
       network: 'testnet',
-      baseUrl: 'https://fullnode.testnet.sui.io:443',
     });
 
     // Reconstruct transaction from JSON
@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     transaction.setGasOwner(sponsorAddress);
 
     // Fetch sponsor's coins for gas payment
-    const coins = await client.core.listCoins({
+    const coins = await client.listCoins({
       owner: sponsorAddress,
       coinType: '0x2::sui::SUI',
       limit: 5,

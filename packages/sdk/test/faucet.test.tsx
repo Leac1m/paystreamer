@@ -123,7 +123,7 @@ describe('SDK Faucet Utilities', () => {
     expect(moveCall.package).toBe(MOCK_PUSD_PACKAGE_ID);
     expect(moveCall.module).toBe('pusd');
     expect(moveCall.function).toBe('mint');
-    expect(moveCall.typeArguments).toEqual([`${MOCK_PUSD_PACKAGE_ID}::pusd::PUSD`]);
+    expect(moveCall.typeArguments).toEqual([]);
   });
 
   it('should render the TestnetFaucetButton and execute successfully', async () => {

@@ -12,9 +12,9 @@ const dAppKit = createDAppKit({
   defaultNetwork: "testnet",
   createClient(network) {
     const urls: Record<string, string> = {
-      mainnet: "https://sui-mainnet.mystenlabs.com/graphql",
-      testnet: "https://sui-testnet.mystenlabs.com/graphql",
-      devnet: "https://sui-devnet.mystenlabs.com/graphql",
+      mainnet: "https://graphql.mainnet.sui.io/graphql",
+      testnet: "https://graphql.testnet.sui.io/graphql",
+      devnet: "https://graphql.devnet.sui.io/graphql",
       local: "http://127.0.0.1:9000"
     };
     return new SuiGraphQLClient({
@@ -32,7 +32,9 @@ const config = {
   clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
   pusdType: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f::pusd::PUSD",
   network: "testnet",
-  sponsorApiUrl: "/api/sponsor"
+  sponsorApiUrl: "/api/sponsor",
+  pusdPackageId: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f",
+  pusdTreasuryCapId: "0xca02759942d7c917bb74166c1ea44336f9819e6e36b051ff92b43de6989bcba2"
 };
 
 const queryClient = new QueryClient();
