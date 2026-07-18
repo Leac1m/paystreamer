@@ -112,7 +112,7 @@ importers:
         specifier: ^2.19.0
         version: 2.19.0(typescript@5.9.3)
       '@paystreamer/sdk':
-        specifier: workspace:*
+        specifier: file:../../packages/sdk
         version: link:../../packages/sdk
       '@tanstack/react-query':
         specifier: ^5.90.16
@@ -4110,9 +4110,9 @@ snapshots:
       graphql: 16.14.2
       typescript: 5.9.3
 
-  '@gql.tada/cli-utils@1.9.2(@0no-co/graphqlsp@1.17.3(graphql@16.14.2)(typescript@6.0.3))(graphql@16.14.2)(typescript@6.0.3)':
+  '@gql.tada/cli-utils@1.9.2(@0no-co/graphqlsp@1.17.3(graphql@16.14.2)(typescript@5.9.3))(graphql@16.14.2)(typescript@6.0.3)':
     dependencies:
-      '@0no-co/graphqlsp': 1.17.3(graphql@16.14.2)(typescript@6.0.3)
+      '@0no-co/graphqlsp': 1.17.3(graphql@16.14.2)(typescript@5.9.3)
       '@gql.tada/internal': 1.2.1(graphql@16.14.2)(typescript@6.0.3)
       graphql: 16.14.2
       typescript: 6.0.3
@@ -5905,7 +5905,7 @@ snapshots:
     dependencies:
       '@0no-co/graphql.web': 1.3.2(graphql@16.14.2)
       '@0no-co/graphqlsp': 1.17.3(graphql@16.14.2)(typescript@6.0.3)
-      '@gql.tada/cli-utils': 1.9.2(@0no-co/graphqlsp@1.17.3(graphql@16.14.2)(typescript@6.0.3))(graphql@16.14.2)(typescript@6.0.3)
+      '@gql.tada/cli-utils': 1.9.2(@0no-co/graphqlsp@1.17.3(graphql@16.14.2)(typescript@5.9.3))(graphql@16.14.2)(typescript@6.0.3)
       '@gql.tada/internal': 1.2.1(graphql@16.14.2)(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
