@@ -112,8 +112,8 @@ importers:
         specifier: ^2.19.0
         version: 2.19.0(typescript@5.9.3)
       '@paystreamer/sdk':
-        specifier: file:../../packages/sdk
-        version: link:../../packages/sdk
+        specifier: ^0.1.0
+        version: 0.1.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.100.14(react@18.3.1)
@@ -827,6 +827,12 @@ packages:
 
   '@oxc-project/types@0.133.0':
     resolution: {integrity: sha512-KzkdCd6Uxqnf6l3HOw1xfatAlUURA0g14cvBYFyJ5SaNOQbOUvBr9PKArcPcrNIeRsBdgcUzOGrhKveVpvOIGA==}
+
+  '@paystreamer/sdk@0.1.0':
+    resolution: {integrity: sha512-TZxnjQqPIiZuewjcNjVYGzhp/6qHXaAv4nAU7p/b8ULW0c6aN5WyC0SgGEgbLOsxTsxFrUnO0zxDgWTAsEeR3A==}
+    peerDependencies:
+      react: ^18.2.0 || ^19.0.0
+      react-dom: ^18.2.0 || ^19.0.0
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -4496,6 +4502,26 @@ snapshots:
       fastq: 1.20.1
 
   '@oxc-project/types@0.133.0': {}
+
+  '@paystreamer/sdk@0.1.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)':
+    dependencies:
+      '@mysten/dapp-kit-react': 2.1.3(@mysten/sui@2.19.0(typescript@5.9.3))(@types/react@18.3.31)(react@18.3.1)(typescript@5.9.3)
+      '@mysten/sui': 2.19.0(typescript@5.9.3)
+      '@radix-ui/react-slot': 1.2.4(@types/react@18.3.31)(react@18.3.1)
+      '@tanstack/react-query': 5.100.14(react@18.3.1)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      framer-motion: 12.40.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      lucide-react: 0.562.0(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@emotion/is-prop-valid'
+      - '@gql.tada/svelte-support'
+      - '@gql.tada/vue-support'
+      - '@types/react'
+      - typescript
 
   '@popperjs/core@2.11.8': {}
 
