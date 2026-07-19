@@ -56,6 +56,7 @@ module subscriptions::scheduler_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             r,
+            account::empty_policy_set(),
             clock,
             ts::ctx(scenario),
         );
@@ -67,6 +68,7 @@ module subscriptions::scheduler_tests {
             0,
             tier_amount,
             frequency_ms,
+            3,
             clock,
             ts::ctx(scenario),
         );

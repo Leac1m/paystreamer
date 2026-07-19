@@ -30,6 +30,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -45,6 +46,7 @@ module subscriptions::billing_tests {
             2,
             1_000_000,
             frequency_ms,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -77,6 +79,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -89,6 +92,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -99,6 +103,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -118,6 +123,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -130,6 +136,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -159,6 +166,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -171,6 +179,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -190,6 +199,7 @@ module subscriptions::billing_tests {
             0,
             2_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -210,6 +220,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -222,6 +233,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -243,6 +255,7 @@ module subscriptions::billing_tests {
             0,
             2_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -263,6 +276,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -276,6 +290,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             frequency_ms,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -318,6 +333,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -330,6 +346,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -357,6 +374,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -369,6 +387,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             0,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -413,6 +432,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -425,6 +445,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );
@@ -446,6 +467,7 @@ module subscriptions::billing_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -458,6 +480,7 @@ module subscriptions::billing_tests {
             0,
             1_000_000,
             86_400_000,
+            3,
             &clock,
             ts::ctx(&mut sc),
         );

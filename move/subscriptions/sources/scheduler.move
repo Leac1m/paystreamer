@@ -12,8 +12,6 @@
 /// in `payment::process_due_payment`.
 ///
 /// The platform's role check is **deferred to a future hardening
-/// pass** (the role is declared in `access_control.move` but the
-/// per-Platform `AccessControl<AC>` is not yet wired in;
 /// see `account.move` and `platform.move` for the bootstrap admin
 /// pattern).
 ///
@@ -83,9 +81,7 @@ module subscriptions::scheduler {
     /// TxContext`).
     ///
     /// The scheduler is shared so any PTB can take `&mut` on it
-    /// (the same model as the protocol-wide `AccessControl` in
-    /// `access_control.move` and the `CoinTypeRegistry` in
-    /// `registry.move`).
+            /// `registry.move`).
     fun init(_otw: SCHEDULER, ctx: &mut TxContext) {
         let scheduler = PaymentScheduler {
             id: object::new(ctx),

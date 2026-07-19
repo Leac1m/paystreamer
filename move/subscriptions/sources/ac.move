@@ -1,75 +1,18 @@
 ///
 /// This module owns:
-/// 1. The protocol-wide `AC` one-time witness (OTW) — the
-///    VM-required upper-case of the module name `access_control`. The
-///    OTW is consumed by `openzeppelin_access::access_control::new` to
-///    mint the protocol-wide `AccessControl<AC>` singleton.
-/// 2. The eight role types consumed by every other core module.
-/// 3. The user-facing `AccountCap` carrying the delegated permission
+/// 1. The user-facing `AccountCap` carrying the delegated permission.
+/// 2. The permission bitfield constants used across the protocol.
 ///
-/// Per the OpenZeppelin invariant, all role types live in the same
-/// module as the OTW. The `init` function mints and shares the
-/// protocol-wide `AccessControl<AC>` for the global
-/// `CoinTypeRegistry` multisig; per-Platform and per-Account
-/// `AccessControl<AC>` registries are minted in their own
-/// modules.
-///
-/// `Auth<Role>` is a self-validating typed witness. The phantom
-/// `AC` tag (the OTW) is the type parameter on every
-/// `AccessControl<AC>` instance in the protocol.
 module subscriptions::ac {
     use sui::object;
     use sui::tx_context::TxContext;
-    use openzeppelin_access::access_control::{Self, AccessControl};
-
-    /// Protocol-wide one-time witness. Named `AC` because the
-    /// Sui VM requires the OTW type to be the upper-case of the module
-    /// that declares it. Consumed exactly once at package publish to mint
-    /// the protocol-wide `AccessControl<AC>` singleton.
-    public struct AC has drop {}
-
-    // === Role types ===
-    //
-    // Per the OZ invariant, all role types live in the same module as the
-    // OTW. Foreign role types are rejected at the boundary by OZ's home-
-    // module check.
-
-    /// Platform admin: registers tiers, updates platform metadata, proposes
-    /// treasury changes.
-    public struct PLATFORM_ADMIN_ROLE {}
-
-    /// Platform scheduler: the on-chain `PLATFORM_SCHEDULER_ROLE` member
-    /// whose role grant authorizes any caller to submit a due payment
-    public struct PLATFORM_SCHEDULER_ROLE {}
-
-    /// Platform treasury: receives withdrawn subscription funds.
-    public struct PLATFORM_TREASURY_ROLE {}
-
-    /// Global scheduler admin: the multisig-only role that flips the
-    /// `PaymentScheduler.pause_flag` circuit breaker.
-    public struct PLATFORM_GLOBAL_ADMIN_ROLE {}
-
-    /// Account owner: full authority over an `AccountCap` and its account.
-    public struct ACCOUNT_OWNER_ROLE {}
-
-    /// Account depositor: may deposit into the account but may not change
-    /// policies, subscribe, or withdraw.
-    public struct ACCOUNT_DEPOSITOR_ROLE {}
-
-    /// Account agent: agentic-commerce seam. May submit delegated payments
-    /// within a per-agent budget envelope (extension: `agent_pay`).
-    public struct ACCOUNT_AGENT_ROLE {}
-
-    /// Registry admin: the multisig-only role that registers or removes
-    /// coin types in the `CoinTypeRegistry`.
-    public struct REGISTRY_ADMIN_ROLE {}
 
     // === AccountCap ===
 
     /// User-facing capability for a `SubscriptionAccount<T>`. Non-transferable
     /// by default (`key` only, not `store`). The bitfield `permissions`
     /// encodes which fine-grained actions the holder is allowed to perform
-    /// on the account, which mints the corresponding `Auth<Role>` at call
+    /// on the account
     /// time.
     public struct AccountCap has key {
         id: object::UID,
@@ -100,29 +43,13 @@ module subscriptions::ac {
     /// the defined mask (bits 3-31).
     const EInvalidPermission: u64 = 0x02001;
 
-    // === init ===
-
-    /// One-time initializer. The Sui VM injects the `AC` OTW
-    /// exactly once at first publish, so the resulting
-    /// `AccessControl<AC>` is the protocol-wide singleton. The
-    /// deployer (`ctx.sender()`) becomes the initial default admin; the
-    /// deployer is expected to immediately transfer that role to the
-    /// multisig via the OZ delayed transfer flow.
-    ///
-    /// Role: protocol publish tx only; not callable by users.
-    fun init(otw: AC, ctx: &mut TxContext) {
-        let ac = access_control::new<AC>(otw, 48 * 60 * 60 * 1_000, ctx);
-        sui::transfer::public_share_object(ac);
-    }
-
     // === AccountCap constructor + accessors ===
 
     /// Mint a fresh `AccountCap` bound to `account_id` with the given
     /// permission bitfield. The cap is returned by value; the caller is
     /// responsible for transferring it to the appropriate address.
     ///
-    /// Role: caller must already hold `ACCOUNT_OWNER_ROLE` on the account's
-    /// embedded `AccessControl<AC>` (checked at the call site
+    /// Role: caller must already hold `ACCOUNT_OWNER_ROLE` on the account (checked at the call site
     /// in `account.move`).
     public fun new_account_cap(
         account_id: object::ID,

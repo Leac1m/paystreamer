@@ -5,13 +5,11 @@
 /// the owner is the address captured at `register_platform` time and
 /// **bootstrap `admin_address` style check** — mirroring
 /// `subscriptions::registry` — with a doc comment noting the future
-/// hardening pass to OZ `Auth<PLATFORM_ADMIN_ROLE>` (see §6.2).
+/// the bootstrap admin pattern.
 ///
 /// The platform is identified by `Platform.owner: address` (set at
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
 /// `ctx.sender() == platform.owner`. A future hardening pass will
-/// replace this with an embedded `AccessControl<AC>` and
-/// OZ `Auth<PLATFORM_ADMIN_ROLE>` (one role per module, OZ invariant).
 ///
 /// 1. `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total
 ///    withdrawal volume per 30-day window.
@@ -171,10 +169,8 @@ module subscriptions::platform {
     ///
     /// `owner` is the bootstrap admin address. A future hardening
     /// pass will replace this with an embedded
-    /// `AccessControl<AC>` and OZ `Auth<PLATFORM_ADMIN_ROLE>`
-    /// (one role per module, OZ invariant). The same role is
-    /// described in `access_control.move` (yet to be wired in).
-    ///
+        /// (one role per module, OZ invariant). The same role is
+        ///
     /// `tiers` is keyed by `tier_index` (sequential insertion order)
     /// stores `tier_index`, not a tier id, and re-uses the slot on
     /// `deactivate_tier_by_index` without renumbering.

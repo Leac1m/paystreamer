@@ -1,6 +1,6 @@
 ///
 /// The protocol-wide `CORE` one-time witness is declared in
-/// `access_control.move` (per the OZ invariant: one OTW per module).
+/// `ac.move`.
 /// from there. This module owns the version triples; migration entry points
 /// across the package consult `version()` to decide whether to apply.
 module subscriptions::version {

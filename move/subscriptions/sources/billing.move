@@ -141,11 +141,12 @@ module subscriptions::billing {
         tier_index: u64,
         tier_amount: u64,
         tier_frequency_ms: u64,
+        max_attempts: u8,
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
         assert!(
-            access_control_account_id(cap) == object::id(account),
+            account_id_from_cap(cap) == object::id(account),
             EInvalidCap,
         );
         assert!(
@@ -177,7 +178,7 @@ module subscriptions::billing {
             0,                       // payment_count
             0,                       // last_attempt_time
             0,                       // attempt_count
-            3,                       // max_attempts
+            max_attempts,            // max_attempts
             0,                       // nonce
             now,                     // created_at
             now,                     // updated_at
@@ -213,7 +214,7 @@ module subscriptions::billing {
         _ctx: &mut TxContext,
     ) {
         assert!(
-            access_control_account_id(cap) == object::id(account),
+            account_id_from_cap(cap) == object::id(account),
             EInvalidCap,
         );
         assert!(
@@ -250,7 +251,7 @@ module subscriptions::billing {
         _ctx: &mut TxContext,
     ) {
         assert!(
-            access_control_account_id(cap) == object::id(account),
+            account_id_from_cap(cap) == object::id(account),
             EInvalidCap,
         );
         assert!(
@@ -288,7 +289,7 @@ module subscriptions::billing {
         _ctx: &mut TxContext,
     ) {
         assert!(
-            access_control_account_id(cap) == object::id(account),
+            account_id_from_cap(cap) == object::id(account),
             EInvalidCap,
         );
         assert!(
@@ -310,6 +311,95 @@ module subscriptions::billing {
             });
         account::remove_subscription(account, &platform_id);
         }
+    }
+
+    /// Update a subscription's maximum billing attempts per cycle.
+    public fun update_subscription_max_attempts<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        max_attempts: u8,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(
+            account_id_from_cap(cap) == object::id(account),
+            EInvalidCap,
+        );
+        assert!(
+            ac::has_permission(cap, ac::permission_owner()),
+            EUnauthorized,
+        );
+        let sub = account::get_subscription_mut(account, &platform_id);
+        account::sub_set_max_attempts(sub, max_attempts);
+        let now = clock.timestamp_ms();
+        account::sub_set_updated_at(sub, now);
+        event::emit(SubscriptionUpdated {
+            account_id: object::id(account),
+            platform_id,
+            change_kind: 4, // 4 = max_attempts change
+            v: 2,
+        });
+    }
+
+    /// Update a subscription's tier information.
+    public fun update_subscription_tier<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_ms: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(
+            account_id_from_cap(cap) == object::id(account),
+            EInvalidCap,
+        );
+        assert!(
+            ac::has_permission(cap, ac::permission_owner()),
+            EUnauthorized,
+        );
+        let sub = account::get_subscription_mut(account, &platform_id);
+        account::sub_set_tier(sub, tier_index, tier_amount, tier_frequency_ms);
+        let now = clock.timestamp_ms();
+        account::sub_set_updated_at(sub, now);
+        event::emit(SubscriptionUpdated {
+            account_id: object::id(account),
+            platform_id,
+            change_kind: 0, // 0 = tier change
+            v: 2,
+        });
+    }
+
+    /// Update a subscription's schedule frequency (which can deviate from tier_frequency_ms).
+    public fun update_subscription_schedule_frequency<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        schedule_frequency_ms: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(
+            account_id_from_cap(cap) == object::id(account),
+            EInvalidCap,
+        );
+        assert!(
+            ac::has_permission(cap, ac::permission_owner()),
+            EUnauthorized,
+        );
+        let sub = account::get_subscription_mut(account, &platform_id);
+        account::sub_set_schedule_frequency(sub, schedule_frequency_ms);
+        let now = clock.timestamp_ms();
+        account::sub_set_updated_at(sub, now);
+        event::emit(SubscriptionUpdated {
+            account_id: object::id(account),
+            platform_id,
+            change_kind: 5, // 5 = schedule_frequency change
+            v: 2,
+        });
     }
 
     // === record_payment (called by payment.move on successful billing) ===
@@ -467,10 +557,10 @@ module subscriptions::billing {
 
     // === Module-local helpers ===
     //
-    // We route the `access_control::account_id` lookups through local helpers
+    // We route the `account_id` lookups through local helpers
     // so the import block stays narrow and the call sites read cleanly.
 
-    fun access_control_account_id(cap: &AccountCap): ID {
+    fun account_id_from_cap(cap: &AccountCap): ID {
         subscriptions::ac::account_id(cap)
     }
 }

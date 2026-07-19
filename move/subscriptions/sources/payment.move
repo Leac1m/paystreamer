@@ -1,5 +1,5 @@
 ///
-/// future hardening pass, see `access_control.move`): `process_due_payment`
+/// `process_due_payment`
 /// funds. It is called by `scheduler.move` (the permissionless on-chain
 /// entry point) after the global circuit breaker, the global pause flag,
 /// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked

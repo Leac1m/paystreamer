@@ -8,10 +8,9 @@
 /// 4. The shared `SubscriptionAccount<T>` object plus its discovery
 ///    handle `AccountCap`.
 ///
-/// (bitfield authority). There is no embedded `AccessControl<AC>`
-/// per account: the OZ `AccessControl` consumes its OTW exactly once at
+/// (bitfield authority).
 /// `init`, so per-account ACs are infeasible (and unnecessary — see
-/// `access_control.move`). Role checks in this module therefore consult
+/// Role checks in this module therefore consult
 /// `has_permission(cap, perm)` against the bitfield on the cap, not an
 /// embedded AC.
 ///
@@ -227,8 +226,7 @@ module subscriptions::account {
     /// The user's subscription account. Shared object, phantom-typed by
     /// the denomination. The `AccountCap` minted alongside is the
     /// wallet-visible discovery handle; its `permissions` bitfield is
-    /// the authority. The protocol-wide `AccessControl<AC>`
-    /// is not embedded here — per-account authority is the
+        /// is not embedded here — per-account authority is the
     /// `ac::account_id(cap) == object::id(account)` check plus the
     /// `has_permission(cap, ...)` bitfield test.
     public struct SubscriptionAccount<phantom T> has key, store {
@@ -356,6 +354,7 @@ module subscriptions::account {
     ///   a built-in `AccountType` variant.
     public fun create_account<T>(
         _registry: &CoinTypeRegistry,
+        policies: PolicySet,
         clock: &Clock,
         ctx: &mut TxContext,
     ): (SubscriptionAccount<T>, AccountCap) {
@@ -368,7 +367,7 @@ module subscriptions::account {
             id: acct_uid,
             balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
-            policies: empty_policy_set(),
+            policies,
             status: account_status_active(),
             created_at: now,
             nonce: 0,
@@ -796,6 +795,20 @@ module subscriptions::account {
         s.attempt_count = 0;
         s.nonce = s.nonce + 1;
         s.updated_at = now;
+    }
+
+    public(package) fun sub_set_max_attempts(s: &mut SubscriptionV1, max_attempts: u8) {
+        s.max_attempts = max_attempts;
+    }
+
+    public(package) fun sub_set_tier(s: &mut SubscriptionV1, tier_index: u64, tier_amount: u64, tier_frequency_ms: u64) {
+        s.tier_index = tier_index;
+        s.tier_amount = tier_amount;
+        s.tier_frequency_ms = tier_frequency_ms;
+    }
+
+    public(package) fun sub_set_schedule_frequency(s: &mut SubscriptionV1, schedule_frequency_ms: u64) {
+        s.schedule_frequency_ms = schedule_frequency_ms;
     }
 
     /// Apply the failed-attempt state update. Bumps `attempt_count`,
