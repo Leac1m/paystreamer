@@ -58,23 +58,22 @@ export default function HeroSection() {
               Stop losing MRR to manual crypto payments. Your customers connect their wallet once, and our smart contracts handle the recurring billing. Same-day integration. 2.5% flat fee.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row items-center gap-4 mb-12">
               <Button
                 onClick={handleCreatePlatform}
                 variant="gradient"
                 size="lg"
                 className="text-lg"
               >
-                <span>Create Free Platform</span>
-                <ArrowRight size={20} />
+                <span>Get Started</span>
               </Button>
               <Button 
-                onClick={() => navigate('/explore')}
+                onClick={() => window.open(import.meta.env.DEV ? 'http://localhost:3001' : 'https://docs.paystreamer.xyz', '_blank')}
                 variant="secondary" 
                 size="lg" 
-                className="text-lg"
+                className="text-lg border border-white/10 hover:bg-white/10 transition-colors"
               >
-                <span>Explore Platforms</span>
+                <span>Documentation</span>
               </Button>
             </div>
 

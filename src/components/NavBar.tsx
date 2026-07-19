@@ -25,6 +25,7 @@ export default function NavBar() {
   const { isConnecting } = useWalletConnection();
   const { mintPusd } = useMintPusd();
   const disconnect = () => dAppKit.disconnectWallet();
+  console.log("WALLETS:", dAppKit.stores.$wallets.get());
   const isPending = txStatus === "pending";
 
   const handleMintPusd = async () => {

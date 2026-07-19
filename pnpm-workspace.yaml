@@ -5,3 +5,5 @@ allowBuilds:
   '@swc/core': true
   esbuild: true
   protobufjs: true
+minimumReleaseAgeExclude:
+  - '@paystreamer/sdk@0.1.0'
