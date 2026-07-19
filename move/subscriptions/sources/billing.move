@@ -165,7 +165,7 @@ module subscriptions::billing {
         };
 
         let now = clock.timestamp_ms();
-        let sub = account::new_subscription_v1(
+        let sub = account::new_subscription(
             platform_id,
             tier_index,
             tier_amount,
