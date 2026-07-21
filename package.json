@@ -16,8 +16,8 @@
     "test:all": "./scripts/verify-builds.sh",
     "test:e2e": "cd apps/docs && npx playwright test",
     "test:move": "cd move && sui move test",
-    "test:sdk": "cd packages/sdk && pnpm test",
-    "test:docs": "cd apps/docs && pnpm test"
+    "test:sdk": "cd packages/sdk && npx vitest run",
+    "test:docs": "cd apps/docs && npx vitest run"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",
