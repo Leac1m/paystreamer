@@ -4,9 +4,7 @@
 
 - `src/` — Vite + React frontend (TypeScript)
 - `move/` — Move smart contracts
-- `paystreamer-service/` — Node.js backend for sponsored transactions (separate Express service)
 - `scripts/` — Deployment and test scripts
-- `suiperpower/build-context.md` — Current deployment IDs and verified PTB signatures (keep updated)
 
 ## Key Commands
 
@@ -16,12 +14,8 @@ pnpm dev --port 5176 --host 0.0.0.0    # Dev server
 pnpm build                                  # TypeScript + Vite build
 pnpm codegen                               # Regenerate contract types
 
-# Backend service
-cd paystreamer-service && npm run build && npm start
-
 # Move contracts
-cd move/subscriptions && sui move build
-cd move/subscriptions && sui move test
+sui move test
 
 # Scripts
 pnpm seed:demo    # Seed demo platform (idempotent)
@@ -112,3 +106,4 @@ When AI agents execute, modify, or verify tests, they **MUST** strictly adhere t
 3. **Mandatory Build Verification**: Because dev servers evaluate code lazily, passing E2E tests against `pnpm dev` or `next dev` is insufficient. `pnpm build` (or `tsc --noEmit`) is a **mandatory** final validation step before considering a task complete for any affected package or app.
 4. **Isolate Server vs. Test Issues**: If an E2E test times out while connecting to the local server, manually run the dev server in the background and explicitly inspect its startup output for crashes.
 5. **Advocate Granular Testing**: Rather than relying exclusively on heavy browser E2E tests, proactively write isolated unit tests (e.g., React Testing Library, Vitest) for new UI components and hooks to catch compilation and import errors early.
+6. **Prefer Automated UI Tests over Manual Testing**: When verifying UI states, Mock Mode behavior, or connection flows, DO NOT rely on manual UI testing via browser subagents or manual verification. Instead, enforce state correctness through Vitest (with React Testing Library) for component logic, and use Playwright for complete E2E interaction smoke tests.

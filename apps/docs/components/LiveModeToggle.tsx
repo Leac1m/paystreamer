@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLiveMode } from '../lib/LiveModeContext';
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useDAppKit } from '@mysten/dapp-kit-react';
 import dynamic from 'next/dynamic';
 
 const ConnectModal = dynamic(
@@ -13,9 +13,17 @@ export const LiveModeToggle = () => {
   const account = useCurrentAccount();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const toggleMode = () => {
+  const dAppKit = useDAppKit();
+  const disconnect = () => dAppKit.disconnectWallet();
+
+  const toggleMode = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (isLive) {
       setIsLive(false);
+      disconnect();
     } else {
       if (account) {
         setIsLive(true);
@@ -24,6 +32,13 @@ export const LiveModeToggle = () => {
       }
     }
   };
+
+  React.useEffect(() => {
+    if (account && modalOpen) {
+      setModalOpen(false);
+      setIsLive(true);
+    }
+  }, [account, modalOpen, setIsLive]);
 
   return (
     <>
@@ -43,10 +58,6 @@ export const LiveModeToggle = () => {
         open={modalOpen}
         onOpenChange={(isOpen: boolean) => {
           setModalOpen(isOpen);
-          // If closed and account exists, user successfully connected
-          if (!isOpen && account) {
-            setIsLive(true);
-          }
         }}
       />
     </>

@@ -20,6 +20,17 @@ export function useMintTestPusd(): UseMintTestPusdResult {
 
   const mint = useCallback(
     async (amountMist: bigint = 100000000000n) => { // Default to 100 PUSD
+      if (config.isMockMode) {
+        setIsLoading(true);
+        setError(null);
+        return new Promise<string>((resolve) => {
+          setTimeout(() => {
+            setIsLoading(false);
+            resolve("mock_mint_digest_123");
+          }, 1500);
+        });
+      }
+
       if (!account) {
         setError("Wallet not connected");
         return null;

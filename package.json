@@ -11,7 +11,13 @@
     "seed:demo": "pnpm dlx tsx scripts/v2/seed-demo-platform.ts",
     "e2e": "bash scripts/e2e.sh",
     "docs:dev": "pnpm --filter docs dev",
-    "lint:no-fakes": "node scripts/lint-no-fakes.mjs"
+    "lint:no-fakes": "node scripts/lint-no-fakes.mjs",
+    "test": "./scripts/verify-builds.sh",
+    "test:all": "./scripts/verify-builds.sh",
+    "test:e2e": "cd apps/docs && npx playwright test",
+    "test:move": "cd move && sui move test",
+    "test:sdk": "cd packages/sdk && pnpm test",
+    "test:docs": "cd apps/docs && pnpm test"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",

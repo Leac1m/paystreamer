@@ -18,4 +18,14 @@ cd apps/docs
 pnpm build
 cd ../..
 
-echo "=> All builds succeeded!"
+echo "-> Running tests in packages/sdk..."
+cd packages/sdk
+npx vitest run
+cd ../..
+
+echo "-> Running tests in apps/docs..."
+cd apps/docs
+npx vitest run
+cd ../..
+
+echo "=> All builds and tests succeeded!"

@@ -39,7 +39,7 @@ export function DocsDemoWrapper({ children }: { children: React.ReactNode }) {
   const content = (
     <div className="p-6 mt-4 border rounded-xl flex flex-col items-center justify-center gap-6 bg-slate-50 dark:bg-slate-900 w-full relative">
       {!isLive && (
-        <div className="absolute top-2 right-2 text-xs font-semibold px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md">
+        <div data-testid="mock-badge" className="absolute top-2 right-2 text-xs font-semibold px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md">
           Mock Mode
         </div>
       )}

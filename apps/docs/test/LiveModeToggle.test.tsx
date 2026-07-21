@@ -11,8 +11,10 @@ vi.mock('../lib/LiveModeContext', () => ({
   }))
 }));
 
+const mockDisconnect = vi.fn();
 vi.mock('@mysten/dapp-kit-react', () => ({
-  useCurrentAccount: vi.fn()
+  useCurrentAccount: vi.fn(),
+  useDAppKit: vi.fn(() => ({ disconnectWallet: mockDisconnect }))
 }));
 
 const mockOnOpenChange = vi.fn();
@@ -36,12 +38,23 @@ describe('LiveModeToggle', () => {
     expect(screen.getByText('Live')).toBeDefined();
   });
 
-  it('sets isLive to false if currently live', () => {
+  it('sets isLive to false and disconnects if currently live, prevents default', () => {
     (useLiveMode as any).mockReturnValue({ isLive: true, setIsLive: mockSetIsLive });
-    render(<LiveModeToggle />);
+    render(
+      <a href="/test" onClick={(e) => {}}>
+        <LiveModeToggle />
+      </a>
+    );
     
-    fireEvent.click(screen.getByRole('button'));
+    const button = screen.getByRole('button');
+    const mockEvent = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn()
+    };
+    
+    fireEvent.click(button, mockEvent);
     expect(mockSetIsLive).toHaveBeenCalledWith(false);
+    expect(mockDisconnect).toHaveBeenCalled();
   });
 
   it('sets isLive to true if not live and account exists', () => {

@@ -15,7 +15,10 @@ export interface PayStreamerConfig {
   isMockMode?: boolean; // Used for UI playgrounds
 }
 
-export const PayStreamerContext = createContext<PayStreamerConfig | undefined>(undefined);
+import { Context } from 'react';
+
+const globalKey = Symbol.for("PayStreamerContext");
+export const PayStreamerContext: Context<PayStreamerConfig | undefined> = (globalThis as any)[globalKey] || ((globalThis as any)[globalKey] = createContext<PayStreamerConfig | undefined>(undefined));
 
 export interface PayStreamerProviderProps {
   config: PayStreamerConfig;

@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SetupSubscriptionModal } from '../src/ui/SetupSubscriptionModal';
+import * as provider from '../src/react/provider';
 
 // Mock the React hooks used inside the modal
 vi.mock('../src/react/usePlatform', () => ({
@@ -22,9 +23,10 @@ vi.mock('../src/react/useUserAccount', () => ({
   }))
 }));
 
+const mockBalance = vi.fn().mockReturnValue(100000000000n);
 vi.mock('../src/react/usePusdBalance', () => ({
   usePusdBalance: vi.fn(() => ({
-    data: 100000000000n, // 100 PUSD
+    get data() { return mockBalance(); },
     isLoading: false
   }))
 }));
@@ -47,13 +49,16 @@ vi.mock('../src/ui/ThemeContext', () => ({
 describe('SetupSubscriptionModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockBalance.mockReturnValue(100000000000n); // 100 PUSD default
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('renders correctly when isOpen is true', () => {
+  it('renders correctly and shows Wallet Balance in Live Mode', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
+
     render(
       <SetupSubscriptionModal 
         isOpen={true} 
@@ -64,10 +69,44 @@ describe('SetupSubscriptionModal', () => {
     );
     expect(screen.getByText('Fill Up & Subscribe')).toBeDefined();
     // 10 PUSD tier amount
-    expect(screen.getByText('10.00 PUSD')).toBeDefined();
+    expect(screen.getAllByText('10.00 PUSD').length).toBeGreaterThan(0);
+    // Should show Wallet Balance
+    expect(screen.getByText('Wallet Balance')).toBeDefined();
+  });
+
+  it('hides Wallet Balance in Mock Mode', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: true } as any);
+
+    render(
+      <SetupSubscriptionModal 
+        isOpen={true} 
+        onClose={() => {}} 
+        platformId="plat_123" 
+        tierIndex={0} 
+      />
+    );
+    expect(screen.queryByText('Wallet Balance')).toBeNull();
+  });
+
+  it('shows Insufficient PUSD warning in Live Mode when balance is low', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
+    mockBalance.mockReturnValue(0n); // 0 PUSD
+
+    render(
+      <SetupSubscriptionModal 
+        isOpen={true} 
+        onClose={() => {}} 
+        platformId="plat_123" 
+        tierIndex={0} 
+      />
+    );
+    expect(screen.getByText('Insufficient PUSD in your wallet to fund this deposit.')).toBeDefined();
+    const button = screen.getByRole('button', { name: 'Subscribe' });
+    expect(button).toHaveProperty('disabled', true);
   });
 
   it('does not render when isOpen is false', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
     const { container } = render(
       <SetupSubscriptionModal 
         isOpen={false} 
@@ -79,7 +118,8 @@ describe('SetupSubscriptionModal', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('calls subscribe when submit button is clicked', async () => {
+  it('calls subscribe and shows success when submit button is clicked', async () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
     mockSubscribe.mockResolvedValueOnce('digest_123');
     
     render(
@@ -95,5 +135,9 @@ describe('SetupSubscriptionModal', () => {
     fireEvent.click(button);
     
     expect(mockSubscribe).toHaveBeenCalledWith(10000000000n);
+    
+    await waitFor(() => {
+      expect(screen.getByText("You're Subscribed!")).toBeDefined();
+    });
   });
 });

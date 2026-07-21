@@ -18,3 +18,9 @@ scripts/v2/e2e-result.json
 package-lock.json
 .next
 pitch_deck/
+# Playwright test results
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
