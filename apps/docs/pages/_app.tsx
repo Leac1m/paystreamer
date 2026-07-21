@@ -39,13 +39,17 @@ const config = {
 
 const queryClient = new QueryClient();
 
+import { LiveModeProvider } from '../lib/LiveModeContext';
+
 export default function App({ Component, pageProps }: any) {
   return (
     <QueryClientProvider client={queryClient}>
       <DAppKitProvider dAppKit={dAppKit}>
         <PayStreamerProvider config={config as any}>
           <PayStreamerThemeProvider>
-            <Component {...pageProps} />
+            <LiveModeProvider>
+              <Component {...pageProps} />
+            </LiveModeProvider>
           </PayStreamerThemeProvider>
         </PayStreamerProvider>
       </DAppKitProvider>

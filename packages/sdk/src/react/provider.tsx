@@ -12,6 +12,7 @@ export interface PayStreamerConfig {
   network?: string; // "devnet", "testnet", "mainnet"
   graphqlUrl?: string; // e.g. "https://graphql.testnet.sui.io/graphql"
   graphqlClient?: SuiGraphQLClient;
+  isMockMode?: boolean; // Used for UI playgrounds
 }
 
 export const PayStreamerContext = createContext<PayStreamerConfig | undefined>(undefined);

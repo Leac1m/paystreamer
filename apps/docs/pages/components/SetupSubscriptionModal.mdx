@@ -19,6 +19,7 @@ export const LiveModal = () => {
           onClose={() => setIsOpen(false)}
           platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
           tierIndex={0}
+          maxAttempts={3}
         />
       </div>
     </DocsDemoWrapper>
@@ -45,6 +46,7 @@ import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
   onClose={() => setIsOpen(false)}
   platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
   tierIndex={0}
+  maxAttempts={3}
   onSuccess={(digest) => alert("Success! Tx: " + digest)}
   theme={{
     primary: "#6c63ff",
@@ -61,6 +63,7 @@ import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
 | `onClose` | `() => void` | Callback fired when the user dismisses the modal. |
 | `platformId` | `string` | The object ID of your deployed platform. |
 | `tierIndex` | `number` | The array index of the tier the user is subscribing to (used to fetch tier details from on-chain). |
+| `maxAttempts` | `number` | Optional. The maximum number of retry attempts the scheduler should make for a failed payment. Defaults to 3. |
 | `onSuccess?` | `(txDigest: string) => void` | Callback fired after a successful transaction. |
 | `formatUsd?` | `(amount: bigint \| number \| string) => number` | Optional custom formatter for displaying USD/PUSD values. |
 | `theme?` | `PayStreamerTheme` | Optional. Local theme variables to customize colors and radius. |

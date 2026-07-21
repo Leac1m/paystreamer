@@ -7,7 +7,7 @@ echo "======================================================"
 docker compose up -d
 
 echo "Waiting for Sui node and GraphQL to be ready..."
-sleep 15
+sleep 10
 
 echo "======================================================"
 echo " 🚀 Deploying Fresh Localnet Instance..."
@@ -46,4 +46,9 @@ pnpm dlx tsx scripts/v2/e2e-payment-cycle.ts
 echo "======================================================"
 echo " ⚛️  Running React SDK E2E Tests..."
 echo "======================================================"
-cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx
+(cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx)
+
+echo "======================================================"
+echo " ⚙️  Running Scheduler Backend E2E Tests..."
+echo "======================================================"
+(cd apps/scheduler && pnpm run test:e2e)

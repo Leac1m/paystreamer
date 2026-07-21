@@ -16,6 +16,7 @@ function CustomSubscribeButton() {
     tierIndex: 1,
     tierAmount: 50000000000n,
     tierFrequencyMs: 2592000000n, // 30 days
+    maxAttempts: 3,
   });
 
   const handleSubscribe = async () => {
@@ -47,6 +48,7 @@ You must pass an object with the following properties:
 | `tierIndex` | `number \| bigint` | The tier index on the platform to subscribe to. |
 | `tierAmount` | `bigint` | The cost of the tier per cycle (in MIST). |
 | `tierFrequencyMs` | `bigint` | The duration of the billing cycle (in MS). |
+| `maxAttempts` | `number` | Optional. The maximum number of retry attempts the scheduler should make for a failed payment. Defaults to 3. |
 | `accountId?` | `string` | Optional. The ID of the user's existing PayStreamer Account. |
 | `accountCapId?` | `string` | Optional. The ID of the user's existing Account Capability. |
 

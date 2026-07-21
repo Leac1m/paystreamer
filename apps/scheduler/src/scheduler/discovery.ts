@@ -20,7 +20,7 @@ export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
     
     const query = `
       query getPlatformEvents($eventType: String!) {
-        events(filter: { eventType: $eventType }, last: 100) {
+        events(filter: { type: $eventType }, last: 50) {
           nodes {
             contents {
               json
@@ -59,7 +59,7 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
     
     const query = `
       query getSubEvents($eventType: String!) {
-        events(filter: { eventType: $eventType }, last: 1000) {
+        events(filter: { type: $eventType }, last: 50) {
           nodes {
             contents {
               json

@@ -15,6 +15,14 @@ export function useUserAccount() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['getOwnedObjects', account?.address, config.packageId],
     queryFn: async () => {
+      if (config.isMockMode) {
+        return {
+          accountCapId: "0xMockAccountCap",
+          accountId: "0xMockAccount",
+          balance: 10000000000n, // 10 PUSD
+        };
+      }
+      
       if (!account?.address) return null;
       if (!config.graphqlClient) {
         throw new Error("GraphQL client is not configured in PayStreamerProvider");
@@ -91,7 +99,7 @@ export function useUserAccount() {
         balance,
       };
     },
-    enabled: !!account?.address && !!config.packageId,
+    enabled: config.isMockMode ? true : (!!account?.address && !!config.packageId),
   });
 
   return {

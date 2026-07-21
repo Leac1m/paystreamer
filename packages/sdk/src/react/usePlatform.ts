@@ -28,6 +28,29 @@ export function usePlatform(platformId: string | undefined) {
     queryKey: ['paystreamer', 'platform', platformId, config.network],
     queryFn: async () => {
       if (!platformId) return null;
+      if (config.isMockMode) {
+        return {
+          id: platformId,
+          owner: "0xMockOwner",
+          name: "Mock Platform",
+          description: "This is a mock platform for the playground.",
+          category: "Education",
+          image_url: null,
+          is_paused: false,
+          created_at: Date.now(),
+          tiers: [
+            {
+              name: "Pro Tier",
+              amount: "5000000000",
+              frequency: "2592000000",
+              subscriber_count: 42,
+              is_active: true
+            }
+          ],
+          initialSharedVersion: 1
+        } as PlatformObject & { initialSharedVersion: number };
+      }
+      
       if (!config.graphqlClient) {
         throw new Error("GraphQL client is not configured in PayStreamerProvider");
       }

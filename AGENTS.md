@@ -98,3 +98,17 @@ npx skills https://github.com/MystenLabs/skills
 ```
 
 Key skills: `sui-move`, `ptbs`, `frontend-apps`, `sui-object-model`, `sui-publish`
+
+## E2E Testing Rule
+
+All apps that interact with the blockchain must contain at least one E2E test that captures its flow, and it must be tested in the localnet docker environment. E2E tests must cover all new features as they are built.
+
+## Testing Execution Protocol
+
+When AI agents execute, modify, or verify tests, they **MUST** strictly adhere to the following rules to prevent false positives and missed compilation errors:
+
+1. **Zero-Assumption Policy**: If a test times out, fails, or hangs, it must be treated as a hard code defect. Do not dismiss failures as "transient environment issues," "cached builds," or "slow startup times" without conclusive proof.
+2. **Deep Log Inspection**: Always read test outputs top-to-bottom. Actively search for `TypeError`, `Module not found`, or `Error` markers occurring *before* the final timeout/failure status.
+3. **Mandatory Build Verification**: Because dev servers evaluate code lazily, passing E2E tests against `pnpm dev` or `next dev` is insufficient. `pnpm build` (or `tsc --noEmit`) is a **mandatory** final validation step before considering a task complete for any affected package or app.
+4. **Isolate Server vs. Test Issues**: If an E2E test times out while connecting to the local server, manually run the dev server in the background and explicitly inspect its startup output for crashes.
+5. **Advocate Granular Testing**: Rather than relying exclusively on heavy browser E2E tests, proactively write isolated unit tests (e.g., React Testing Library, Vitest) for new UI components and hooks to catch compilation and import errors early.
