@@ -5,23 +5,12 @@ import { PayStreamerThemeProvider } from '@paystreamer/sdk/ui';
 import { DAppKitProvider, createDAppKit } from "@mysten/dapp-kit-react";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { createPersistentBurnerWalletInitializer } from '../lib/persistentBurnerWallet';
-
+import { createGraphqlClient } from '../lib/networkRouting';
 const dAppKit = createDAppKit({
   enableBurnerWallet: true,
   networks: ["mainnet", "testnet", "devnet", "local"],
   defaultNetwork: "testnet",
-  createClient(network) {
-    const urls: Record<string, string> = {
-      mainnet: "https://graphql.mainnet.sui.io/graphql",
-      testnet: "https://graphql.testnet.sui.io/graphql",
-      devnet: "https://graphql.devnet.sui.io/graphql",
-      local: "http://127.0.0.1:9000"
-    };
-    return new SuiGraphQLClient({
-      network,
-      url: urls[network] || urls.testnet
-    });
-  },
+  createClient: createGraphqlClient,
   walletInitializers: [createPersistentBurnerWalletInitializer()]
 });
 

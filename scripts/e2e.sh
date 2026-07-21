@@ -2,6 +2,11 @@
 set -e
 
 echo "======================================================"
+echo " 🏗️ Verifying Builds Before Testing..."
+echo "======================================================"
+./scripts/verify-builds.sh
+
+echo "======================================================"
 echo " 🐳 Ensuring Local Docker Environment is Running..."
 echo "======================================================"
 docker compose up -d
