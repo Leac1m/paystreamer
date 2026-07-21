@@ -16,14 +16,14 @@
  *   9. snapshot: query events and save JSON summary
  *
  * Usage: pnpm exec ts-node --esm scripts/v2/e2e-payment-cycle.ts
- */
-
-import { readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+ */ 
 
 import { config } from "dotenv";
 config();
+
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
@@ -36,17 +36,17 @@ import {
   NETWORK,
 } from "../../src/constants.ts";
 
-const networkConfig = NETWORK_CONFIGS[NETWORK];
-const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
-const V3_COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
-const V3_COIN_TYPE_REGISTRY_INIT_VERSION = networkConfig.COIN_TYPE_REGISTRY_INIT_VERSION;
-const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
-const PAYMENT_SCHEDULER_INIT_VERSION = networkConfig.PAYMENT_SCHEDULER_INIT_VERSION;
-const V2_GRAPHQL_URL = networkConfig.GRAPHQL_URL;
-const V2_NETWORK = NETWORK;
-const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
-const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
-const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
+const {
+  PACKAGE_ID,
+  COIN_TYPE_REGISTRY_ID,
+  COIN_TYPE_REGISTRY_INIT_VERSION,
+  PAYMENT_SCHEDULER_ID,
+  PAYMENT_SCHEDULER_INIT_VERSION,
+  GRAPHQL_URL,
+  PUSD_PACKAGE_ID,
+  PUSD_TYPE_ARG,
+  PUSD_TREASURY_CAP_ID,
+} = NETWORK_CONFIGS[NETWORK];
 
 const TIER_AMOUNT = 1_000_000n; // 1 PUSD (6 decimals)
 const TIER_FREQUENCY_MS = 1n; // 1ms — due immediately each cycle
@@ -229,7 +229,7 @@ async function fetchPlatformIdForSender(
             }
         `,
     variables: {
-      type: `${V3_PACKAGE_ID}::platform::PlatformRegistered`,
+      type: `${PACKAGE_ID}::platform::PlatformRegistered`,
       sender,
     },
   });
@@ -255,7 +255,7 @@ async function fetchTreasuryCoinBalance(
 }
 
 // Shared object initial versions captured at publish time.
-const SHARED_INIT_VERSION_REGISTRY = V3_COIN_TYPE_REGISTRY_INIT_VERSION;
+const SHARED_INIT_VERSION_REGISTRY = COIN_TYPE_REGISTRY_INIT_VERSION;
 const SHARED_INIT_VERSION_SCHEDULER = PAYMENT_SCHEDULER_INIT_VERSION;
 let PLATFORM_INITIAL_VERSION = 10;  // bumped by create_tier etc.; updated by Step 2 hook
 let ACCOUNT_INITIAL_VERSION = 10;
@@ -290,7 +290,7 @@ async function fetchEventCounts(
   const counts: Record<string, number> = {};
   for (const name of eventTypes) {
     const module = eventModule(name);
-    const type = `${V3_PACKAGE_ID}::${module}::${name}`;
+    const type = `${PACKAGE_ID}::${module}::${name}`;
     let total = 0;
     let cursor: string | null = null;
     let hasNextPage = true;
@@ -355,18 +355,18 @@ async function main() {
   const keypair = loadKeypair();
   const sender = keypair.toSuiAddress();
   const graphqlClient = new SuiGraphQLClient({
-    url: V2_GRAPHQL_URL,
-    network: V2_NETWORK,
+    url: GRAPHQL_URL,
+    network: NETWORK,
   });
 
   console.log("======================================================");
   console.log(" PayStreamer v3 — E2E Payment Cycle");
   console.log("======================================================");
-  console.log(`network:        ${V2_NETWORK}`);
-  console.log(`package:        ${V3_PACKAGE_ID}`);
+  console.log(`network:        ${NETWORK}`);
+  console.log(`package:        ${PACKAGE_ID}`);
   console.log(`sender:         ${sender}`);
   console.log(`scheduler:      ${PAYMENT_SCHEDULER_ID}`);
-  console.log(`registry:       ${V3_COIN_TYPE_REGISTRY_ID}`);
+  console.log(`registry:       ${COIN_TYPE_REGISTRY_ID}`);
   console.log(`PUSD type:      ${PUSD_TYPE_ARG}`);
 
   const results: StepResult[] = [];
@@ -377,9 +377,9 @@ async function main() {
   {
     const tx = newTx(keypair);
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::registry::register_coin_type`,
+      target: `${PACKAGE_ID}::registry::register_coin_type`,
       typeArguments: [PUSD_TYPE_ARG],
-      arguments: [sharedObjectMut(V3_COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
+      arguments: [sharedObjectMut(COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
     });
     const r = await executeStep(graphqlClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
     results.push(r);
@@ -391,7 +391,7 @@ async function main() {
   {
     const tx = newTx(keypair);
     const [platformId, tierIndex] = tx.moveCall({
-      target: `${V3_PACKAGE_ID}::platform::register_platform_with_tier`,
+      target: `${PACKAGE_ID}::platform::register_platform_with_tier`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.pure.string("PayStreamer E2E"),
@@ -411,7 +411,7 @@ async function main() {
         const evRes = await graphqlClient.query({
           query: `
             query GetPlatformCreated($sender: SuiAddress!) {
-              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::platform::PlatformRegistered", sender: $sender }) {
+              events(first: 5, filter: { type: "${PACKAGE_ID}::platform::PlatformRegistered", sender: $sender }) {
                 nodes { contents { json } }
               }
             }
@@ -430,7 +430,7 @@ async function main() {
         const tierRes = await graphqlClient.query({
           query: `
             query GetTierCreated($sender: SuiAddress!, $platformId: SuiAddress!) {
-              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::platform::TierCreated", sender: $sender }) {
+              events(first: 5, filter: { type: "${PACKAGE_ID}::platform::TierCreated", sender: $sender }) {
                 nodes { contents { json } }
               }
             }
@@ -465,18 +465,20 @@ async function main() {
   {
     let r = await executeStep(graphqlClient, keypair, { name: "Step 3: create_account + share_account", tx: (() => {
       const tx = newTx(keypair);
+      const policies = tx.moveCall({ target: `${PACKAGE_ID}::account::empty_policy_set` });
       const created = tx.moveCall({
-        target: `${V3_PACKAGE_ID}::account::create_account`,
+        target: `${PACKAGE_ID}::account::create_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
-          tx.object(V3_COIN_TYPE_REGISTRY_ID),
+          tx.object(COIN_TYPE_REGISTRY_ID),
+          policies,
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
       const account = created[0];
       const cap = created[1];
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::account::share_account`,
+        target: `${PACKAGE_ID}::account::share_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [account, cap],
       });
@@ -486,18 +488,20 @@ async function main() {
       console.log("  gas coin stale, retrying...");
       r = await executeStep(graphqlClient, keypair, { name: "Step 3: create_account + share_account (retry)", tx: (() => {
         const tx = newTx(keypair);
-        const created = tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::create_account`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [
-            tx.object(V3_COIN_TYPE_REGISTRY_ID),
-            tx.object(CLOCK_OBJECT_ID),
-          ],
-        });
+        const policies = tx.moveCall({ target: `${PACKAGE_ID}::account::empty_policy_set` });
+      const created = tx.moveCall({
+        target: `${PACKAGE_ID}::account::create_account`,
+        typeArguments: [PUSD_TYPE_ARG],
+        arguments: [
+          tx.object(COIN_TYPE_REGISTRY_ID),
+          policies,
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
         const account = created[0];
         const cap = created[1];
         tx.moveCall({
-          target: `${V3_PACKAGE_ID}::account::share_account`,
+          target: `${PACKAGE_ID}::account::share_account`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [account, cap],
         });
@@ -510,7 +514,7 @@ async function main() {
         const evRes = await graphqlClient.query({
           query: `
             query GetAcctCreated($sender: SuiAddress!) {
-              events(first: 5, filter: { type: "${V3_PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
+              events(first: 5, filter: { type: "${PACKAGE_ID}::account::AccountCreated", sender: $sender }) {
                 nodes { contents { json } }
               }
             }
@@ -578,7 +582,7 @@ async function main() {
         let r2 = await executeStep(graphqlClient, keypair, { name: "Step 4b: deposit PUSD", tx: (() => {
           const tx = newTx(keypair);
           tx.moveCall({
-            target: `${V3_PACKAGE_ID}::account::deposit`,
+            target: `${PACKAGE_ID}::account::deposit`,
             typeArguments: [PUSD_TYPE_ARG],
             arguments: [
               tx.object(summary.ids.capId),
@@ -601,7 +605,7 @@ async function main() {
     let r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::create_subscription`,
+        target: `${PACKAGE_ID}::billing::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -610,6 +614,7 @@ async function main() {
           tx.pure.u64(summary.ids.tierIndex ?? 0),
           tx.pure.u64(TIER_AMOUNT),
           tx.pure.u64(TIER_FREQUENCY_MS),
+          tx.pure.u8(3),
           tx.object(CLOCK_OBJECT_ID),
         ],
       });
@@ -620,7 +625,7 @@ async function main() {
       r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${V3_PACKAGE_ID}::billing::create_subscription`,
+          target: `${PACKAGE_ID}::billing::create_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
@@ -629,6 +634,7 @@ async function main() {
             tx.pure.u64(summary.ids.tierIndex ?? 0),
             tx.pure.u64(TIER_AMOUNT),
             tx.pure.u64(TIER_FREQUENCY_MS),
+          tx.pure.u8(3),
             tx.object(CLOCK_OBJECT_ID),
           ],
         });
@@ -644,11 +650,11 @@ async function main() {
   {
     const tx = newTx(keypair);
     const limiters = tx.moveCall({
-      target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
+      target: `${PACKAGE_ID}::policies::empty_limiters`,
       arguments: [tx.object(CLOCK_OBJECT_ID)],
     });
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
+      target: `${PACKAGE_ID}::policies::ensure_initialized`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
@@ -657,7 +663,7 @@ async function main() {
       ],
     });
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
+      target: `${PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
@@ -684,11 +690,11 @@ async function main() {
   {
     const tx = newTx(keypair);
     const limiters = tx.moveCall({
-      target: `${V3_PACKAGE_ID}::policies::empty_limiters`,
+      target: `${PACKAGE_ID}::policies::empty_limiters`,
       arguments: [tx.object(CLOCK_OBJECT_ID)],
     });
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::policies::ensure_initialized`,
+      target: `${PACKAGE_ID}::policies::ensure_initialized`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         tx.object(summary.ids.accountId!),
@@ -697,7 +703,7 @@ async function main() {
       ],
     });
     tx.moveCall({
-      target: `${V3_PACKAGE_ID}::scheduler::process_due_payment`,
+      target: `${PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
@@ -723,7 +729,7 @@ async function main() {
     let r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${PACKAGE_ID}::billing::cancel_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -739,7 +745,7 @@ async function main() {
       r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${V3_PACKAGE_ID}::billing::cancel_subscription`,
+          target: `${PACKAGE_ID}::billing::cancel_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
@@ -759,8 +765,8 @@ async function main() {
   summary.eventCounts = await fetchEventCounts(graphqlClient, sender);
 
   const out = {
-    network: V2_NETWORK,
-    packageId: V3_PACKAGE_ID,
+    network: NETWORK,
+    packageId: PACKAGE_ID,
     sender,
     ids: summary.ids,
     digests: summary.digests,
