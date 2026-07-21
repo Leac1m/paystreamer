@@ -9,6 +9,7 @@ import { usePlatform } from "../react/usePlatform";
 import { useUserAccount } from "../react/useUserAccount";
 import { usePusdBalance } from "../react/usePusdBalance";
 import { PayStreamerTheme, useThemeStyles } from "./ThemeContext";
+import { usePayStreamerConfig } from "../react/provider";
 
 export interface SetupSubscriptionModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function SetupSubscriptionModal({
   theme,
 }: SetupSubscriptionModalProps) {
   const styles = useThemeStyles(theme);
+  const config = usePayStreamerConfig();
   const { data: platform, isLoading: isPlatformLoading } = usePlatform(platformId);
   const { userAccount, isLoading: isAccountLoading } = useUserAccount();
   const { data: walletBalance, isLoading: isBalanceLoading } = usePusdBalance();
@@ -63,7 +65,7 @@ export function SetupSubscriptionModal({
   const [step, setStep] = useState<"input" | "success">("input");
 
   const requiredDeposit = Math.max(minDepositUsd, parseFloat(depositAmount || "0"));
-  const hasInsufficientWalletBalance = walletBalanceUsd < requiredDeposit;
+  const hasInsufficientWalletBalance = !config.isMockMode && walletBalanceUsd < requiredDeposit;
 
   useEffect(() => {
     if (isOpen) {
@@ -107,7 +109,7 @@ export function SetupSubscriptionModal({
         >
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-xl font-bold">
-              {step === "success" ? "Success!" : hasAccount ? "Fill Up & Subscribe" : "Setup Subscription"}
+              {step === "success" ? "Success!" : hasAccount && !config.isMockMode ? "Fill Up & Subscribe" : "Setup Subscription"}
             </h2>
             <button
               onClick={onClose}
@@ -126,16 +128,18 @@ export function SetupSubscriptionModal({
                     <span className="text-muted-foreground">Tier Amount</span>
                     <span className="font-semibold">{tierAmountUsd.toFixed(2)} PUSD</span>
                   </div>
-                  {hasAccount && (
+                  {hasAccount && !config.isMockMode && (
                     <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
                       <span className="text-muted-foreground">Current Balance</span>
                       <span className="font-semibold text-primary">{currentBalanceUsd.toFixed(2)} PUSD</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
-                    <span className="text-muted-foreground">Wallet Balance</span>
-                    <span className="font-semibold">{walletBalanceUsd.toFixed(2)} PUSD</span>
-                  </div>
+                  {!config.isMockMode && (
+                    <div className="flex justify-between items-center text-sm border-t pt-2 mt-2">
+                      <span className="text-muted-foreground">Wallet Balance</span>
+                      <span className="font-semibold">{walletBalanceUsd.toFixed(2)} PUSD</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

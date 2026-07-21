@@ -38,6 +38,17 @@ export function useSubscribe(params: UseSubscribeParams) {
 
   const subscribe = useCallback(
     async (depositAmount: bigint = 0n) => {
+      if (config.isMockMode) {
+        setIsLoading(true);
+        setError(null);
+        return new Promise<string>((resolve) => {
+          setTimeout(() => {
+            setIsLoading(false);
+            resolve("mock_digest_1234567890abcdef");
+          }, 1500);
+        });
+      }
+
       if (!account) {
         setError("Wallet not connected");
         return null;

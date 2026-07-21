@@ -5,6 +5,8 @@ import type {
 	IdentifierString,
 	StandardConnectFeature,
 	StandardConnectMethod,
+	StandardDisconnectFeature,
+	StandardDisconnectMethod,
 	StandardEventsFeature,
 	StandardEventsOnMethod,
 	SuiFeatures,
@@ -18,6 +20,7 @@ import {
 	getWallets,
 	ReadonlyWalletAccount,
 	StandardConnect,
+	StandardDisconnect,
 	StandardEvents,
 	SuiSignAndExecuteTransaction,
 	SuiSignPersonalMessage,
@@ -114,11 +117,15 @@ class PersistentBurnerWallet implements Wallet {
 		return [this.#account];
 	}
 
-	get features(): StandardConnectFeature & StandardEventsFeature & SuiFeatures {
+	get features(): StandardConnectFeature & StandardDisconnectFeature & StandardEventsFeature & SuiFeatures {
 		return {
 			[StandardConnect]: {
 				version: '1.0.0',
 				connect: this.#connect,
+			},
+			[StandardDisconnect]: {
+				version: '1.0.0',
+				disconnect: this.#disconnect,
 			},
 			[StandardEvents]: {
 				version: '1.0.0',
@@ -153,6 +160,10 @@ class PersistentBurnerWallet implements Wallet {
 
 	#connect: StandardConnectMethod = async () => {
 		return { accounts: this.accounts };
+	};
+
+	#disconnect: StandardDisconnectMethod = async () => {
+		// Nothing to actually clean up for a burner wallet
 	};
 
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async (messageInput) => {

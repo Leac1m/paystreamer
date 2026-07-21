@@ -12,9 +12,13 @@ export interface PayStreamerConfig {
   network?: string; // "devnet", "testnet", "mainnet"
   graphqlUrl?: string; // e.g. "https://graphql.testnet.sui.io/graphql"
   graphqlClient?: SuiGraphQLClient;
+  isMockMode?: boolean; // Used for UI playgrounds
 }
 
-export const PayStreamerContext = createContext<PayStreamerConfig | undefined>(undefined);
+import { Context } from 'react';
+
+const globalKey = Symbol.for("PayStreamerContext");
+export const PayStreamerContext: Context<PayStreamerConfig | undefined> = (globalThis as any)[globalKey] || ((globalThis as any)[globalKey] = createContext<PayStreamerConfig | undefined>(undefined));
 
 export interface PayStreamerProviderProps {
   config: PayStreamerConfig;

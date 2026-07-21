@@ -103,6 +103,21 @@ describe('React SDK Hooks E2E', () => {
       graphqlClient: customGraphqlClient,
     };
 
+    vi.spyOn(customGraphqlClient, 'query').mockResolvedValue({
+      data: {
+        object: {
+          asMoveObject: {
+            contents: {
+              json: {
+                name: "Mocked Demo Platform",
+                id: activeConfig.DEMO_PLATFORM_ID
+              }
+            }
+          }
+        }
+      }
+    } as any);
+
     render(
       <QueryClientProvider client={queryClient}>
         <PayStreamerProvider config={config}>
