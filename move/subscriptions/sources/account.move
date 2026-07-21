@@ -8,10 +8,9 @@
 /// 4. The shared `SubscriptionAccount<T>` object plus its discovery
 ///    handle `AccountCap`.
 ///
-/// (bitfield authority). There is no embedded `AccessControl<AC>`
-/// per account: the OZ `AccessControl` consumes its OTW exactly once at
+/// (bitfield authority).
 /// `init`, so per-account ACs are infeasible (and unnecessary — see
-/// `access_control.move`). Role checks in this module therefore consult
+/// Role checks in this module therefore consult
 /// `has_permission(cap, perm)` against the bitfield on the cap, not an
 /// embedded AC.
 ///
@@ -42,7 +41,7 @@ module subscriptions::account {
     };
     use subscriptions::registry::{Self, CoinTypeRegistry};
 
-    // === SubscriptionV1 (declared here, augmented by billing.move) ===
+    // === Subscription (declared here, augmented by billing.move) ===
 
     /// Per-platform subscription, embedded in the account's
     ///
@@ -50,7 +49,7 @@ module subscriptions::account {
     /// 2 = cancelled. Cascading the account-level pause flips active subs
     /// to 1 (paused); resuming the account does NOT flip them back
     /// billing).
-    public struct SubscriptionV1 has store, drop {
+    public struct Subscription has store, drop {
         platform_id: ID,
         tier_index: u64,
         tier_amount: u64,
@@ -73,7 +72,7 @@ module subscriptions::account {
     /// `create_subscription(account, ...)` that calls this. Time fields
     /// are caller-supplied (use `clock.timestamp_ms()`) so the
     /// constructor remains pure and testable.
-    public fun new_subscription_v1(
+    public fun new_subscription(
         platform_id: ID,
         tier_index: u64,
         tier_amount: u64,
@@ -90,8 +89,8 @@ module subscriptions::account {
         nonce: u64,
         created_at: u64,
         updated_at: u64,
-    ): SubscriptionV1 {
-        SubscriptionV1 {
+    ): Subscription {
+        Subscription {
             platform_id,
             tier_index,
             tier_amount,
@@ -111,47 +110,47 @@ module subscriptions::account {
         }
     }
 
-    // === SubscriptionV1 accessors ===
+    // === Subscription accessors ===
 
     /// `platform_id` (map key).
     /// Role: any caller (read-only view).
-    public fun sub_platform_id(s: &SubscriptionV1): ID { s.platform_id }
+    public fun sub_platform_id(s: &Subscription): ID { s.platform_id }
     /// `tier_index`.
-    public fun sub_tier_index(s: &SubscriptionV1): u64 { s.tier_index }
+    public fun sub_tier_index(s: &Subscription): u64 { s.tier_index }
     /// `tier_amount` (smallest unit of `T`).
-    public fun sub_tier_amount(s: &SubscriptionV1): u64 { s.tier_amount }
+    public fun sub_tier_amount(s: &Subscription): u64 { s.tier_amount }
     /// `tier_frequency_ms` between successful payments.
-    public fun sub_tier_frequency_ms(s: &SubscriptionV1): u64 { s.tier_frequency_ms }
+    public fun sub_tier_frequency_ms(s: &Subscription): u64 { s.tier_frequency_ms }
     /// `status` (0 active, 1 paused, 2 cancelled).
-    public fun sub_status(s: &SubscriptionV1): u8 { s.status }
+    public fun sub_status(s: &Subscription): u8 { s.status }
     /// True iff `status == 0`.
-    public fun sub_is_active(s: &SubscriptionV1): bool { s.status == 0 }
+    public fun sub_is_active(s: &Subscription): bool { s.status == 0 }
     /// True iff `status == 1`.
-    public fun sub_is_paused(s: &SubscriptionV1): bool { s.status == 1 }
+    public fun sub_is_paused(s: &Subscription): bool { s.status == 1 }
     /// True iff `status == 2`.
-    public fun sub_is_cancelled(s: &SubscriptionV1): bool { s.status == 2 }
+    public fun sub_is_cancelled(s: &Subscription): bool { s.status == 2 }
     /// `schedule_frequency_ms` (may differ from `tier_frequency_ms` after edits).
-    public fun sub_schedule_frequency_ms(s: &SubscriptionV1): u64 { s.schedule_frequency_ms }
+    public fun sub_schedule_frequency_ms(s: &Subscription): u64 { s.schedule_frequency_ms }
     /// `next_billing_time` (ms).
-    public fun sub_next_billing_time(s: &SubscriptionV1): u64 { s.next_billing_time }
+    public fun sub_next_billing_time(s: &Subscription): u64 { s.next_billing_time }
     /// `last_billing_time` (ms; 0 if never billed).
-    public fun sub_last_billing_time(s: &SubscriptionV1): u64 { s.last_billing_time }
+    public fun sub_last_billing_time(s: &Subscription): u64 { s.last_billing_time }
     /// `total_paid` lifetime.
-    public fun sub_total_paid(s: &SubscriptionV1): u64 { s.total_paid }
+    public fun sub_total_paid(s: &Subscription): u64 { s.total_paid }
     /// `payment_count` lifetime.
-    public fun sub_payment_count(s: &SubscriptionV1): u64 { s.payment_count }
+    public fun sub_payment_count(s: &Subscription): u64 { s.payment_count }
     /// `last_attempt_time` ms (for failed-attempt retry).
-    public fun sub_last_attempt_time(s: &SubscriptionV1): u64 { s.last_attempt_time }
+    public fun sub_last_attempt_time(s: &Subscription): u64 { s.last_attempt_time }
     /// `attempt_count` (lifetime failed attempts; reset on success).
-    public fun sub_attempt_count(s: &SubscriptionV1): u8 { s.attempt_count }
+    public fun sub_attempt_count(s: &Subscription): u8 { s.attempt_count }
     /// `max_attempts` (per cycle; 0 = no cap).
-    public fun sub_max_attempts(s: &SubscriptionV1): u8 { s.max_attempts }
+    public fun sub_max_attempts(s: &Subscription): u8 { s.max_attempts }
     /// `nonce` (per-subscription replay nonce; bumped on successful payment).
-    public fun sub_nonce(s: &SubscriptionV1): u64 { s.nonce }
+    public fun sub_nonce(s: &Subscription): u64 { s.nonce }
     /// `created_at` ms.
-    public fun sub_created_at(s: &SubscriptionV1): u64 { s.created_at }
+    public fun sub_created_at(s: &Subscription): u64 { s.created_at }
     /// `updated_at` ms.
-    public fun sub_updated_at(s: &SubscriptionV1): u64 { s.updated_at }
+    public fun sub_updated_at(s: &Subscription): u64 { s.updated_at }
 
     // === PolicySet (declared here, augmented by policies.move) ===
 
@@ -227,8 +226,7 @@ module subscriptions::account {
     /// The user's subscription account. Shared object, phantom-typed by
     /// the denomination. The `AccountCap` minted alongside is the
     /// wallet-visible discovery handle; its `permissions` bitfield is
-    /// the authority. The protocol-wide `AccessControl<AC>`
-    /// is not embedded here — per-account authority is the
+        /// is not embedded here — per-account authority is the
     /// `ac::account_id(cap) == object::id(account)` check plus the
     /// `has_permission(cap, ...)` bitfield test.
     public struct SubscriptionAccount<phantom T> has key, store {
@@ -237,7 +235,7 @@ module subscriptions::account {
         /// `deposit` before payments are processed.
         balance: Balance<T>,
         /// Per-platform subscriptions, keyed by `platform_id`. The
-        subscriptions: VecMap<ID, SubscriptionV1>,
+        subscriptions: VecMap<ID, Subscription>,
         /// Policy set. Replaced wholesale via `update_policies`.
         policies: PolicySet,
         /// Lifecycle status. Pause cascades to subscriptions; close
@@ -356,6 +354,7 @@ module subscriptions::account {
     ///   a built-in `AccountType` variant.
     public fun create_account<T>(
         _registry: &CoinTypeRegistry,
+        policies: PolicySet,
         clock: &Clock,
         ctx: &mut TxContext,
     ): (SubscriptionAccount<T>, AccountCap) {
@@ -368,7 +367,7 @@ module subscriptions::account {
             id: acct_uid,
             balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
-            policies: empty_policy_set(),
+            policies,
             status: account_status_active(),
             created_at: now,
             nonce: 0,
@@ -713,13 +712,13 @@ module subscriptions::account {
     /// Role: any caller (read-only view).
     public fun subscriptions<T>(
         account: &SubscriptionAccount<T>,
-    ): &VecMap<ID, SubscriptionV1> { &account.subscriptions }
+    ): &VecMap<ID, Subscription> { &account.subscriptions }
 
     /// Mutable handle to the subscriptions map. `billing.move` is the
     /// only expected caller (via `public(package)` access below).
     public(package) fun subscriptions_mut<T>(
         account: &mut SubscriptionAccount<T>,
-    ): &mut VecMap<ID, SubscriptionV1> { &mut account.subscriptions }
+    ): &mut VecMap<ID, Subscription> { &mut account.subscriptions }
 
     /// True iff the account has a subscription keyed by `platform_id`.
     /// Role: any caller (read-only view).
@@ -733,7 +732,7 @@ module subscriptions::account {
     public fun get_subscription<T>(
         account: &SubscriptionAccount<T>,
         platform_id: &ID,
-    ): &SubscriptionV1 { vec_map::get(&account.subscriptions, platform_id) }
+    ): &Subscription { vec_map::get(&account.subscriptions, platform_id) }
 
     /// Mutable lookup of a single subscription by `platform_id`.
     /// `public(package)` so only `billing.move` (same package) can mutate
@@ -742,7 +741,7 @@ module subscriptions::account {
     public(package) fun get_subscription_mut<T>(
         account: &mut SubscriptionAccount<T>,
         platform_id: &ID,
-    ): &mut SubscriptionV1 {
+    ): &mut Subscription {
         vec_map::get_mut(&mut account.subscriptions, platform_id)
     }
 
@@ -761,7 +760,7 @@ module subscriptions::account {
         vec_map::length(&account.subscriptions)
     }
 
-    // === SubscriptionV1 mutators (public(package) — billing.move only) ===
+    // === Subscription mutators (public(package) — billing.move only) ===
     //
     // is the only module that should mutate per-platform subscription
     // state, so we expose the necessary writes here as `public(package)`
@@ -770,12 +769,12 @@ module subscriptions::account {
     // exactly which fields a given operation touches.
 
     /// Set the subscription's `status` field. Used by `pause/resume/cancel`.
-    public(package) fun sub_set_status(s: &mut SubscriptionV1, status: u8) {
+    public(package) fun sub_set_status(s: &mut Subscription, status: u8) {
         s.status = status;
     }
 
     /// Set the subscription's `updated_at` field (ms).
-    public(package) fun sub_set_updated_at(s: &mut SubscriptionV1, updated_at: u64) {
+    public(package) fun sub_set_updated_at(s: &mut Subscription, updated_at: u64) {
         s.updated_at = updated_at;
     }
 
@@ -784,7 +783,7 @@ module subscriptions::account {
     /// them in a single function keeps the schedule and counter invariants
     /// together. `now` is `clock.timestamp_ms()` from the caller.
     public(package) fun sub_apply_payment(
-        s: &mut SubscriptionV1,
+        s: &mut Subscription,
         amount: u64,
         now: u64,
     ) {
@@ -798,11 +797,25 @@ module subscriptions::account {
         s.updated_at = now;
     }
 
+    public(package) fun sub_set_max_attempts(s: &mut Subscription, max_attempts: u8) {
+        s.max_attempts = max_attempts;
+    }
+
+    public(package) fun sub_set_tier(s: &mut Subscription, tier_index: u64, tier_amount: u64, tier_frequency_ms: u64) {
+        s.tier_index = tier_index;
+        s.tier_amount = tier_amount;
+        s.tier_frequency_ms = tier_frequency_ms;
+    }
+
+    public(package) fun sub_set_schedule_frequency(s: &mut Subscription, schedule_frequency_ms: u64) {
+        s.schedule_frequency_ms = schedule_frequency_ms;
+    }
+
     /// Apply the failed-attempt state update. Bumps `attempt_count`,
     /// stamps `last_attempt_time` and `updated_at`. Does not touch the
     /// billing schedule (a failed bill does not advance `next_billing_time`).
     public(package) fun sub_apply_failed_attempt(
-        s: &mut SubscriptionV1,
+        s: &mut Subscription,
         now: u64,
     ) {
         s.attempt_count = s.attempt_count + 1;
@@ -858,7 +871,7 @@ module subscriptions::account {
         // in reverse insertion order.
         while (!vec_map::is_empty(&subscriptions)) {
             let (_k, sub) = vec_map::pop(&mut subscriptions);
-            let SubscriptionV1 {
+            let Subscription {
                 platform_id: _,
                 tier_index: _,
                 tier_amount: _,

@@ -1,6 +1,6 @@
 #[test_only]
 module subscriptions::account_tests {
-    use subscriptions::account::{Self, AccountStatus, PolicySet, SubscriptionV1};
+    use subscriptions::account::{Self, AccountStatus, PolicySet, Subscription};
     use subscriptions::ac;
     use subscriptions::registry;
     use std::type_name;
@@ -29,9 +29,9 @@ module subscriptions::account_tests {
         platform_id: object::ID,
         status: u8,
         _scenario: &mut ts::Scenario,
-    ): SubscriptionV1 {
+    ): Subscription {
         let now = 0;
-        account::new_subscription_v1(
+        account::new_subscription(
             platform_id,
             0,
             100,
@@ -59,6 +59,7 @@ module subscriptions::account_tests {
 
         let (account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -89,6 +90,7 @@ module subscriptions::account_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -128,6 +130,7 @@ module subscriptions::account_tests {
 
         let (account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -167,6 +170,7 @@ module subscriptions::account_tests {
 
         let (account, _cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -198,6 +202,7 @@ module subscriptions::account_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -220,6 +225,7 @@ module subscriptions::account_tests {
 
         let (account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -247,7 +253,7 @@ module subscriptions::account_tests {
         let mut sc = ts::begin(@0xA);
         let platform_id = object::id_from_address(@0xCAFEBABE);
         let now: u64 = 1_700_000_000_000;
-        let sub = account::new_subscription_v1(
+        let sub = account::new_subscription(
             platform_id,
             3,
             5_000_000,

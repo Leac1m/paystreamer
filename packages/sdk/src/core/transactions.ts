@@ -127,6 +127,7 @@ export interface BuildSubscribeTxParams {
   tierIndex: number | bigint;
   tierAmount: bigint;
   tierFrequencyMs: bigint;
+  maxAttempts?: number;
   
   // Optional account details (if user already has an account)
   accountId?: string;
@@ -140,7 +141,7 @@ export interface BuildSubscribeTxParams {
 export function buildSubscribeTx(params: BuildSubscribeTxParams) {
   const {
     tx, packageId, registryId, clockId, denomination, platformId, tierIndex, tierAmount, tierFrequencyMs,
-    accountId, accountCapId, depositAmount = 0n, coinsToUse = []
+    maxAttempts = 3, accountId, accountCapId, depositAmount = 0n, coinsToUse = []
   } = params;
 
   let workingAccountObj: any;
@@ -187,6 +188,7 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
       tx.pure.u64(BigInt(tierIndex)),
       tx.pure.u64(tierAmount),
       tx.pure.u64(tierFrequencyMs),
+      tx.pure.u8(maxAttempts),
       tx.object(clockId),
     ],
   });

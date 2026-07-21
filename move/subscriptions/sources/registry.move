@@ -12,7 +12,6 @@
 ///
 /// Discriminant 0 is reserved for native SUI.
 ///
-/// `AccessControl<AC>` (see `access_control.move`) is reserved
 /// `admin_address` field as the authority. The bootstrap admin must be
 /// rotated to the multisig in the same publish tx that calls
 /// `init`-time registrations; the `rotate_admin` entry point handles the
@@ -42,9 +41,7 @@ module subscriptions::registry {
         /// `u8 -> TypeName`. Reverse lookup from discriminant to type.
         types: Table<u8, TypeName>,
         /// The address authorized to add or remove coin types. Bootstrap
-        /// field; the protocol-wide `AccessControl<AC>` is the
-        /// source of truth (`REGISTRY_ADMIN_ROLE`). We mirror the address
-        /// for O(1) reads; the AC is the authority.
+        /// field; the bootstrap admin address is the source of truth.
         admin_address: address,
         /// Schema version. Bumped on metadata-format changes.
         version: u16,
@@ -64,8 +61,7 @@ module subscriptions::registry {
     const EDiscriminantNotFound: u64 = 0x04005;
 
     /// Caller is not the current `admin_address`. The bootstrap admin
-    /// check; will be replaced by OZ `Auth<REGISTRY_ADMIN_ROLE>` in a
-    /// future hardening pass.
+        /// future hardening pass.
     const EUnauthorizedRegistryAdmin: u64 = 0x04003;
 
     /// The new admin address is the zero address. A role granted to
@@ -103,9 +99,7 @@ module subscriptions::registry {
 
     // === Accessors (view) ===
 
-    /// Current bootstrap admin address. The protocol-wide
-    /// `AccessControl<AC>` is the source of truth for the
-    /// `REGISTRY_ADMIN_ROLE`; this is the O(1) mirror.
+    /// Current bootstrap admin address.
     public fun admin_address(r: &CoinTypeRegistry): address { r.admin_address }
 
     /// Schema version of the registry. Bumped on metadata-format changes.
@@ -139,10 +133,7 @@ module subscriptions::registry {
     // === Mutators (admin only) ===
 
     /// Register a new coin type. The caller must equal
-    /// `CoinTypeRegistry.admin_address`. The protocol-wide
-    /// `AccessControl<AC>` is the source of truth for the
-    /// check as a bootstrap mechanism (will be replaced by
-    /// `Auth<REGISTRY_ADMIN_ROLE>` in a future hardening pass).
+    /// `CoinTypeRegistry.admin_address`.
     ///
     /// Discriminant allocation: auto-assigns the next available `u8`
     /// discriminant by finding the maximum existing discriminant in
@@ -207,8 +198,7 @@ module subscriptions::registry {
     }
 
     /// Rotate the bootstrap admin address. Should be replaced by an OZ
-    /// `Auth<REGISTRY_ADMIN_ROLE>` flow in a future hardening pass.
-    /// Production deployments must call this once at bootstrap to
+        /// Production deployments must call this once at bootstrap to
     /// transfer authority to the multisig.
     ///
     /// #### Aborts

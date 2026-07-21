@@ -12,6 +12,7 @@ export interface UseSubscribeParams {
   tierFrequencyMs: bigint;
   accountId?: string;
   accountCapId?: string;
+  maxAttempts?: number;
 }
 
 export function useSubscribe(params: UseSubscribeParams) {
@@ -99,6 +100,7 @@ export function useSubscribe(params: UseSubscribeParams) {
           tierIndex: params.tierIndex,
           tierAmount: params.tierAmount,
           tierFrequencyMs: params.tierFrequencyMs,
+          maxAttempts: params.maxAttempts,
           accountId: params.accountId,
           accountCapId: params.accountCapId,
           depositAmount,

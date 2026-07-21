@@ -30,6 +30,7 @@ module subscriptions::policies_tests {
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -71,6 +72,7 @@ module subscriptions::policies_tests {
         );
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -117,6 +119,7 @@ module subscriptions::policies_tests {
         );
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -163,6 +166,7 @@ module subscriptions::policies_tests {
         );
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
@@ -219,6 +223,7 @@ module subscriptions::policies_tests {
         );
         let (mut account, cap) = account::create_account<TEST_USDC>(
             &r,
+            account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
