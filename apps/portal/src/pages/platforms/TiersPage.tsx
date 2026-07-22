@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@paystreamer/sdk";
+import { Card, CardContent } from "@paystreamer/sdk";
 import { TierCard } from "../../components/platform/TierCard";
 import { TierModal } from "../../components/platform/TierModal";
 import { PlatformObject } from "../../lib/platformDiscovery";

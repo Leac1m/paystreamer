@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@paystreamer/sdk";
+import { Input } from "@paystreamer/sdk";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../../components/ui/card";
+} from "@paystreamer/sdk";
 import { AlertTriangle } from "lucide-react";
 
 export function SettingsPage() {
@@ -49,7 +49,7 @@ export function SettingsPage() {
           <Input
             placeholder="Enter your display name"
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e: any) => setDisplayName(e.target.value)}
             onBlur={handleSaveName}
           />
           <p className="text-xs text-muted-foreground">

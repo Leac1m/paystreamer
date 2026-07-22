@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { Button } from "@paystreamer/sdk";
+import { Card, CardContent } from "@paystreamer/sdk";
 import { AccountCard } from "../../components/subscriptions/AccountCard";
 import { CreateAccountModal } from "../../components/subscriptions/CreateAccountModal";
 import { PlusCircle } from "lucide-react";
@@ -26,7 +26,7 @@ export function AccountsPage() {
       if (!account?.address) return [];
       return await queryAccountCreatedEvents(account.address, config.network);
     },
-    enabled: !!account?.address,
+    enabled: !!account,
   });
 
   const accounts: AccountInfo[] = (accountCreatedEvents || []).map((e) => ({

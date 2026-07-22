@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@paystreamer/sdk";
 import { Plus } from "lucide-react";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent } from "@paystreamer/sdk";
 import { SubscriptionCard } from "../../components/subscriptions/SubscriptionCard";
 import { SubscriptionDetail } from "../../components/subscriptions/SubscriptionDetail";
-import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { SubscriptionCardSkeleton } from "../../components/ui/skeleton";
-import { NoSubscriptionsEmpty } from "../../components/ui/empty-state";
+import { Tabs, TabsList, TabsTrigger } from "@paystreamer/sdk";
+import { SubscriptionCardSkeleton } from "@paystreamer/sdk";
+import { NoSubscriptionsEmpty } from "@paystreamer/sdk";
 
 
 interface SubscriptionInfo {
@@ -65,7 +65,7 @@ export function SubscriptionsPage() {
         capId: capMap.get(r.object.objectId) || ""
       } : null).filter(Boolean);
     },
-    enabled: !!account?.address,
+    enabled: !!account,
   });
 
   const subscriptionsRaw: SubscriptionInfo[] = [];

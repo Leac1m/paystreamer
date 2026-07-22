@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
-import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@paystreamer/sdk";
+import { Input } from "@paystreamer/sdk";
+import { Button } from "@paystreamer/sdk";
 import { PlatformObject } from "../../lib/platformDiscovery";
 import { getErrorMessage } from "../../lib/errors";
 import { useAppConfig } from "../../hooks/useAppConfig";
@@ -99,7 +99,7 @@ export function PlatformSettingsPage() {
             <Input
               placeholder={fields.name}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: any) => setName(e.target.value)}
             />
           </div>
 
@@ -108,7 +108,7 @@ export function PlatformSettingsPage() {
             <Input
               placeholder={fields.description}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: any) => setDescription(e.target.value)}
             />
           </div>
 
@@ -117,7 +117,7 @@ export function PlatformSettingsPage() {
             <Input
               placeholder="https://..."
               value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
+              onChange={(e: any) => setWebhookUrl(e.target.value)}
             />
           </div>
 
