@@ -5,10 +5,10 @@ import NavBar from '../components/NavBar';
 import { Button } from "@paystreamer/sdk";
 import { useNavigate } from 'react-router-dom';
 
-const PLATFORM_FEE_PERCENT = 2.5;
+const PLATFORM_FEE_PERCENT = 3;
 
 const TRADITIONAL_FEATURES = [
-  { name: 'Processing Fee', traditional: '2.9% + 30¢', paystreamer: '2.5%' },
+  { name: 'Processing Fee', traditional: '2.9% + 30¢', paystreamer: '3%' },
   { name: 'Chargeback Risk', traditional: 'Yes — 1-3%', paystreamer: 'Zero' },
   { name: 'Settlement Time', traditional: '2-3 business days', paystreamer: 'Instant' },
   { name: 'Global Payments', traditional: 'Limited by region', paystreamer: 'Worldwide' },

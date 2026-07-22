@@ -55,7 +55,7 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-lg text-[#94a3b8] mb-8 max-w-xl leading-relaxed">
-              Stop losing MRR to manual crypto payments. Your customers connect their wallet once, and our smart contracts handle the recurring billing. Same-day integration. 2.5% flat fee.
+              Stop losing MRR to manual crypto payments. Your customers connect their wallet once, and our smart contracts handle the recurring billing. Same-day integration. 3% flat fee.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 mb-12">
@@ -94,7 +94,7 @@ export default function HeroSection() {
             <div className="flex flex-wrap gap-6">
               <div className="flex items-center gap-2">
                 <CheckCircle size={18} className="text-[#10b981]" />
-                <span className="text-sm text-[#94a3b8]">2.5% per transaction</span>
+                <span className="text-sm text-[#94a3b8]">3% per transaction</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle size={18} className="text-[#10b981]" />

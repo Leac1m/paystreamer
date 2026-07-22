@@ -9,7 +9,7 @@ import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import { Button } from "../components/ui/button";
 
-const PLATFORM_FEE_PERCENT = 2.5;
+const PLATFORM_FEE_PERCENT = 3;
 
 interface PlatformInfo {
   name: string;

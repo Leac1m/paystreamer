@@ -62,20 +62,20 @@ export default function IntegrationFlow() {
     {
       icon: <Building2 size={28} className="text-accent-primary" />,
       title: 'Step 1: Connect',
-      description: 'Integrate our API or drop in our checkout widget to your existing platform.',
-      code: 'register_platform("My SaaS")'
+      description: 'Integrate our TypeScript SDK or drop in our React checkout widget to your existing platform.',
+      code: "tx.moveCall({ target: '0xPKG::platform::register' })"
     },
     {
       icon: <Lock size={28} className="text-accent-primary" />,
       title: 'Step 2: Subscribe',
-      description: 'Customers approve a spending limit with a single wallet signature.',
-      code: 'authorize_platform(wallet)'
+      description: 'Customers approve a spending policy with a single dAppKit wallet signature.',
+      code: "tx.moveCall({ target: '0xPKG::account::authorize' })"
     },
     {
       icon: <Zap size={28} className="text-accent-success" />,
       title: 'Step 3: Collect',
-      description: 'Our smart contracts execute the payments automatically every billing cycle.',
-      code: 'batch_withdraw_scheduler()'
+      description: 'Your backend or cron bot executes automated batch withdrawals every billing cycle.',
+      code: "tx.moveCall({ target: '0xPKG::registry::batch_withdraw' })"
     }
   ];
 

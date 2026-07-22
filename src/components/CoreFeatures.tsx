@@ -24,7 +24,7 @@ export default function CoreFeatures() {
       description: 'Accept payments from anyone with a wallet, bypassing regional banking restrictions and complex localized gateways.'
     },
     {
-      icon: <Code2 size={24} className="text-[#ec4899]" />,
+      icon: <Code2 size={24} className="text-accent-secondary" />,
       title: 'Developer API & Webhooks',
       description: 'Plug-and-play integration into your existing platform. Saves weeks of expensive, complex in-house engineering time.'
     },

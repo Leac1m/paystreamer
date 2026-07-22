@@ -17,7 +17,7 @@ import { Button } from "@paystreamer/sdk";
 import { GRAPHQL_URL} from "../constants";
 import { useAppConfig } from "../hooks/useAppConfig";
 
-const PLATFORM_FEE_PERCENT = 2.5;
+const PLATFORM_FEE_PERCENT = 3;
 
 interface PlatformInfo {
   name: string;
