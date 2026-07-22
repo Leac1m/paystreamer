@@ -2,11 +2,10 @@ import express from 'express';
 import { PORT, NETWORK, SUI_RPC_URL, PACKAGE_ID, SPONSOR_ADDRESS } from './lib/config.js';
 import { getSponsorAddress, client } from './lib/sui.js';
 import sponsorRoutes from './sponsor/routes.js';
-import { startScheduler, stopScheduler } from './scheduler/index.js';
 
 import cors from 'cors';
 
-const app = express();
+export const app = express();
 
 // Middleware
 app.use(cors({
@@ -93,13 +92,9 @@ async function startServer(): Promise<void> {
     console.log(`[Startup] HTTP server listening on port ${PORT}`);
   });
 
-  // Start payment scheduler
-  startScheduler();
-
   // Graceful shutdown handlers
   const shutdown = (signal: string) => {
     console.log(`[Shutdown] Received ${signal}, shutting down gracefully...`);
-    stopScheduler();
     process.exit(0);
   };
 
@@ -107,9 +102,11 @@ async function startServer(): Promise<void> {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-// Start the service
-console.log('[Startup] PayStreamer Service starting...');
-startServer().catch((error) => {
-  console.error('[Startup] Failed to start service:', error);
-  process.exit(1);
-});
+// Start the service if not running in test mode
+if (process.env.NODE_ENV !== 'test') {
+  console.log('[Startup] Sponsor Service starting...');
+  startServer().catch((error) => {
+    console.error('[Startup] Failed to start service:', error);
+    process.exit(1);
+  });
+}

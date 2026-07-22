@@ -16,10 +16,14 @@ export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
     tx, packageId, registryId, clockId, denomination, depositAmount = 0n, coinsToUse = [], isSuiDenomination = false
   } = params;
 
+  const policies = tx.moveCall({
+    target: `${packageId}::account::empty_policy_set`,
+  });
+
   const [accountObj, cap] = tx.moveCall({
     target: `${packageId}::account::create_account`,
     typeArguments: [denomination],
-    arguments: [tx.object(registryId), tx.object(clockId)],
+    arguments: [tx.object(registryId), policies, tx.object(clockId)],
   });
 
   if (depositAmount > 0n) {
@@ -61,13 +65,14 @@ export interface BuildDepositTxParams {
   clockId: string;
   denomination: string;
   accountId: string;
+  accountInitVersion: number;
   capId: string;
   depositAmount: bigint;
   coinsToUse: string[];
 }
 
 export function buildDepositTx(params: BuildDepositTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, depositAmount, coinsToUse } = params;
+  const { tx, packageId, clockId, denomination, accountId, accountInitVersion, capId, depositAmount, coinsToUse } = params;
 
   if (coinsToUse.length === 0) {
     throw new Error("coinsToUse must be provided for deposit");
@@ -84,7 +89,11 @@ export function buildDepositTx(params: BuildDepositTxParams) {
     typeArguments: [denomination],
     arguments: [
       tx.object(capId),
-      tx.object(accountId),
+      tx.sharedObjectRef({
+        objectId: accountId,
+        initialSharedVersion: accountInitVersion,
+        mutable: true,
+      }),
       splitCoin,
       tx.object(clockId)
     ],
@@ -149,11 +158,16 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
   const hasAccount = !!accountId && !!accountCapId;
 
   if (!hasAccount) {
+    const policies = tx.moveCall({
+      target: `${packageId}::account::empty_policy_set`,
+    });
+
     const [newAccountObj, newCap] = tx.moveCall({
       target: `${packageId}::account::create_account`,
       typeArguments: [denomination],
       arguments: [
         tx.object(registryId),
+        policies,
         tx.object(clockId),
       ],
     });
@@ -208,34 +222,62 @@ export interface BuildManageSubscriptionTxParams {
   clockId: string;
   denomination: string;
   accountId: string;
+  accountInitVersion: number;
   capId: string;
   platformId: string;
 }
 
 export function buildPauseSubscriptionTx(params: BuildManageSubscriptionTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
+  const { tx, packageId, clockId, denomination, accountId, accountInitVersion, capId, platformId } = params;
   tx.moveCall({
     target: `${packageId}::billing::pause_subscription`,
     typeArguments: [denomination],
-    arguments: [tx.object(capId), tx.object(accountId), tx.pure.id(platformId), tx.object(clockId)],
+    arguments: [
+      tx.object(capId),
+      tx.sharedObjectRef({
+        objectId: accountId,
+        initialSharedVersion: accountInitVersion,
+        mutable: true,
+      }),
+      tx.pure.id(platformId),
+      tx.object(clockId),
+    ],
   });
 }
 
 export function buildResumeSubscriptionTx(params: BuildManageSubscriptionTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
+  const { tx, packageId, clockId, denomination, accountId, accountInitVersion, capId, platformId } = params;
   tx.moveCall({
     target: `${packageId}::billing::resume_subscription`,
     typeArguments: [denomination],
-    arguments: [tx.object(capId), tx.object(accountId), tx.pure.id(platformId), tx.object(clockId)],
+    arguments: [
+      tx.object(capId),
+      tx.sharedObjectRef({
+        objectId: accountId,
+        initialSharedVersion: accountInitVersion,
+        mutable: true,
+      }),
+      tx.pure.id(platformId),
+      tx.object(clockId),
+    ],
   });
 }
 
 export function buildCancelSubscriptionTx(params: BuildManageSubscriptionTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
+  const { tx, packageId, clockId, denomination, accountId, accountInitVersion, capId, platformId } = params;
   tx.moveCall({
     target: `${packageId}::billing::cancel_subscription`,
     typeArguments: [denomination],
-    arguments: [tx.object(capId), tx.object(accountId), tx.pure.id(platformId), tx.object(clockId)],
+    arguments: [
+      tx.object(capId),
+      tx.sharedObjectRef({
+        objectId: accountId,
+        initialSharedVersion: accountInitVersion,
+        mutable: true,
+      }),
+      tx.pure.id(platformId),
+      tx.object(clockId),
+    ],
   });
 }
 
@@ -245,6 +287,7 @@ export interface BuildProcessPaymentTxParams {
   clockId: string;
   denomination: string;
   accountId: string;
+  accountInitVersion: number;
   platformId: string;
   platformInitVersion: number;
   schedulerId: string;
@@ -253,7 +296,7 @@ export interface BuildProcessPaymentTxParams {
 
 export function buildProcessPaymentTx(params: BuildProcessPaymentTxParams) {
   const {
-    tx, packageId, clockId, denomination, accountId, platformId, platformInitVersion, schedulerId, schedulerInitVersion
+    tx, packageId, clockId, denomination, accountId, accountInitVersion, platformId, platformInitVersion, schedulerId, schedulerInitVersion
   } = params;
 
   const limiters = tx.moveCall({
@@ -281,7 +324,11 @@ export function buildProcessPaymentTx(params: BuildProcessPaymentTxParams) {
         initialSharedVersion: platformInitVersion,
         mutable: true,
       }),
-      tx.object(accountId),
+      tx.sharedObjectRef({
+        objectId: accountId,
+        initialSharedVersion: accountInitVersion,
+        mutable: true,
+      }),
       limiters,
       tx.object(clockId),
     ],

@@ -25,6 +25,7 @@ module subscriptions::account_tests {
         )
     }
 
+    #[allow(unused_function)]
     fun make_sub(
         platform_id: object::ID,
         status: u8,

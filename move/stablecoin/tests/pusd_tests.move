@@ -15,7 +15,7 @@ fun mint_succeeds() {
         let ctx = scenario.ctx();
         create_treasury_cap_for_testing<PUSD>(ctx)
     };
-    test_scenario::return_to_sender(&scenario, treasury_cap);
+    sui::transfer::public_transfer(treasury_cap, admin);
     scenario.next_tx(admin);
     {
         let mut treasury_cap = test_scenario::take_from_sender<TreasuryCap<PUSD>>(&scenario);
@@ -44,7 +44,7 @@ fun mint_zero_aborts() {
         let ctx = scenario.ctx();
         create_treasury_cap_for_testing<PUSD>(ctx)
     };
-    test_scenario::return_to_sender(&scenario, treasury_cap);
+    sui::transfer::public_transfer(treasury_cap, admin);
     scenario.next_tx(admin);
     {
         let mut treasury_cap = test_scenario::take_from_sender<TreasuryCap<PUSD>>(&scenario);
@@ -64,7 +64,7 @@ fun burn_succeeds() {
         let ctx = scenario.ctx();
         create_treasury_cap_for_testing<PUSD>(ctx)
     };
-    test_scenario::return_to_sender(&scenario, treasury_cap);
+    sui::transfer::public_transfer(treasury_cap, admin);
     scenario.next_tx(admin);
     {
         let mut treasury_cap = test_scenario::take_from_sender<TreasuryCap<PUSD>>(&scenario);
@@ -103,7 +103,7 @@ fun burn_insufficient_aborts() {
         let ctx = scenario.ctx();
         create_treasury_cap_for_testing<PUSD>(ctx)
     };
-    test_scenario::return_to_sender(&scenario, treasury_cap);
+    sui::transfer::public_transfer(treasury_cap, admin);
     scenario.next_tx(admin);
     {
         let mut treasury_cap = test_scenario::take_from_sender<TreasuryCap<PUSD>>(&scenario);

@@ -15,7 +15,8 @@
     "test": "./scripts/verify-builds.sh",
     "test:all": "./scripts/verify-builds.sh",
     "test:e2e": "cd apps/docs && npx playwright test",
-    "test:move": "cd move && sui move test",
+    "test:move": "cd move && sui move test --coverage",
+    "lint:move": "cd move && sui move build --lint",
     "test:sdk": "cd packages/sdk && npx vitest run",
     "test:docs": "cd apps/docs && npx vitest run"
   },
