@@ -15,7 +15,7 @@ import {
   queryPaymentProcessedEvents,
   queryDepositEvents,
   queryPaymentFailedEvents
-} from "../../lib/graphql";
+} from "@paystreamer/sdk/core";
 import {
   CheckCircle,
   XCircle,

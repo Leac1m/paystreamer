@@ -72,7 +72,7 @@ export function SubscriptionDetail({
     queryKey: ["payment-events", accountId, platformId, config.network],
     queryFn: async () => {
       if (!account?.address) return [];
-      const { queryPaymentProcessedEvents } = await import("../../lib/graphql");
+      const { queryPaymentProcessedEvents } = await import("@paystreamer/sdk/core");
       const events = await queryPaymentProcessedEvents(accountId, platformId, config.network);
       return events;
     },

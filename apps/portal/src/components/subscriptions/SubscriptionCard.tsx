@@ -21,7 +21,7 @@ import {
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
-} from "../../constants";
+} from "@paystreamer/sdk";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useAppConfig } from "../../hooks/useAppConfig";
 

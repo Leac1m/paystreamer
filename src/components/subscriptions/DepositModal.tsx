@@ -10,8 +10,8 @@ import { parsePUSDToMist, APP_COIN_DECIMALS } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   CLOCK_OBJECT_ID,
-} from "../../constants";
-import { queryCoins } from "../../lib/graphql";
+} from "@paystreamer/sdk";
+import {  queryCoins  } from "@paystreamer/sdk/core";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useMintPusd } from "../../hooks/useMintPusd";
 import { useAppConfig } from "../../hooks/useAppConfig";

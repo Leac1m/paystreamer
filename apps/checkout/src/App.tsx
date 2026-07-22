@@ -4,7 +4,7 @@ import { PayStreamerProvider, PayStreamerConfig } from "@paystreamer/sdk/react";
 import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
 import { usePlatform } from "@paystreamer/sdk/react";
 import { formatMistToPusd, formatFrequencyMsToDays } from "@paystreamer/sdk/core";
-import { NETWORK_CONFIGS, SupportedNetwork, CLOCK_OBJECT_ID } from "./constants";
+import { NETWORK_CONFIGS, SupportedNetwork, CLOCK_OBJECT_ID } from "@paystreamer/sdk";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";

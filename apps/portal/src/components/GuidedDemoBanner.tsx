@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Droplets, Sparkles, Check, Zap, X } from "lucide-react";
-import { DEMO_PLATFORM_ID } from "../constants";
+import {  DEMO_PLATFORM_ID  } from "@paystreamer/sdk";
 
 const STORAGE_KEY = "paystreamer:demo-banner-dismissed";
 const hasDemo = typeof DEMO_PLATFORM_ID === "string" && DEMO_PLATFORM_ID.length > 0;

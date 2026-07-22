@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Layers, Users, Zap, ArrowRight, Sparkles, ExternalLink } from "lucide-react";
 import NavBar from "../components/NavBar";
-import { DEMO_PLATFORM_ID } from "../constants";
+import {  DEMO_PLATFORM_ID  } from "@paystreamer/sdk";
 
 const hasDemo = typeof DEMO_PLATFORM_ID === "string";
 const demoLink = hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : null;

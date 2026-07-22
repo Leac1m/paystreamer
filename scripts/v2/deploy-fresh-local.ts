@@ -70,7 +70,7 @@ if (!pusdPackageId || !subPackageId) {
 }
 
 // Write to src/constants.ts
-const constantsPath = join(rootDir, "src/constants.ts");
+const constantsPath = join(rootDir, "packages/sdk/src/constants.ts");
 let src = readFileSync(constantsPath, "utf8");
 
 const targetNetwork = process.env.VITE_NETWORK || "local";

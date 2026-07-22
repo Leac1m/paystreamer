@@ -6,7 +6,7 @@ import { Card, CardContent } from "@paystreamer/sdk";
 import { AccountCard } from "../../components/subscriptions/AccountCard";
 import { CreateAccountModal } from "../../components/subscriptions/CreateAccountModal";
 import { PlusCircle } from "lucide-react";
-import { queryAccountCreatedEvents } from "../../lib/graphql";
+import {  queryAccountCreatedEvents  } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface AccountInfo {

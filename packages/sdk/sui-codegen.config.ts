@@ -5,7 +5,7 @@ const config: SuiCodegenConfig = {
   packages: [
     {
       package: "@local-pkg/subscriptions",
-      path: "./move/subscriptions",
+      path: "../../move/subscriptions",
     },
   ],
 };

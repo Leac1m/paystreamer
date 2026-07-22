@@ -14,7 +14,7 @@ import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import { Button } from "@paystreamer/sdk";
-import { GRAPHQL_URL} from "../constants";
+import {  GRAPHQL_URL } from "@paystreamer/sdk";
 import { useAppConfig } from "../hooks/useAppConfig";
 
 const PLATFORM_FEE_PERCENT = 3;

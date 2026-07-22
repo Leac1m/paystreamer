@@ -33,7 +33,7 @@ docker compose exec -T -w /workspace/move/stablecoin sui-node sui client test-pu
 docker compose exec -T -w /workspace/move/subscriptions sui-node sui client test-publish --skip-dependency-verification --with-unpublished-dependencies --build-env testnet --gas-budget 1000000000 --json > move/subscriptions/sub_output.json
 
 export VITE_NETWORK="local"
-pnpm dlx tsx scripts/v2/deploy-fresh-local.ts
+pnpm exec tsx scripts/v2/deploy-fresh-local.ts
 
 E2E_PRIVATE_KEY=$(docker compose exec -T sui-node sui keytool export --key-identity "$ACTIVE_ADDRESS" | grep -o "suiprivkey[a-zA-Z0-9]*")
 export E2E_PRIVATE_KEY
@@ -46,12 +46,12 @@ pnpm seed:demo
 echo "======================================================"
 echo " 🧪 Running Backend E2E Payment Cycle..."
 echo "======================================================"
-pnpm dlx tsx scripts/v2/e2e-payment-cycle.ts
+pnpm exec tsx scripts/v2/e2e-payment-cycle.ts
 
 echo "======================================================"
 echo " ⚛️  Running React SDK E2E Tests..."
 echo "======================================================"
-(cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx)
+(cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx test/graphql-e2e.test.ts)
 
 echo "======================================================"
 echo " ⚙️  Running Scheduler Backend E2E Tests..."

@@ -15,8 +15,8 @@ import {
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
-} from "../../constants";
-import { queryCoins } from "../../lib/graphql";
+} from "@paystreamer/sdk";
+import {  queryCoins  } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SetupSubscriptionModalProps {

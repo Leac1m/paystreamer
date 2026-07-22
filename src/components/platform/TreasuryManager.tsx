@@ -11,7 +11,7 @@ import {
 } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import {  CLOCK_OBJECT_ID } from "../../constants";
+import {   CLOCK_OBJECT_ID  } from "@paystreamer/sdk";
 import { getErrorMessage } from "../../lib/errors";
 import { useAppConfig } from "../../hooks/useAppConfig";
 

@@ -34,7 +34,7 @@ import {
   NETWORK_CONFIGS,
   CLOCK_OBJECT_ID,
   NETWORK,
-} from "../../../src/constants.ts";
+} from "../../../packages/sdk/src/constants.ts";
 
 const {
   PACKAGE_ID,

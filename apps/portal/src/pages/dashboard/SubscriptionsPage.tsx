@@ -30,7 +30,7 @@ interface SubscriptionInfo {
   denomination: string;
 }
 
-import { queryAccountCreatedEvents, queryPlatformInitialVersions } from "../../lib/graphql";
+import {  queryAccountCreatedEvents, queryPlatformInitialVersions  } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function SubscriptionsPage() {

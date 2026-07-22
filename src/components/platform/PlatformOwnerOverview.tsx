@@ -14,7 +14,7 @@ import {
   queryPaymentProcessedEvents,
   querySubscriptionCreatedEventsByPlatform,
   querySubscriptionUpdatedEventsByPlatform,
-} from "../../lib/graphql";
+} from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface PlatformOwnerOverviewProps {

@@ -19,8 +19,8 @@ import { parseMoveError } from "../../lib/errors";
 import { 
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
-} from "../../constants";
-import { queryCoins } from "../../lib/graphql";
+} from "@paystreamer/sdk";
+import {  queryCoins  } from "@paystreamer/sdk/core";
 import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
 import { useAppConfig } from "../../hooks/useAppConfig";
 

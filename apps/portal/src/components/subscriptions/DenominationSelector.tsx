@@ -1,4 +1,4 @@
-import { PUSD_TYPE_ARG } from "../../constants";
+import {  PUSD_TYPE_ARG  } from "@paystreamer/sdk";
 import { cn } from "../../lib/utils";
 import { Badge } from "@paystreamer/sdk";
 import { Card, CardContent } from "@paystreamer/sdk";

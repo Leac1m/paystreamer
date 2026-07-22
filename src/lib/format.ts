@@ -1,4 +1,4 @@
-import { PUSD_TYPE_ARG } from "../constants";
+import {  PUSD_TYPE_ARG  } from "@paystreamer/sdk";
 
 export const APP_COIN_DECIMALS = 9;
 export const APP_COIN_SYMBOL = "PUSD";

@@ -149,19 +149,20 @@ export async function queryAccount(accountId: string, network?: SupportedNetwork
   return data.object.asMoveObject.contents.json;
 }
 
-export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTypeRegistryObject> {
+export async function queryCoinTypeRegistry(registryId: string, network?: SupportedNetwork): Promise<CoinTypeRegistryObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: CoinTypeRegistryObject } } } }>(
     `query GetRegistry($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
       }
     }`,
-    { id: registryId }
+    { id: registryId },
+    network
   );
   return data.object.asMoveObject.contents.json;
 }
 
-export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject> {
+export async function queryPaymentScheduler(schedulerId: string, network?: SupportedNetwork): Promise<PaymentSchedulerObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PaymentSchedulerObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetScheduler($id: SuiAddress!) {
       object(address: $id) {
@@ -169,7 +170,8 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
         owner { ... on Shared { initialSharedVersion } }
       }
     }`,
-    { id: schedulerId }
+    { id: schedulerId },
+    network
   );
   return {
     ...data.object.asMoveObject.contents.json,
