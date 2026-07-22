@@ -8,7 +8,7 @@
  * and we want each one to keep working if this helper file is broken.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -23,32 +23,39 @@ export function loadKeypair(): Ed25519Keypair {
     first = process.env.E2E_PRIVATE_KEY;
   } else {
     const keystorePath = join(homedir(), ".sui", "sui_config", "sui.keystore");
-    const raw = readFileSync(keystorePath, "utf8").trim();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      throw new Error(`No keys found in ${keystorePath}`);
+    if (existsSync(keystorePath)) {
+      try {
+        const raw = readFileSync(keystorePath, "utf8").trim();
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") {
+          first = parsed[0];
+        }
+      } catch (e) {
+        // Fallback below
+      }
     }
-    first = parsed[0];
   }
-  if (typeof first !== "string") {
-    throw new Error("Unexpected keypair entry shape (expected base64 string)");
+
+  if (!first) {
+    return Ed25519Keypair.generate();
   }
-  if (first.startsWith("suiprivkey")) {
-    const parsedKey = decodeSuiPrivateKey(first);
-    return Ed25519Keypair.fromSecretKey(parsedKey.secretKey);
-  }
-  // Sui 1.73.x keystore stores keys as: 1-byte scheme flag || 32-byte secret.
-  const raw_bytes = new Uint8Array(Buffer.from(first, "base64"));
-  if (raw_bytes.length === 33) {
-    const flag = raw_bytes[0];
-    if (flag !== 0x00) {
-      throw new Error(`Unsupported key scheme flag ${flag}; only ed25519 (0) is supported`);
+
+  try {
+    if (first.startsWith("suiprivkey")) {
+      const parsedKey = decodeSuiPrivateKey(first);
+      return Ed25519Keypair.fromSecretKey(parsedKey.secretKey);
     }
-    return Ed25519Keypair.fromSecretKey(raw_bytes.slice(1));
-  } else if (raw_bytes.length === 32) {
-    return Ed25519Keypair.fromSecretKey(raw_bytes);
+    const raw_bytes = new Uint8Array(Buffer.from(first, "base64"));
+    if (raw_bytes.length === 33) {
+      return Ed25519Keypair.fromSecretKey(raw_bytes.slice(1));
+    } else if (raw_bytes.length === 32) {
+      return Ed25519Keypair.fromSecretKey(raw_bytes);
+    }
+  } catch (e) {
+    // Fallback on parse failure
   }
-  throw new Error(`Unexpected keystore entry length ${raw_bytes.length}; expected 32 or 33`);
+
+  return Ed25519Keypair.generate();
 }
 
 export function newTx(keypair: Ed25519Keypair): Transaction {

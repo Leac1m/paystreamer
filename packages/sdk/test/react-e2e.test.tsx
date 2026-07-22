@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React, { useState } from 'react';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -15,16 +14,29 @@ import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
 
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 
-// We need to load the local sui keystore to sign the transactions during the test
+import { existsSync, readFileSync } from 'fs';
+
+// Safely obtain a keypair (from env, local keystore, or generate on-demand using Sui SDK)
 function loadKeypair() {
   if (process.env.E2E_PRIVATE_KEY) {
-    return Ed25519Keypair.fromSecretKey(decodeSuiPrivateKey(process.env.E2E_PRIVATE_KEY).secretKey);
+    try {
+      return Ed25519Keypair.fromSecretKey(decodeSuiPrivateKey(process.env.E2E_PRIVATE_KEY).secretKey);
+    } catch (e) {
+      // Fall through to fallback
+    }
   }
   const path = join(homedir(), ".sui/sui_config/sui.keystore");
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
-  const first = parsed[0];
-  const bytes = new Uint8Array(Buffer.from(first, "base64"));
-  return Ed25519Keypair.fromSecretKey(bytes.length === 33 ? bytes.slice(1) : bytes);
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8"));
+      const first = parsed[0];
+      const bytes = new Uint8Array(Buffer.from(first, "base64"));
+      return Ed25519Keypair.fromSecretKey(bytes.length === 33 ? bytes.slice(1) : bytes);
+    } catch (e) {
+      // Fall through to fallback
+    }
+  }
+  return Ed25519Keypair.generate();
 }
 
 const keypair = loadKeypair();

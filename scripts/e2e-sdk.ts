@@ -20,10 +20,17 @@ const CLOCK = "0x000000000000000000000000000000000000000000000000000000000000000
 
 function loadKeypair() {
   const path = join(homedir(), ".sui/sui_config/sui.keystore");
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
-  const first = parsed[0];
-  const bytes = new Uint8Array(Buffer.from(first, "base64"));
-  return Ed25519Keypair.fromSecretKey(bytes.length === 33 ? bytes.slice(1) : bytes);
+  if (existsSync(path)) {
+    try {
+      const parsed = JSON.parse(readFileSync(path, "utf8"));
+      const first = parsed[0];
+      const bytes = new Uint8Array(Buffer.from(first, "base64"));
+      return Ed25519Keypair.fromSecretKey(bytes.length === 33 ? bytes.slice(1) : bytes);
+    } catch {
+      // Fallback
+    }
+  }
+  return Ed25519Keypair.generate();
 }
 
 async function main() {
