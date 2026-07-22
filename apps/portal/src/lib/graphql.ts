@@ -122,8 +122,8 @@ function parseEventTimestamp(node: any): number {
   return Date.now();
 }
 
-export async function queryPlatform(platformId: string, network?: SupportedNetwork): Promise<PlatformObject | null> {
-  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PlatformObject } }, owner: { initialSharedVersion: number } } | null }>(
+export async function queryPlatform(platformId: string, network?: SupportedNetwork): Promise<PlatformObject> {
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PlatformObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetPlatform($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -133,11 +133,11 @@ export async function queryPlatform(platformId: string, network?: SupportedNetwo
     { id: platformId },
     network
   );
-  return data?.object?.asMoveObject?.contents?.json || null;
+  return data.object.asMoveObject.contents.json;
 }
 
-export async function queryAccount(accountId: string, network?: SupportedNetwork): Promise<SubscriptionAccountObject | null> {
-  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: SubscriptionAccountObject } } } | null }>(
+export async function queryAccount(accountId: string, network?: SupportedNetwork): Promise<SubscriptionAccountObject> {
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: SubscriptionAccountObject } } } }>(
     `query GetAccount($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -146,11 +146,11 @@ export async function queryAccount(accountId: string, network?: SupportedNetwork
     { id: accountId },
     network
   );
-  return data?.object?.asMoveObject?.contents?.json || null;
+  return data.object.asMoveObject.contents.json;
 }
 
-export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTypeRegistryObject | null> {
-  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: CoinTypeRegistryObject } } } | null }>(
+export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTypeRegistryObject> {
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: CoinTypeRegistryObject } } } }>(
     `query GetRegistry($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -158,11 +158,11 @@ export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTyp
     }`,
     { id: registryId }
   );
-  return data?.object?.asMoveObject?.contents?.json || null;
+  return data.object.asMoveObject.contents.json;
 }
 
-export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject | null> {
-  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PaymentSchedulerObject } }, owner: { initialSharedVersion: number } } | null }>(
+export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject> {
+  const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PaymentSchedulerObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetScheduler($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
@@ -171,7 +171,6 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
     }`,
     { id: schedulerId }
   );
-  if (!data?.object?.asMoveObject?.contents?.json) return null;
   return {
     ...data.object.asMoveObject.contents.json,
     initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
@@ -185,7 +184,7 @@ export async function queryPlatformInitialVersions(
   
   const results = await Promise.all(
     platformIds.map(async (id) => {
-      const data = await executeQuery<{ object: { owner: { initialSharedVersion: number } | null } | null }>(
+      const data = await executeQuery<{ object: { owner: { initialSharedVersion: number } | null } }>(
         `query GetPlatformVersion($id: SuiAddress!) {
           object(address: $id) {
             owner { ... on Shared { initialSharedVersion } }
@@ -195,7 +194,7 @@ export async function queryPlatformInitialVersions(
       );
       return {
         objectId: id,
-        initialSharedVersion: data?.object?.owner?.initialSharedVersion ?? 0,
+        initialSharedVersion: data.object?.owner?.initialSharedVersion ?? 0,
       };
     })
   );
@@ -205,7 +204,7 @@ export async function queryPlatformInitialVersions(
 
 export async function queryPlatformsByOwner(owner: string, network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
   const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } | null }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformsByOwner($type: String!, $owner: SuiAddress!) {
       events(last: 50, filter: { type: $type, sender: $owner }) {
         nodes { timestamp, contents { json } }
@@ -214,12 +213,12 @@ export async function queryPlatformsByOwner(owner: string, network?: SupportedNe
     { type: `${config.PACKAGE_ID}::platform::PlatformRegistered`, owner },
     network
   );
-  return (data?.events?.nodes || []).map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
 }
 
 export async function queryAccountCreatedEvents(sender: string, network?: SupportedNetwork): Promise<AccountCreatedEvent[]> {
   const config = getConfig(network);
-  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } | null }>(
+  const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: AccountCreatedEvent } }[] } }>(
     `query GetAccountCreated($type: String!, $sender: SuiAddress!) {
       events(last: 50, filter: { type: $type, sender: $sender }) {
         nodes { timestamp, contents { json } }
@@ -228,12 +227,12 @@ export async function queryAccountCreatedEvents(sender: string, network?: Suppor
     { type: `${config.PACKAGE_ID}::account::AccountCreated`, sender },
     network
   );
-  return (data?.events?.nodes || []).map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as AccountCreatedEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as AccountCreatedEvent);
 }
 
 export async function queryPlatformRegisteredEvents(network?: SupportedNetwork): Promise<PlatformRegisteredEvent[]> {
     const config = getConfig(network);
-    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } | null }>(
+    const data = await executeQuery<{ events: { nodes: { timestamp: string, contents: { json: PlatformRegisteredEvent } }[] } }>(
     `query GetPlatformRegistered($type: String!) {
       events(last: 50, filter: { type: $type }) {
         nodes { timestamp, contents { json } }
@@ -242,7 +241,7 @@ export async function queryPlatformRegisteredEvents(network?: SupportedNetwork):
     { type: `${config.PACKAGE_ID}::platform::PlatformRegistered` },
     network
   );
-  return (data?.events?.nodes || []).map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
+  return data.events.nodes.map((n) => ({ ...n.contents.json, timestamp: parseEventTimestamp(n) }) as PlatformRegisteredEvent);
 }
 
 export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
