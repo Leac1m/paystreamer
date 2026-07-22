@@ -10,9 +10,6 @@ export default function HeroSection() {
     setMounted(true);
   }, []);
 
-  const handleCreatePlatform = () => {
-    window.location.href = 'https://app.paystreamer.xyz';
-  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-12">
@@ -46,7 +43,7 @@ export default function HeroSection() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 mb-12">
               <Button
-                onClick={handleCreatePlatform}
+                href="https://app.paystreamer.xyz"
                 variant="gradient"
                 size="lg"
                 className="text-lg"
@@ -54,7 +51,9 @@ export default function HeroSection() {
                 <span>Get Started</span>
               </Button>
               <Button 
-                onClick={() => window.open(import.meta.env.DEV ? 'http://localhost:3001' : 'https://docs.paystreamer.xyz', '_blank')}
+                href={import.meta.env.DEV ? 'http://localhost:3001' : 'https://docs.paystreamer.xyz'}
+                target="_blank"
+                rel="noopener noreferrer"
                 variant="secondary" 
                 size="lg" 
                 className="text-lg border border-white/10 hover:bg-white/10 transition-colors"

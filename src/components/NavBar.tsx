@@ -56,14 +56,13 @@ export default function NavBar() {
 
             {/* Action Button */}
             <div className="hidden md:flex items-center gap-3">
-              <a href="https://app.paystreamer.xyz">
-                <Button
-                  className="text-sm px-6 py-2 shadow-[0_0_15px_rgba(108,99,255,0.4)] hover:shadow-[0_0_25px_rgba(108,99,255,0.6)] transition-shadow"
-                  variant="gradient"
-                >
-                  Launch App
-                </Button>
-              </a>
+              <Button
+                href="https://app.paystreamer.xyz"
+                className="text-sm px-6 py-2 shadow-[0_0_15px_rgba(108,99,255,0.4)] hover:shadow-[0_0_25px_rgba(108,99,255,0.6)] transition-shadow"
+                variant="gradient"
+              >
+                Launch App
+              </Button>
             </div>
 
             {/* Mobile Menu Button */}
@@ -101,14 +100,13 @@ export default function NavBar() {
                   </a>
                 ))}
                 <div className="mt-4 flex justify-center">
-                  <a href="https://app.paystreamer.xyz" className="w-full">
-                    <Button
-                      className="text-sm px-6 py-3 w-full shadow-[0_0_15px_rgba(108,99,255,0.4)]"
-                      variant="gradient"
-                    >
-                      Launch App
-                    </Button>
-                  </a>
+                  <Button
+                    href="https://app.paystreamer.xyz"
+                    className="text-sm px-6 py-3 w-full shadow-[0_0_15px_rgba(108,99,255,0.4)]"
+                    variant="gradient"
+                  >
+                    Launch App
+                  </Button>
                 </div>
               </div>
             </div>
