@@ -173,7 +173,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
 
         <div className="space-y-4">
           {!isEditMode && (
-            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-[#6c63ff]/40 bg-[#6c63ff]/5 p-3">
+            <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-accent-primary/40 bg-accent-primary/5 p-3">
               <input
                 type="checkbox"
                 checked={useDemoDefaults}

@@ -12,21 +12,21 @@ const STAGES: { key: Stage; label: string; detail: string; icon: React.ReactNode
     label: 'Subscribe',
     detail: 'Approve once',
     icon: <Wallet size={20} className="text-white" />,
-    accent: '#6c63ff',
+    accent: 'var(--color-accent-primary)',
   },
   {
     key: 'due',
     label: 'Due',
     detail: 'Next payment due',
     icon: <Clock size={20} className="text-white" />,
-    accent: '#3b82f6',
+    accent: 'var(--color-accent-secondary)',
   },
   {
     key: 'paid',
     label: 'Paid',
     detail: '0.001 PUSD sent',
     icon: <CheckCircle2 size={20} className="text-white" />,
-    accent: '#10b981',
+    accent: 'var(--color-accent-success)',
   },
 ];
 
@@ -76,7 +76,7 @@ export default function DemoFlowAnimation() {
       aria-label="Live demo animation"
       className="relative py-16 overflow-hidden"
     >
-      <div className="absolute inset-0 bg-[#0a0a0f]" />
+      <div className="absolute inset-0 bg-bg-primary" />
       <div className="absolute inset-0 grid-pattern opacity-30" />
 
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -87,13 +87,13 @@ export default function DemoFlowAnimation() {
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <span className="inline-block px-4 py-2 rounded-full bg-[#6c63ff]/10 text-[#6c63ff] text-sm font-medium mb-3">
+          <span className="inline-block px-4 py-2 rounded-full bg-accent-primary/10 text-accent-primary text-sm font-medium mb-3">
             Live Demo
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             One signature. <span className="gradient-text">Automated forever.</span>
           </h2>
-          <p className="text-[#94a3b8] text-sm sm:text-base max-w-xl mx-auto">
+          <p className="text-text-secondary text-sm sm:text-base max-w-xl mx-auto">
             Watch the full subscription lifecycle loop in real time.
           </p>
         </motion.div>
@@ -106,14 +106,14 @@ export default function DemoFlowAnimation() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <div
-                  className="w-2 h-2 rounded-full bg-[#10b981]"
+                  className="w-2 h-2 rounded-full bg-accent-success"
                   style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
                 />
-                <span className="text-xs uppercase tracking-wider text-[#94a3b8]">
+                <span className="text-xs uppercase tracking-wider text-text-secondary">
                   Live
                 </span>
               </div>
-              <span className="text-xs text-[#94a3b8] font-mono">{config.network}</span>
+              <span className="text-xs text-text-secondary font-mono">{config.network}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 relative">
@@ -144,26 +144,26 @@ export default function DemoFlowAnimation() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-[#94a3b8] font-mono">
+                            <span className="text-xs text-text-secondary font-mono">
                               {String(i + 1).padStart(2, '0')}
                             </span>
-                            <span className="text-xs text-[#94a3b8]">/</span>
-                            <span className="text-xs text-[#94a3b8] font-mono">03</span>
+                            <span className="text-xs text-text-secondary">/</span>
+                            <span className="text-xs text-text-secondary font-mono">03</span>
                           </div>
                           <div className="text-white font-semibold text-sm">
                             {stage.label}
                           </div>
-                          <div className="text-[#94a3b8] text-xs mt-0.5">
+                          <div className="text-text-secondary text-xs mt-0.5">
                             {stage.detail}
                           </div>
 
                           {stage.key === 'due' && isActive && (
                             <div className="flex items-center gap-1.5 mt-2">
                               <span
-                                className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]"
+                                className="w-1.5 h-1.5 rounded-full bg-accent-secondary"
                                 style={{ animation: 'pulse 1s ease-in-out infinite' }}
                               />
-                              <span className="text-[10px] text-[#3b82f6] uppercase tracking-wider">
+                              <span className="text-[10px] text-accent-secondary uppercase tracking-wider">
                                 pending
                               </span>
                             </div>
@@ -172,10 +172,10 @@ export default function DemoFlowAnimation() {
                           {stage.key === 'paid' && isActive && (
                             <div className="flex items-center gap-1.5 mt-2">
                               <span
-                                className="w-1.5 h-1.5 rounded-full bg-[#10b981]"
+                                className="w-1.5 h-1.5 rounded-full bg-accent-success"
                                 style={{ animation: 'pulse 1s ease-in-out infinite' }}
                               />
-                              <span className="text-[10px] text-[#10b981] uppercase tracking-wider">
+                              <span className="text-[10px] text-accent-success uppercase tracking-wider">
                                 confirmed
                               </span>
                             </div>
@@ -203,7 +203,7 @@ export default function DemoFlowAnimation() {
                   href={`https://suiscan.xyz/${config.network}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#10b981]/15 border border-[#10b981]/30 text-[#10b981] text-[10px] font-medium"
+                  className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-success/15 border border-accent-success/30 text-accent-success text-[10px] font-medium"
                 >
                   <CheckCircle2 size={11} />
                   <span>tx confirmed</span>
@@ -218,9 +218,9 @@ export default function DemoFlowAnimation() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-4 flex items-center justify-center gap-2 text-xs text-[#94a3b8] font-mono"
+            className="mt-4 flex items-center justify-center gap-2 text-xs text-text-secondary font-mono"
           >
-            <Activity size={12} className="text-[#10b981]" />
+            <Activity size={12} className="text-accent-success" />
             <span>
               Subscription <SubscriptionHash /> paid 0.001 PUSD <AgeTicker />
             </span>

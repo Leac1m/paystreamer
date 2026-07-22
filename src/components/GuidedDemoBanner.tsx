@@ -15,31 +15,31 @@ interface Step {
 
 const baseSteps: Step[] = [
   {
-    icon: <Droplets size={14} className="text-[#6c63ff]" />,
+    icon: <Droplets size={14} className="text-accent-primary" />,
     label: "Get devnet SUI",
     href: "https://faucet.sui.io/?network=devnet",
     external: true,
   },
   {
-    icon: <Check size={14} className="text-[#6c63ff]" />,
+    icon: <Check size={14} className="text-accent-primary" />,
     label: "Approve subscription",
     href: "#subscribe",
   },
   {
-    icon: <Zap size={14} className="text-[#6c63ff]" />,
+    icon: <Zap size={14} className="text-accent-primary" />,
     label: "Watch it auto-bill every 60s",
     href: "#process-now",
   },
 ];
 
 const demoStep: Step = {
-  icon: <Sparkles size={14} className="text-[#6c63ff]" />,
+  icon: <Sparkles size={14} className="text-accent-primary" />,
   label: "Try the demo",
   href: `/subscribe/${DEMO_PLATFORM_ID}`,
 };
 
 const noDemoStep: Step = {
-  icon: <Sparkles size={14} className="text-[#94a3b8]" />,
+  icon: <Sparkles size={14} className="text-text-secondary" />,
   label: "Run pnpm seed:demo first",
   href: "#",
 };
@@ -75,11 +75,11 @@ export default function GuidedDemoBanner() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -20, opacity: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="relative z-40 border-b border-white/10 bg-[#0a0a0f]/95 backdrop-blur"
+          className="relative z-40 border-b border-white/10 bg-bg-primary/95 backdrop-blur"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 shrink-0">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#6c63ff] animate-pulse" />
+              <span className="inline-block w-2 h-2 rounded-full bg-accent-primary animate-pulse" />
               <span className="text-xs font-medium text-white">Guided Demo</span>
             </div>
 
@@ -88,10 +88,10 @@ export default function GuidedDemoBanner() {
                 const isLast = i === steps.length - 1;
                 const isDisabled = !hasDemo && step.href === "#";
                 const className =
-                  "group flex items-center gap-1.5 sm:flex-1 sm:px-3 py-1 rounded-md text-[#94a3b8] hover:text-white hover:bg-white/5 transition-colors";
+                  "group flex items-center gap-1.5 sm:flex-1 sm:px-3 py-1 rounded-md text-text-secondary hover:text-white hover:bg-white/5 transition-colors";
                 const content = (
                   <>
-                    <span className="font-mono text-[10px] text-[#6c63ff] shrink-0">
+                    <span className="font-mono text-[10px] text-accent-primary shrink-0">
                       {i + 1}
                     </span>
                     <span className="shrink-0">{step.icon}</span>
@@ -132,7 +132,7 @@ export default function GuidedDemoBanner() {
             <button
               onClick={dismiss}
               aria-label="Dismiss guided demo banner"
-              className="shrink-0 p-1 rounded-md text-[#94a3b8] hover:text-white hover:bg-white/5 transition-colors"
+              className="shrink-0 p-1 rounded-md text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
             >
               <X size={14} />
             </button>

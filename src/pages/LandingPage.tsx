@@ -35,7 +35,7 @@ export default function LandingPage() {
   const recentPlatforms = mockPlatforms;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-bg-primary">
       <div className="noise" />
       <NavBar />
       {/* <GuidedDemoBanner /> */}
@@ -45,7 +45,7 @@ export default function LandingPage() {
 
         {recentPlatforms && recentPlatforms.length > 0 && (
           <section className="relative py-16 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f] via-[#12121a] to-[#0a0a0f]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-bg-primary via-bg-secondary to-bg-primary" />
 
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
@@ -55,8 +55,8 @@ export default function LandingPage() {
                 className="text-center mb-8"
               >
                 <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4">
-                  <Users className="h-4 w-4 text-[#10b981]" />
-                  <span className="text-sm text-[#94a3b8]">
+                  <Users className="h-4 w-4 text-accent-success" />
+                  <span className="text-sm text-text-secondary">
                     {recentPlatforms.length} platform{recentPlatforms.length !== 1 ? "s" : ""} accepting payments
                   </span>
                 </div>
@@ -70,9 +70,9 @@ export default function LandingPage() {
                       transition={{ duration: 0.4, delay: 0.1 * index }}
                       className="glass-card px-4 py-2 flex items-center gap-2"
                     >
-                      <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                      <div className="w-2 h-2 rounded-full bg-accent-success" />
                       <span className="text-sm text-white">{platform.name}</span>
-                      <span className="text-xs text-[#94a3b8]">({platform.category})</span>
+                      <span className="text-xs text-text-secondary">({platform.category})</span>
                     </motion.div>
                   ))}
                 </div>
@@ -85,7 +85,7 @@ export default function LandingPage() {
         <IntegrationFlow />
 
         <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-[#0a0a0f]" />
+          <div className="absolute inset-0 bg-bg-primary" />
           <div className="absolute inset-0 grid-pattern opacity-30" />
 
           <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -95,23 +95,23 @@ export default function LandingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <span className="inline-block px-4 py-2 rounded-full bg-[#10b981]/10 text-[#10b981] text-sm font-medium mb-4">
+              <span className="inline-block px-4 py-2 rounded-full bg-accent-success/10 text-accent-success text-sm font-medium mb-4">
                 Simple Pricing
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
                 PayStreamer takes <span className="gradient-text">{PLATFORM_FEE_PERCENT}%</span> per successful payment
               </h2>
-              <p className="text-lg text-[#94a3b8] mb-8 max-w-2xl mx-auto">
+              <p className="text-lg text-text-secondary mb-8 max-w-2xl mx-auto">
                 No setup fees. No monthly fees. No hidden costs.
               </p>
 
               <div className="flex flex-wrap justify-center gap-6">
                 {[
-                  { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: "Zero setup fees" },
-                  { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: "No monthly fees" },
-                  { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: "No hidden costs" },
+                  { icon: <CheckCircle size={20} className="text-accent-success" />, text: "Zero setup fees" },
+                  { icon: <CheckCircle size={20} className="text-accent-success" />, text: "No monthly fees" },
+                  { icon: <CheckCircle size={20} className="text-accent-success" />, text: "No hidden costs" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[#94a3b8]">
+                  <div key={i} className="flex items-center gap-2 text-text-secondary">
                     {item.icon}
                     <span>{item.text}</span>
                   </div>
@@ -127,7 +127,7 @@ export default function LandingPage() {
         <SecuritySection />
 
         <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f] via-[#12121a] to-[#0a0a0f]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-bg-primary via-bg-secondary to-bg-primary" />
           <div className="orb orb-1 absolute -top-40 -left-40 w-[500px] h-[500px] opacity-20" />
           <div className="orb orb-2 absolute -bottom-40 -right-40 w-[400px] h-[400px] opacity-20" />
 
@@ -141,7 +141,7 @@ export default function LandingPage() {
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
                 Ready to scale your recurring revenue on <span className="gradient-text">Web3?</span>
               </h2>
-              <p className="text-[#94a3b8] text-lg mb-10 max-w-2xl mx-auto">
+              <p className="text-text-secondary text-lg mb-10 max-w-2xl mx-auto">
                 Join the leading platforms powering their subscriptions with Sui's trustless infrastructure.
               </p>
 
@@ -165,21 +165,21 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-6 text-sm text-[#94a3b8]">
+              <div className="flex flex-wrap justify-center gap-6 text-sm text-text-secondary">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                  <div className="w-2 h-2 rounded-full bg-accent-success" />
                   <span>Zero setup fees</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                  <div className="w-2 h-2 rounded-full bg-accent-success" />
                   <span>No chargebacks</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                  <div className="w-2 h-2 rounded-full bg-accent-success" />
                   <span>Automated routing</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                  <div className="w-2 h-2 rounded-full bg-accent-success" />
                   <span>Built on Sui</span>
                 </div>
               </div>
@@ -197,19 +197,19 @@ export default function LandingPage() {
                 <img src="/logo.png" alt="PayStreamer Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(108,99,255,0.5)]" />
                 <span className="text-xl font-bold text-white">PayStreamer</span>
               </a>
-              <p className="text-sm text-[#94a3b8]">
+              <p className="text-sm text-text-secondary">
                 Empowering users with full control over their subscription payments on the Sui blockchain.
               </p>
             </div>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/10 gap-4">
-            <div className="text-sm text-[#94a3b8]">
+            <div className="text-sm text-text-secondary">
               © 2026 PayStreamer. Built on Sui Network.
             </div>
 
             <div className="flex items-center gap-4 text-sm">
-              <a href="https://github.com/paystreamer" target="_blank" rel="noopener noreferrer" className="text-[#94a3b8] hover:text-white transition-colors">GitHub</a>
+              <a href="https://github.com/paystreamer" target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-white transition-colors">GitHub</a>
             </div>
           </div>
         </div>

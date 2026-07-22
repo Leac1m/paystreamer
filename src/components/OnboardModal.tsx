@@ -86,7 +86,7 @@ export function OnboardModal({ open, onClose }: OnboardModalProps) {
             ) : (
               <>
                 <div className="text-center pt-2">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] mb-3">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary mb-3">
                     <Wallet className="w-6 h-6 text-white" />
                   </div>
                   <h2 className="text-xl font-bold mb-1">Get a Sui wallet</h2>

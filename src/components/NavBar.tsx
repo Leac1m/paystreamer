@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 export default function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,7 +31,7 @@ export default function NavBar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled ? 'bg-[#0a0a0f]/90 backdrop-blur-md border-b py-3' : 'py-5'
+          isScrolled ? 'bg-bg-primary/90 backdrop-blur-md border-b py-3' : 'py-5'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +48,7 @@ export default function NavBar() {
                 <a
                   key={link.label}
                   href={link.href}
-                  className="text-[#94a3b8] hover:text-white transition-colors text-sm font-medium whitespace-nowrap"
+                  className="text-text-secondary hover:text-white transition-colors text-sm font-medium whitespace-nowrap"
                 >
                   {link.label}
                 </a>
@@ -58,6 +59,8 @@ export default function NavBar() {
             <div className="hidden md:flex items-center gap-3">
               <Button
                 href="https://app.paystreamer.xyz"
+                onClick={() => setIsNavigating(true)}
+                loading={isNavigating}
                 className="text-sm px-6 py-2 shadow-[0_0_15px_rgba(108,99,255,0.4)] hover:shadow-[0_0_25px_rgba(108,99,255,0.6)] transition-shadow"
                 variant="gradient"
               >
@@ -87,14 +90,14 @@ export default function NavBar() {
             className="fixed inset-0 z-40 lg:hidden"
           >
             <div className="absolute inset-0 bg-black/60" onClick={() => setIsMobileMenuOpen(false)} />
-            <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#12121a] p-6 pt-20">
+            <div className="absolute right-0 top-0 bottom-0 w-80 bg-bg-secondary p-6 pt-20">
               <div className="flex flex-col gap-4">
                 {navLinks.map((link) => (
                   <a
                     key={link.label}
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg text-[#94a3b8] hover:text-white py-3 border-b border-white/10"
+                    className="text-lg text-text-secondary hover:text-white py-3 border-b border-white/10"
                   >
                     {link.label}
                   </a>
@@ -102,6 +105,8 @@ export default function NavBar() {
                 <div className="mt-4 flex justify-center">
                   <Button
                     href="https://app.paystreamer.xyz"
+                    onClick={() => setIsNavigating(true)}
+                    loading={isNavigating}
                     className="text-sm px-6 py-3 w-full shadow-[0_0_15px_rgba(108,99,255,0.4)]"
                     variant="gradient"
                   >

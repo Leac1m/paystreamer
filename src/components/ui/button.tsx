@@ -28,7 +28,7 @@ function Button({
       "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground":
         variant === "outline",
       "hover:bg-accent hover:text-accent-foreground": variant === "ghost",
-      "bg-gradient-to-br from-[#6c63ff] to-[#3b82f6] text-white shadow hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all":
+      "bg-gradient-to-br from-accent-primary to-accent-secondary text-white shadow hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all":
         variant === "gradient",
     },
     {

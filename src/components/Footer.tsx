@@ -25,7 +25,7 @@ export default function Footer() {
               <img src="/logo.png" alt="PayStreamer Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(108,99,255,0.5)]" />
               <span className="text-xl font-bold text-white">PayStreamer</span>
             </a>
-            <p className="text-sm text-[#94a3b8]">
+            <p className="text-sm text-text-secondary">
               Empowering users with full control over their subscription payments on the Sui blockchain.
             </p>
           </div>
@@ -38,7 +38,7 @@ export default function Footer() {
                 <ul className="space-y-2">
                   {items.map((item) => (
                     <li key={item}>
-                      <a href="#" className="text-sm text-[#94a3b8] hover:text-white transition-colors">
+                      <a href="#" className="text-sm text-text-secondary hover:text-white transition-colors">
                         {item}
                       </a>
                     </li>
@@ -51,7 +51,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-white/10 gap-4">
-          <div className="text-sm text-[#94a3b8]">
+          <div className="text-sm text-text-secondary">
             © 2024 PayStreamer. Built on Sui Network.
           </div>
 
@@ -60,7 +60,7 @@ export default function Footer() {
               <a
                 key={i}
                 href={social.href}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-[#94a3b8] hover:text-white"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-text-secondary hover:text-white"
                 aria-label={social.label}
               >
                 {social.icon}
@@ -69,8 +69,8 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-4 text-sm">
-            <a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Terms</a>
+            <a href="#" className="text-text-secondary hover:text-white transition-colors">Privacy</a>
+            <a href="#" className="text-text-secondary hover:text-white transition-colors">Terms</a>
           </div>
         </div>
       </div>

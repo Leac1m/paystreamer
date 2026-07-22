@@ -30,20 +30,20 @@ export function PlatformPortalLayout() {
 
   if (isConnecting) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#94a3b8]" />
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-text-secondary" />
       </div>
     );
   }
 
   if (!account) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f]">
+      <div className="min-h-screen bg-bg-primary">
 
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
           <div className="text-center flex flex-col items-center">
             <h2 className="text-2xl font-bold text-white mb-4">Platform Portal Access</h2>
-            <p className="text-[#94a3b8] mb-6">Please connect your wallet to access the platform portal.</p>
+            <p className="text-text-secondary mb-6">Please connect your wallet to access the platform portal.</p>
             <div className="flex gap-4">
               <Button onClick={() => navigate("/")} variant="outline" className="text-white border-white/20 hover:bg-white/10">
                 Go to Home
@@ -64,7 +64,7 @@ export function PlatformPortalLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-bg-primary">
 
 
       <div className="flex">
@@ -155,7 +155,7 @@ export function PlatformPortalLayout() {
         )}
 
         <main className="flex-1 lg:ml-64">
-          <div className="sticky top-0 z-30 bg-[#0a0a0f]/80 backdrop-blur border-b px-4 py-3 flex items-center gap-4">
+          <div className="sticky top-0 z-30 bg-bg-primary/80 backdrop-blur border-b px-4 py-3 flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 rounded-md hover:bg-muted"
