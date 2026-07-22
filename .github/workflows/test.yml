@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Run Lint
-        run: pnpm lint
+        run: pnpm lint:no-fakes
       - name: Run Move Lint
         run: pnpm lint:move
 
