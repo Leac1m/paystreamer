@@ -82,7 +82,13 @@ export default function LandingPage() {
         )}
 
 
+        <EndUserExperience />
+
+        <CoreFeatures />
+
         <IntegrationFlow />
+
+        <SecuritySection />
 
         <section className="relative py-24 overflow-hidden">
           <div className="absolute inset-0 bg-bg-primary" />
@@ -120,11 +126,6 @@ export default function LandingPage() {
             </motion.div>
           </div>
         </section>
-
-        <EndUserExperience />
-        <CoreFeatures />
-
-        <SecuritySection />
 
         <section className="relative py-24 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-bg-primary via-bg-secondary to-bg-primary" />
