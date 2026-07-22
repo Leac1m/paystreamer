@@ -44,7 +44,7 @@ export default function HeroSection() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 mb-12">
               <Button
-                href="https://app.paystreamer.xyz"
+                href="https://app.usepaystreamer.xyz"
                 onClick={() => setMounted(false)} // triggers exit animation before navigation or simply provides interaction feedback
                 loading={!mounted}
                 variant="gradient"
@@ -54,7 +54,7 @@ export default function HeroSection() {
                 <span>Get Started</span>
               </Button>
               <Button 
-                href={import.meta.env.DEV ? 'http://localhost:3001' : 'https://docs.paystreamer.xyz'}
+                href={import.meta.env.DEV ? 'http://localhost:3001' : 'https://docs.usepaystreamer.xyz'}
                 target="_blank"
                 rel="noopener noreferrer"
                 variant="secondary" 
@@ -67,7 +67,7 @@ export default function HeroSection() {
 
             <div className="mb-12">
               <a
-                href="https://checkout.paystreamer.xyz"
+                href="https://checkout.usepaystreamer.xyz"
                 className="group inline-flex items-center gap-2 text-text-secondary hover:text-white transition-colors text-sm font-medium"
               >
                 <Sparkles size={16} className="text-accent-primary group-hover:text-accent-secondary transition-colors" />

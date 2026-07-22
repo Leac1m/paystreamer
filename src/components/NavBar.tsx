@@ -58,7 +58,7 @@ export default function NavBar() {
             {/* Action Button */}
             <div className="hidden md:flex items-center gap-3">
               <Button
-                href="https://app.paystreamer.xyz"
+                href="https://app.usepaystreamer.xyz"
                 onClick={() => setIsNavigating(true)}
                 loading={isNavigating}
                 className="text-sm px-6 py-2 shadow-[0_0_15px_rgba(108,99,255,0.4)] hover:shadow-[0_0_25px_rgba(108,99,255,0.6)] transition-shadow"
@@ -104,7 +104,7 @@ export default function NavBar() {
                 ))}
                 <div className="mt-4 flex justify-center">
                   <Button
-                    href="https://app.paystreamer.xyz"
+                    href="https://app.usepaystreamer.xyz"
                     onClick={() => setIsNavigating(true)}
                     loading={isNavigating}
                     className="text-sm px-6 py-3 w-full shadow-[0_0_15px_rgba(108,99,255,0.4)]"

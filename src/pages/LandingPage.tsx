@@ -149,7 +149,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Button
-                    href="https://app.paystreamer.xyz"
+                    href="https://app.usepaystreamer.xyz"
                     className="flex items-center justify-center gap-2 text-lg px-8 py-4 w-full"
                     variant="gradient"
                   >
@@ -157,7 +157,7 @@ export default function LandingPage() {
                     <ArrowRight size={20} />
                   </Button>
                   <Button
-                    href="https://app.paystreamer.xyz"
+                    href="https://app.usepaystreamer.xyz"
                     variant="outline"
                     className="flex items-center justify-center gap-2 text-lg px-8 py-4 bg-transparent border-white/20 hover:bg-white/10 w-full"
                   >
