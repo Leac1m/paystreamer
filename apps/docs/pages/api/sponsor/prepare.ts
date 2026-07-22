@@ -1,3 +1,6 @@
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
+import { NETWORK_CONFIGS, NETWORK, SupportedNetwork } from '@paystreamer/sdk';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Transaction } from '@mysten/sui/transactions';
@@ -17,15 +20,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Missing or invalid "userAddress" field' });
   }
 
-  const sponsorAddress = process.env.SPONSOR_ADDRESS;
-  if (!sponsorAddress) {
-    return res.status(500).json({ error: 'SPONSOR_ADDRESS environment variable is not configured' });
+
+  
+  const sponsorPrivateKeyStr = process.env.SPONSOR_PRIVATE_KEY || (process.env.VITE_NETWORK === 'local' ? process.env.E2E_PRIVATE_KEY : undefined);
+  if (!sponsorPrivateKeyStr) {
+    return res.status(500).json({ error: 'SPONSOR_PRIVATE_KEY environment variable is not configured' });
+  }
+  
+  let sponsorAddress = '';
+  try {
+    let secretKey: Uint8Array;
+    if (sponsorPrivateKeyStr.startsWith('suiprivkey')) {
+      secretKey = decodeSuiPrivateKey(sponsorPrivateKeyStr).secretKey;
+    } else {
+      secretKey = new Uint8Array(Buffer.from(sponsorPrivateKeyStr, 'hex'));
+    }
+    const keypair = Ed25519Keypair.fromSecretKey(secretKey);
+    sponsorAddress = keypair.toSuiAddress();
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to parse sponsor private key' });
   }
 
   try {
+    const targetNet = (process.env.VITE_NETWORK as SupportedNetwork) || NETWORK || 'testnet';
+    const configs = (NETWORK_CONFIGS as any)?.default || NETWORK_CONFIGS;
+    const sdkConfig = configs?.[targetNet] || configs?.testnet || configs?.local;
+    if (!sdkConfig) throw new Error('SDK configuration for network not found');
     const client = new SuiGraphQLClient({
-      url: 'https://graphql.testnet.sui.io/graphql',
-      network: 'testnet',
+      url: sdkConfig.GRAPHQL_URL,
+      network: targetNet === 'local' ? 'localnet' : targetNet,
     });
 
     // Reconstruct transaction from JSON

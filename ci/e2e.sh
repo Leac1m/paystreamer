@@ -57,3 +57,8 @@ echo "======================================================"
 echo " ⚙️  Running Scheduler Backend E2E Tests..."
 echo "======================================================"
 (cd apps/scheduler && pnpm run test:e2e)
+
+echo "======================================================"
+echo " 🌐  Running Browser E2E Tests (Playwright)..."
+echo "======================================================"
+(cd apps/docs && pnpm run test:e2e)

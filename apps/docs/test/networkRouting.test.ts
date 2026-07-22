@@ -21,7 +21,7 @@ describe('networkRouting', () => {
 
   it('creates client for local', () => {
     const client = createGraphqlClient('local');
-    expect(client.network).toBe('local');
+    expect(client.network).toBe('localnet');
   });
 
   it('falls back to testnet url for unknown network', () => {

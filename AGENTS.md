@@ -121,7 +121,21 @@ npx skills https://github.com/MystenLabs/skills
 
 Key skills: `sui-move`, `ptbs`, `frontend-apps`, `sui-object-model`, `sui-publish`
 
-## E2E Testing
+## Architecture & Centralized SDK Rules
 
-All blockchain-interacting apps must have an E2E test in localnet (docker compose).
+- **Single Source of Truth**: `@paystreamer/sdk` is the ONLY package authorized to execute smart contract calls, build PTBs, or run GraphQL queries. Client applications (`apps/docs`, `apps/portal`, `apps/checkout`) MUST NOT contain standalone GraphQL scripts or contract codegen.
+- **GraphQL & RPC Endpoints**: Localnet GraphQL endpoint is on `http://127.0.0.1:8000/graphql` (port 8000), while JSON-RPC is on `http://127.0.0.1:9000` (port 9000). Always map local network names to `'localnet'` for `SuiGraphQLClient` and `'sui:local'` for dAppKit wallet accounts.
+
+## Testing Architecture & Decisions
+
+All blockchain-interacting apps must have automated unit & E2E tests in localnet (docker compose).
 `pnpm build` (or `tsc --noEmit`) is required after code changes before declaring work done.
+
+**Automated Testing Matrix:**
+1. **SDK Unit & Integration Tests (`pnpm test:sdk`)**: Vitest suite in `packages/sdk` covering core SDK transaction builders, formatters, React hooks, UI components, and Next.js sponsor API handler mocks.
+2. **Browser E2E Testing Strategy (`pnpm test:e2e`)**:
+   - To test the SDK inside client applications effectively, we use **Playwright with a Persistent Burner Wallet**.
+   - Bypasses Chrome extension automation complexity while testing real dAppKit wallet connection and transaction signing flows.
+   - The Burner Wallet (in `src/lib/persistentBurnerWallet.ts`) uses a deterministic secret key in `localStorage` (`paystreamer_burner_sk`).
+   - Shadow DOM Web Components (`<mysten-dapp-kit-connect-modal>`) are interacted with via `page.evaluate()` shadow root element selection to ensure robust cross-browser click dispatching.
+   - Playwright is orchestrated inside `pnpm e2e` (`ci/e2e.sh`) to ensure localnet is seeded with test platforms before browser testing.

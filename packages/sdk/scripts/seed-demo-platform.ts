@@ -67,7 +67,7 @@ const DEMO_TIER_NAME = "Demo Tier (1-minute billing)";
 const DEMO_TIER_AMOUNT_MIST = 10_000_000_000n;
 const DEMO_TIER_FREQUENCY_MS = 60_000n;
 
-const DEMO_USER_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const DEMO_USER_ADDRESS = "0x95db3e349c7112b4e326062318e029c9e9a67d26099517a1b5977b826df1dccf";
 
 // Shared-object initial versions are discovered dynamically from the
 // on-chain object (see `fetchPlatformObjectVersion`). We don't need a
@@ -260,7 +260,6 @@ async function mintPusdToDemoUser(
   const tx = newTx(keypair);
   tx.moveCall({
     target: `${PUSD_PACKAGE_ID}::pusd::mint`,
-    typeArguments: [PUSD_TYPE_ARG],
     arguments: [
       tx.object(treasuryCapId),
       tx.pure.address(DEMO_USER_ADDRESS),
@@ -563,10 +562,8 @@ async function main() {
     platform = await registerPlatformWithTier(client, keypair, PUSD_TYPE_ARG);
   }
 
-  if (!platform.foundExisting) {
-    console.log("\n=== mint PUSD to demo user ===");
-    await mintPusdToDemoUser(client, keypair, PUSD_TREASURY_CAP_ID, 10_000_000_000n);
-  }
+  console.log("\n=== mint PUSD to demo user ===");
+  await mintPusdToDemoUser(client, keypair, PUSD_TREASURY_CAP_ID, 10_000_000_000n);
 
   const tier = await findExistingTier(client, platform.platformId);
   if (!tier) {

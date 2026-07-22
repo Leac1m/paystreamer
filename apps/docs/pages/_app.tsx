@@ -6,24 +6,31 @@ import { DAppKitProvider, createDAppKit } from "@mysten/dapp-kit-react";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { createPersistentBurnerWalletInitializer } from '../lib/persistentBurnerWallet';
 import { createGraphqlClient } from '../lib/networkRouting';
+const targetNet = (process.env.VITE_NETWORK as any) || NETWORK || "testnet";
+const activeNetworks = targetNet === 'local' ? ["local"] : ["mainnet", "testnet", "devnet", "local"];
+
 const dAppKit = createDAppKit({
-  enableBurnerWallet: true,
-  networks: ["mainnet", "testnet", "devnet", "local"],
-  defaultNetwork: "testnet",
+  enableBurnerWallet: false,
+  networks: activeNetworks,
+  defaultNetwork: targetNet,
   createClient: createGraphqlClient,
   walletInitializers: [createPersistentBurnerWalletInitializer()]
 });
 
-// Testnet Config for the Docs
+import { NETWORK_CONFIGS, NETWORK } from '@paystreamer/sdk';
+
+const sdKConfig = NETWORK_CONFIGS[NETWORK];
+
+// Testnet/Local Config for the Docs
 const config = {
-  packageId: "0x48c2c4ea663d95748ae53f3945f58433cf259b42c3aedfd62ba6a13ba4f2d38c",
-  registryId: "0x48ccd75e970e510e6d94ca4fb94fb117c8c5ed760ef71e8594c311ebba23ca07",
+  packageId: sdKConfig.PACKAGE_ID,
+  registryId: sdKConfig.COIN_TYPE_REGISTRY_ID,
   clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
-  pusdType: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f::pusd::PUSD",
-  network: "testnet",
+  pusdType: sdKConfig.PUSD_TYPE_ARG,
+  network: NETWORK,
   sponsorApiUrl: "/api/sponsor",
-  pusdPackageId: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f",
-  pusdTreasuryCapId: "0xca02759942d7c917bb74166c1ea44336f9819e6e36b051ff92b43de6989bcba2"
+  pusdPackageId: sdKConfig.PUSD_PACKAGE_ID,
+  pusdTreasuryCapId: sdKConfig.PUSD_TREASURY_CAP_ID
 };
 
 const queryClient = new QueryClient();
