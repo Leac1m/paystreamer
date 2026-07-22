@@ -7,5 +7,6 @@ allowBuilds:
   protobufjs: true
 minimumReleaseAgeExclude:
   - '@paystreamer/sdk@0.1.0'
+  - '@paystreamer/sdk@0.1.1'
 overrides:
   '@headlessui/react': '^2.2.0'
