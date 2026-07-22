@@ -24,6 +24,8 @@ jobs:
         run: pnpm install
       - name: Run Lint
         run: pnpm lint:no-fakes
+      - name: Install Sui CLI
+        uses: MystenLabs/sui-install-action@v1
       - name: Run Move Lint
         run: pnpm lint:move
 
