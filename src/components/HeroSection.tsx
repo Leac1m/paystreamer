@@ -1,31 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Zap, Shield, Sparkles } from 'lucide-react';
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { Button } from './ui/button';
-import { OnboardModal } from './OnboardModal';
-// import { DEMO_PLATFORM_ID } from '../constants';
-
-// const hasDemo = typeof DEMO_PLATFORM_ID === 'string';
-const demoLink = null; // hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : null;
 
 export default function HeroSection() {
-  const navigate = useNavigate();
-  const account = useCurrentAccount();
   const [mounted, setMounted] = useState(false);
-  const [onboardOpen, setOnboardOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const handleCreatePlatform = () => {
-    if (account) {
-      navigate('/platforms');
-    } else {
-      setOnboardOpen(true);
-    }
+    window.location.href = 'https://app.paystreamer.xyz';
   };
 
   return (
@@ -77,18 +63,16 @@ export default function HeroSection() {
               </Button>
             </div>
 
-            {demoLink && (
-              <div className="mb-12">
-                <button
-                  onClick={() => navigate(demoLink)}
-                  className="group inline-flex items-center gap-2 text-[#94a3b8] hover:text-white transition-colors text-sm font-medium"
-                >
-                  <Sparkles size={16} className="text-[#6c63ff] group-hover:text-[#3b82f6] transition-colors" />
-                  <span>Try a live demo</span>
-                  <ArrowRight size={14} className="opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
-                </button>
-              </div>
-            )}
+            <div className="mb-12">
+              <a
+                href="https://checkout.paystreamer.xyz"
+                className="group inline-flex items-center gap-2 text-[#94a3b8] hover:text-white transition-colors text-sm font-medium"
+              >
+                <Sparkles size={16} className="text-[#6c63ff] group-hover:text-[#3b82f6] transition-colors" />
+                <span>Try a live demo</span>
+                <ArrowRight size={14} className="opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+              </a>
+            </div>
 
             {/* Trust Indicators */}
             <div className="flex flex-wrap gap-6">
@@ -211,7 +195,6 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Scroll Indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: mounted ? 1 : 0 }}
@@ -226,8 +209,6 @@ export default function HeroSection() {
           <div className="w-1.5 h-3 bg-white/50 rounded-full" />
         </motion.div>
       </motion.div>
-
-      <OnboardModal open={onboardOpen} onClose={() => setOnboardOpen(false)} />
     </section>
   );
 }

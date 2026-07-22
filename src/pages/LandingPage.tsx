@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
-import { ConnectModal } from "@mysten/dapp-kit-react/ui";
-import { Loader2 } from "lucide-react";
-import { useRef } from "react";
 import { ArrowRight, Users, CheckCircle } from "lucide-react";
 import NavBar from "../components/NavBar";
 import HeroSection from "../components/HeroSection";
@@ -14,8 +8,6 @@ import EndUserExperience from "../components/EndUserExperience";
 import CoreFeatures from "../components/CoreFeatures";
 import SecuritySection from "../components/SecuritySection";
 import { Button } from "../components/ui/button";
-import { GRAPHQL_URL} from "../constants";
-import { useAppConfig } from "../hooks/useAppConfig";
 
 const PLATFORM_FEE_PERCENT = 2.5;
 
@@ -24,69 +16,23 @@ interface PlatformInfo {
   category: string;
 }
 
+const mockPlatforms: PlatformInfo[] = [
+  { name: "Sui Foundation", category: "Ecosystem" },
+  { name: "DeFi Pulse", category: "Analytics" },
+  { name: "Yield Aggregator", category: "DeFi" },
+  { name: "NFT Marketplace", category: "NFTs" },
+  { name: "GameFi Hub", category: "Gaming" },
+  { name: "DAO Treasury", category: "DAO" },
+];
+
 export default function LandingPage() {
-    const config = useAppConfig();
-  const account = useCurrentAccount();
-  const { isConnecting } = useWalletConnection();
-  const navigate = useNavigate();
-  const modalRef = useRef<any>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const { data: recentPlatforms } = useQuery({
-    queryKey: ["recent-platforms", config.network],
-    queryFn: async () => {
-      const now = Date.now();
-      const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-      const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo / 1000);
-
-      const res = await fetch(GRAPHQL_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: `
-            query GetRecentPlatforms($after: String) {
-              events(
-                first: 50,
-                after: $after,
-                filter: {
-                  type: "${config.PACKAGE_ID}::platform::PlatformRegistered",
-                  timeRange: { startTime: "${thirtyDaysAgoTimestamp}" }
-                }
-              ) {
-                nodes {
-                  contents { json }
-                }
-                pageInfo { hasNextPage endCursor }
-              }
-            }
-          `,
-          variables: {},
-        }),
-      });
-
-      const data = await res.json();
-      const events = data.data?.events?.nodes || [];
-      const seen = new Set<string>();
-      const platforms: PlatformInfo[] = [];
-
-      for (const event of events) {
-        const json = event.contents?.json;
-        if (json?.platform_id && !seen.has(json.platform_id)) {
-          seen.add(json.platform_id);
-          platforms.push({
-            name: json.name || "Unnamed Platform",
-            category: json.category || "General",
-          });
-        }
-      }
-
-      return platforms;
-    },
-  });
+  const recentPlatforms = mockPlatforms;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -200,37 +146,25 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                {account ? (
-                  <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <a href="https://app.paystreamer.xyz">
                     <Button
-                      onClick={() => navigate("/platforms")}
-                      className="flex items-center justify-center gap-2 text-lg px-8 py-4"
+                      className="flex items-center justify-center gap-2 text-lg px-8 py-4 w-full"
+                      variant="gradient"
                     >
                       <span>Platform Portal</span>
                       <ArrowRight size={20} />
                     </Button>
+                  </a>
+                  <a href="https://app.paystreamer.xyz">
                     <Button
                       variant="outline"
-                      onClick={() => navigate("/dashboard")}
-                      className="flex items-center justify-center gap-2 text-lg px-8 py-4 bg-transparent border-white/20 hover:bg-white/10"
+                      className="flex items-center justify-center gap-2 text-lg px-8 py-4 bg-transparent border-white/20 hover:bg-white/10 w-full"
                     >
                       <span>Subscriber Dashboard</span>
                     </Button>
-                  </div>
-                ) : isConnecting ? (
-                  <Button disabled className="flex items-center justify-center gap-2 text-lg px-10 py-4">
-                    <Loader2 className="animate-spin h-6 w-6" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => modalRef.current?.show()}
-                    className="flex items-center justify-center gap-2 text-lg px-10 py-4"
-                    variant="gradient"
-                  >
-                    <span>Create Free Platform</span>
-                    <ArrowRight size={20} />
-                  </Button>
-                )}
+                  </a>
+                </div>
               </div>
 
               <div className="flex flex-wrap justify-center gap-6 text-sm text-[#94a3b8]">
@@ -283,7 +217,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      <ConnectModal ref={modalRef} />
     </div>
   );
 }
