@@ -185,7 +185,7 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
             href={`https://suiscan.xyz/${network}/tx/${digest}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-muted-foreground mt-0.5 font-mono hover:text-[#10b981] transition-colors flex items-center gap-1 underline"
+            className="text-xs text-muted-foreground mt-0.5 font-mono hover:text-accent-success transition-colors flex items-center gap-1 underline"
           >
             View on Suiscan
             <ExternalLink className="h-3 w-3" />

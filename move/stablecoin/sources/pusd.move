@@ -12,8 +12,8 @@ public struct CoinMinted has copy, drop { minter: address, to: address, amount: 
 public struct CoinBurned has copy, drop { burner: address, from: address, amount: u64 }
 
 const EZeroAmount: u64 = 0;
-const EInsufficientBalance: u64 = 1;
 
+#[allow(deprecated_usage)]
 fun init(witness: PUSD, ctx: &mut TxContext) {
     let (treasury_cap, metadata) = create_currency(witness, 6, b"PUSD", b"PUSD", b"", none(), ctx);
     transfer::public_freeze_object(metadata);

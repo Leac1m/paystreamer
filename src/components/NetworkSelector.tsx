@@ -121,7 +121,7 @@ export default function NetworkSelector({
             transition={{ duration: 0.12 }}
             role="listbox"
             className={cn(
-              "absolute z-50 rounded-md border border-white/10 bg-[#12121a] shadow-lg py-1",
+              "absolute z-50 rounded-md border border-white/10 bg-bg-secondary shadow-lg py-1",
               dropdownPosition
             )}
           >

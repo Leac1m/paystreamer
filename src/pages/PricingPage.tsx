@@ -5,10 +5,10 @@ import NavBar from '../components/NavBar';
 import { Button } from '../components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
-const PLATFORM_FEE_PERCENT = 2.5;
+const PLATFORM_FEE_PERCENT = 3;
 
 const TRADITIONAL_FEATURES = [
-  { name: 'Processing Fee', traditional: '2.9% + 30¢', paystreamer: '2.5%' },
+  { name: 'Processing Fee', traditional: '2.9% + 30¢', paystreamer: '3%' },
   { name: 'Chargeback Risk', traditional: 'Yes — 1-3%', paystreamer: 'Zero' },
   { name: 'Settlement Time', traditional: '2-3 business days', paystreamer: 'Instant' },
   { name: 'Global Payments', traditional: 'Limited by region', paystreamer: 'Worldwide' },
@@ -49,7 +49,7 @@ export default function PricingPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-bg-primary">
       <div className="noise" />
 
       <NavBar />
@@ -66,7 +66,7 @@ export default function PricingPage() {
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
               Simple, Transparent Pricing
             </h1>
-            <p className="text-xl text-[#94a3b8] max-w-2xl mx-auto">
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
               No setup fees. No monthly fees. No hidden costs. Pay only when you earn.
             </p>
           </motion.div>
@@ -78,7 +78,7 @@ export default function PricingPage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="glass-card p-8 sm:p-12 text-center mb-16"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#10b981]/10 text-[#10b981] text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-success/10 text-accent-success text-sm font-medium mb-6">
               <Zap size={16} />
               <span>Flat Rate — No Surprises</span>
             </div>
@@ -86,17 +86,17 @@ export default function PricingPage() {
             <h2 className="text-5xl sm:text-6xl font-bold text-white mb-4">
               <span className="gradient-text">{PLATFORM_FEE_PERCENT}%</span>
             </h2>
-            <p className="text-xl text-[#94a3b8] mb-8">
+            <p className="text-xl text-text-secondary mb-8">
               per successful payment
             </p>
 
             <div className="flex flex-wrap justify-center gap-6 mb-8">
               {[
-                { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: 'Zero setup fees' },
-                { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: 'No monthly fees' },
-                { icon: <CheckCircle size={20} className="text-[#10b981]" />, text: 'No hidden costs' },
+                { icon: <CheckCircle size={20} className="text-accent-success" />, text: 'Zero setup fees' },
+                { icon: <CheckCircle size={20} className="text-accent-success" />, text: 'No monthly fees' },
+                { icon: <CheckCircle size={20} className="text-accent-success" />, text: 'No hidden costs' },
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-[#94a3b8]">
+                <div key={i} className="flex items-center gap-2 text-text-secondary">
                   {item.icon}
                   <span>{item.text}</span>
                 </div>
@@ -134,9 +134,9 @@ export default function PricingPage() {
 
             <div className="glass-card overflow-hidden">
               <div className="grid grid-cols-3 gap-4 p-6 border-b border-white/10">
-                <div className="text-sm font-medium text-[#94a3b8]">Feature</div>
-                <div className="text-sm font-medium text-[#94a3b8] text-center">Traditional</div>
-                <div className="text-sm font-medium text-[#10b981] text-center">PayStreamer</div>
+                <div className="text-sm font-medium text-text-secondary">Feature</div>
+                <div className="text-sm font-medium text-text-secondary text-center">Traditional</div>
+                <div className="text-sm font-medium text-accent-success text-center">PayStreamer</div>
               </div>
 
               {TRADITIONAL_FEATURES.map((feature, i) => (
@@ -145,8 +145,8 @@ export default function PricingPage() {
                   className="grid grid-cols-3 gap-4 p-6 border-b border-white/10 last:border-0"
                 >
                   <div className="text-white font-medium">{feature.name}</div>
-                  <div className="text-center text-[#94a3b8]">{feature.traditional}</div>
-                  <div className="text-center text-[#10b981] font-medium">{feature.paystreamer}</div>
+                  <div className="text-center text-text-secondary">{feature.traditional}</div>
+                  <div className="text-center text-accent-success font-medium">{feature.paystreamer}</div>
                 </div>
               ))}
             </div>
@@ -160,16 +160,16 @@ export default function PricingPage() {
             className="grid sm:grid-cols-3 gap-6 mb-16"
           >
             {[
-              { icon: <Shield size={24} className="text-[#10b981]" />, title: 'No Chargebacks', desc: 'Blockchain-final transactions cannot be reversed' },
-              { icon: <Globe size={24} className="text-[#10b981]" />, title: 'Global Reach', desc: 'Accept payments from any wallet, anywhere' },
-              { icon: <CreditCard size={24} className="text-[#10b981]" />, title: 'No Credit Card', desc: 'Stablecoins only — no card network fees' },
+              { icon: <Shield size={24} className="text-accent-success" />, title: 'No Chargebacks', desc: 'Blockchain-final transactions cannot be reversed' },
+              { icon: <Globe size={24} className="text-accent-success" />, title: 'Global Reach', desc: 'Accept payments from any wallet, anywhere' },
+              { icon: <CreditCard size={24} className="text-accent-success" />, title: 'No Credit Card', desc: 'Stablecoins only — no card network fees' },
             ].map((badge, i) => (
               <div key={i} className="glass-card p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-[#12121a] flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-xl bg-bg-secondary flex items-center justify-center mx-auto mb-4">
                   {badge.icon}
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-2">{badge.title}</h3>
-                <p className="text-sm text-[#94a3b8]">{badge.desc}</p>
+                <p className="text-sm text-text-secondary">{badge.desc}</p>
               </div>
             ))}
           </motion.div>
@@ -188,10 +188,10 @@ export default function PricingPage() {
               {FAQ_ITEMS.map((item, i) => (
                 <div key={i} className="p-6">
                   <div className="flex items-start gap-3">
-                    <HelpCircle size={20} className="text-[#6c63ff] mt-1 flex-shrink-0" />
+                    <HelpCircle size={20} className="text-accent-primary mt-1 flex-shrink-0" />
                     <div>
                       <h3 className="text-lg font-semibold text-white mb-2">{item.question}</h3>
-                      <p className="text-[#94a3b8]">{item.answer}</p>
+                      <p className="text-text-secondary">{item.answer}</p>
                     </div>
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export default function PricingPage() {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="text-center mt-16"
           >
-            <p className="text-xl text-[#94a3b8] mb-6">
+            <p className="text-xl text-text-secondary mb-6">
               Ready to scale your recurring revenue on Web3?
             </p>
             <Button
@@ -221,7 +221,7 @@ export default function PricingPage() {
       </main>
 
       <footer className="relative py-12 border-t border-white/10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-[#94a3b8]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-text-secondary">
           <p>PayStreamer — Built on Sui Network</p>
         </div>
       </footer>

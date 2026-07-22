@@ -28,3 +28,21 @@ services:
     working_dir: /workspace
     entrypoint: ["sui"]
     command: ["start", "--with-faucet=0.0.0.0:9123", "--with-indexer=postgres://postgres:password@postgres:5432/sui", "--with-graphql=0.0.0.0:8000"]
+
+  caddy:
+    image: caddy:alpine
+    container_name: paystreamer-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  caddy_data:
+  caddy_config:
