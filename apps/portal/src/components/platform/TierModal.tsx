@@ -13,7 +13,6 @@ import {
 } from "@paystreamer/sdk";
 import { Input } from "@paystreamer/sdk";
 import { Button } from "@paystreamer/sdk";
-import {  PUSD_TYPE_ARG } from "../../constants";
 import { getErrorMessage } from "../../lib/errors";
 import { useTxToast, generateToastId } from "../TxStatusToast";
 import { useAppConfig } from "../../hooks/useAppConfig";
@@ -105,7 +104,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
     const amountU64 = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
     const denominationTypeName = tx.moveCall({
       target: "0x1::type_name::get",
-      typeArguments: [PUSD_TYPE_ARG],
+      typeArguments: [config.PUSD_TYPE_ARG],
       arguments: [],
     });
 

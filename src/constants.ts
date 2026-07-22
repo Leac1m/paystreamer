@@ -74,7 +74,8 @@ const getEnvNetwork = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NETWORK) return import.meta.env.VITE_NETWORK;
   return null;
 };
-export const NETWORK = getEnvNetwork() || "devnet";
+const isProd = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD;
+export const NETWORK = (getEnvNetwork() || (isProd ? "testnet" : "devnet")) as SupportedNetwork;
 
 export function getConfig(network?: SupportedNetwork): NetworkConfig {
   const targetNetwork = network || (NETWORK as SupportedNetwork);
