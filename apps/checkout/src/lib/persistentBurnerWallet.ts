@@ -54,9 +54,19 @@ export function createPersistentBurnerWalletInitializer(): WalletInitializer {
 	return {
 		id: 'persistent-burner-initializer',
 		initialize({ networks, getClient }) {
-			console.log("NETWORKS:", networks); const wallet = new PersistentBurnerWallet({ clients: networks.map((network) => getClient(network)) });
-			const unregister = getWallets().register(wallet);
-			return { unregister };
+			try {
+				const wallet = new PersistentBurnerWallet({ clients: networks.map((network) => getClient(network)) });
+				const wallets = getWallets();
+				const existing = typeof wallets?.get === 'function' ? wallets.get() : [];
+				const isRegistered = existing.some((w) => w.name === wallet.name);
+				if (!isRegistered) {
+					const unregister = wallets.register(wallet);
+					return { unregister: unregister || (() => {}) };
+				}
+				return { unregister: () => {} };
+			} catch (err) {
+				return { unregister: () => {} };
+			}
 		},
 	};
 }
