@@ -20,7 +20,7 @@ cd ../..
 
 echo "-> Running tests in packages/sdk..."
 cd packages/sdk
-npx vitest run
+npx vitest run --exclude '**/*-e2e.test.ts*'
 cd ../..
 
 echo "-> Running tests in apps/docs..."

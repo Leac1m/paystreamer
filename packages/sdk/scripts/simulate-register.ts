@@ -1,7 +1,7 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { loadKeypair, newTx } from "./test-utils.ts";
-import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID, GRAPHQL_URL, NETWORK } from "../../packages/sdk/src/constants.ts";
+import { SUBSCRIPTION_DEVNET_PACKAGE_ID, CLOCK_OBJECT_ID, GRAPHQL_URL, NETWORK } from "../src/constants.ts";
 
 async function main() {
   const keypair = loadKeypair();

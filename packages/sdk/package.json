@@ -48,7 +48,10 @@
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
     "build": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format cjs,esm --dts --external react --external react-dom --external react/jsx-runtime",
     "dev": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external react/jsx-runtime",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "test": "vitest",
+    "seed:demo": "tsx scripts/seed-demo-platform.ts",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.1.3",

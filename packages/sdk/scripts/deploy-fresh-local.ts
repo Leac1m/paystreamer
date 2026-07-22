@@ -4,7 +4,7 @@ import { join, dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = join(__dirname, "../../");
+const rootDir = join(__dirname, "../../../");
 
 function readPublishOutput(dir: string, file: string): any {
   console.log(`Parsing ${file} from ${dir}...`);

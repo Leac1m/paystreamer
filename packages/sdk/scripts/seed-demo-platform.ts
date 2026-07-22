@@ -46,7 +46,7 @@ import {
   NETWORK_CONFIGS,
   SUI_TYPE_ARG,
   NETWORK
-} from "../../packages/sdk/src/constants.ts";
+} from "../src/constants.ts";
 
 const networkConfig = NETWORK_CONFIGS[NETWORK];
 const V3_PACKAGE_ID = networkConfig.PACKAGE_ID;
@@ -487,7 +487,7 @@ async function createDemoTier(
  * fresh platform).
  */
 function patchConstants(result: SeedResult): { patched: boolean; reason: string } {
-  const constantsPath = fileURLToPath(new URL("../../packages/sdk/src/constants.ts", import.meta.url));
+  const constantsPath = fileURLToPath(new URL("../src/constants.ts", import.meta.url));
   let src: string;
   try {
     src = readFileSync(constantsPath, "utf8");
