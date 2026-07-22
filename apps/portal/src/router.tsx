@@ -9,6 +9,7 @@ import { SubscribersPage } from "./pages/platforms/SubscribersPage";
 import { TreasuryPage } from "./pages/platforms/TreasuryPage";
 import { PlatformSettingsPage } from "./pages/platforms/PlatformSettingsPage";
 import { SchedulerPage } from "./pages/platforms/SchedulerPage";
+import CheckoutPage from "./pages/checkout/CheckoutPage";
 
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 import { PlatformPortalLayout } from "./components/platform/PlatformPortalLayout";
@@ -34,6 +35,7 @@ export default function Router() {
           <Route path="/platforms/settings" element={<PlatformSettingsPage />} />
           <Route path="/platforms/scheduler" element={<SchedulerPage />} />
         </Route>
+        <Route path="/checkout/:platformId" element={<CheckoutPage />} />
 
         {/* Catch-all route for 404s */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

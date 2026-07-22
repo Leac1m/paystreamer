@@ -21,7 +21,15 @@ export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const modalRef = useRef<React.ElementRef<typeof ConnectModal>>(null);
 
-  if (isConnecting) {
+  const hasStoredWallet = typeof window !== 'undefined' && (
+    !!localStorage.getItem('paystreamer_burner_sk') ||
+    !!localStorage.getItem('dapp-kit:account') ||
+    !!localStorage.getItem('sys-dapp-kit:account')
+  );
+
+  const isInitialLoading = isConnecting || (!account && hasStoredWallet);
+
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
