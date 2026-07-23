@@ -8,7 +8,8 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { buildWithdrawTx } from "@paystreamer/sdk/core";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface WithdrawModalProps {
@@ -68,17 +69,15 @@ export function WithdrawModal({
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
-      const [withdrawnCoin] = tx.moveCall({
-        target: `${config.PACKAGE_ID}::account::withdraw`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.object(capId),
-          tx.object(accountId),
-          tx.pure.u64(withdrawMist)
-        ],
+      buildWithdrawTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        denomination,
+        accountId,
+        capId,
+        withdrawAmount: withdrawMist,
+        recipientAddress: account.address,
       });
-
-      tx.transferObjects([withdrawnCoin], tx.pure.address(account.address));
 
       const result = await executeSponsored(tx);
       if (result.error) throw new Error(result.error);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { buildProposeTreasuryChangeTx, buildAcceptTreasuryChangeTx, buildCancelTreasuryChangeTx } from "@paystreamer/sdk/core";
 import { Copy, ExternalLink, Clock } from "lucide-react";
 import {
   Card,
@@ -92,17 +93,13 @@ export function TreasuryManager({
     setError(null);
 
     const tx = new Transaction();
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::propose_treasury_change`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: platformId,
-          initialSharedVersion,
-          mutable: true,
-        }),
-        tx.pure.address(newTreasury),
-        tx.object(CLOCK_OBJECT_ID),
-      ],
+    buildProposeTreasuryChangeTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      clockId: CLOCK_OBJECT_ID,
+      platformId,
+      platformInitVersion: initialSharedVersion,
+      newTreasury,
     });
 
     try {
@@ -127,16 +124,12 @@ export function TreasuryManager({
     setError(null);
 
     const tx = new Transaction();
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::accept_treasury_change`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: platformId,
-          initialSharedVersion,
-          mutable: true,
-        }),
-        tx.object(CLOCK_OBJECT_ID),
-      ],
+    buildAcceptTreasuryChangeTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      clockId: CLOCK_OBJECT_ID,
+      platformId,
+      platformInitVersion: initialSharedVersion,
     });
 
     try {
@@ -160,15 +153,11 @@ export function TreasuryManager({
     setError(null);
 
     const tx = new Transaction();
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::cancel_treasury_change`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: platformId,
-          initialSharedVersion,
-          mutable: true,
-        })
-      ],
+    buildCancelTreasuryChangeTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      platformId,
+      platformInitVersion: initialSharedVersion,
     });
 
     try {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { buildDeactivateTierTx } from "@paystreamer/sdk/core";
 import { Pencil, PowerOff, Power } from "lucide-react";
 import {
   Card,
@@ -50,16 +51,12 @@ export function TierCard({ platformId, initialSharedVersion, tier, tierIndex }: 
     setError(null);
 
     const tx = new Transaction();
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::deactivate_tier_by_index`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: platformId,
-          initialSharedVersion,
-          mutable: true,
-        }),
-        tx.pure.u64(tierIndex),
-      ],
+    buildDeactivateTierTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      platformId,
+      platformInitVersion: initialSharedVersion,
+      tierIndex,
     });
 
     try {

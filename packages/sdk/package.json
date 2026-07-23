@@ -15,29 +15,25 @@
     "recurring-payments",
     "sdk"
   ],
-  "main": "dist/index.js",
+  "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.mjs"
     },
     "./core": {
       "types": "./dist/core/index.d.ts",
-      "import": "./dist/core/index.mjs",
-      "require": "./dist/core/index.js"
+      "import": "./dist/core/index.mjs"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.mjs",
-      "require": "./dist/react/index.js"
+      "import": "./dist/react/index.mjs"
     },
     "./ui": {
       "types": "./dist/ui/index.d.ts",
-      "import": "./dist/ui/index.mjs",
-      "require": "./dist/ui/index.js"
+      "import": "./dist/ui/index.mjs"
     }
   },
   "files": [
@@ -46,8 +42,8 @@
   ],
   "scripts": {
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
-    "build": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format cjs,esm --dts --dts-resolve --external react --external react-dom --external react/jsx-runtime",
-    "dev": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format cjs,esm --dts --dts-resolve --watch --external react --external react-dom --external react/jsx-runtime",
+    "build": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --external react --external react-dom --external react/jsx-runtime --no-splitting && tsc --emitDeclarationOnly",
+    "dev": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --watch --external react --external react-dom --external react/jsx-runtime --no-splitting",
     "prepublishOnly": "pnpm build",
     "test": "vitest",
     "seed:demo": "tsx scripts/seed-demo-platform.ts",

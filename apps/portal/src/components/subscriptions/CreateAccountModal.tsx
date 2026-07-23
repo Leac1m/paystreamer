@@ -20,8 +20,8 @@ import {
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "@paystreamer/sdk";
-import {  queryCoins  } from "@paystreamer/sdk/core";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { queryCoins, buildCreateAccountTx } from "@paystreamer/sdk/core";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 type Step = "denomination" | "deposit" | "confirm";
@@ -98,37 +98,15 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
       const tx = new Transaction();
 
-      const [accountObj, cap] = tx.moveCall({
-        target: `${config.PACKAGE_ID}::account::create_account`,
-        typeArguments: [selectedDenomination],
-        arguments: [tx.object(COIN_TYPE_REGISTRY_ID), tx.object(CLOCK_OBJECT_ID)],
-      });
-
-      if (depositMist > 0n && coinsToUse.length > 0) {
-        let primaryCoin: any;
-        if (selectedDenomination === "0x2::sui::SUI") {
-          const [splitCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(depositMist)]);
-          primaryCoin = splitCoin;
-        } else {
-          const coinObjs = coinsToUse.map(id => tx.object(id));
-          if (coinObjs.length > 1) {
-             tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
-          }
-          const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
-          primaryCoin = splitCoin;
-        }
-        
-        tx.moveCall({
-          target: `${config.PACKAGE_ID}::account::deposit`,
-          typeArguments: [selectedDenomination],
-          arguments: [cap, accountObj, primaryCoin, tx.object(CLOCK_OBJECT_ID)],
-        });
-      }
-
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::account::share_account`,
-        typeArguments: [selectedDenomination],
-        arguments: [accountObj, cap],
+      buildCreateAccountTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        registryId: COIN_TYPE_REGISTRY_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination: selectedDenomination,
+        depositAmount: depositMist,
+        coinsToUse,
+        isSuiDenomination: selectedDenomination === "0x2::sui::SUI",
       });
 
       const result = await executeSponsored(tx);

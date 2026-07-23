@@ -11,9 +11,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { 
   CLOCK_OBJECT_ID,
 } from "@paystreamer/sdk";
-import {  queryCoins  } from "@paystreamer/sdk/core";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
-import { useMintPusd } from "../../hooks/useMintPusd";
+import { queryCoins, buildDepositTx } from "@paystreamer/sdk/core";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
+import { useMintTestPusd } from "@paystreamer/sdk/react";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface DepositModalProps {
@@ -38,7 +38,7 @@ export function DepositModal({
   const account = useCurrentAccount();
   const queryClient = useQueryClient();
   const { executeSponsored } = useSponsoredTransaction();
-  const { mintPusd } = useMintPusd();
+  const { mint: mintPusd } = useMintTestPusd();
 
   const [depositAmount, setDepositAmount] = useState("");
   const [walletBalanceUsd, setWalletBalanceUsd] = useState(0);
@@ -98,21 +98,16 @@ export function DepositModal({
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
-      const coinObjs = coinsToUse.map(id => tx.object(id));
-      if (coinObjs.length > 1) {
-         tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
-      }
-      const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
-      
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::account::deposit`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.object(capId),
-          tx.object(accountId),
-          splitCoin,
-          tx.object(CLOCK_OBJECT_ID)
-        ],
+
+      buildDepositTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination,
+        accountId,
+        capId,
+        depositAmount: depositMist,
+        coinsToUse,
       });
 
       const result = await executeSponsored(tx);
@@ -144,12 +139,12 @@ export function DepositModal({
     setTxMessage("Minting Test PUSD...");
     try {
       const result = await mintPusd();
-      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
+      if (!result) throw new Error("Transaction failed");
       
       setTimeout(async () => {
         setTxStatus("success");
         setTxMessage("Successfully minted 1,000 PUSD!");
-        setTxDigest(result.digest);
+        setTxDigest(result);
       }, 1000);
     } catch (err) {
       console.error("Mint Error:", err);

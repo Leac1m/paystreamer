@@ -138,4 +138,9 @@ All blockchain-interacting apps must have automated unit & E2E tests in localnet
    - Bypasses Chrome extension automation complexity while testing real dAppKit wallet connection and transaction signing flows.
    - The Burner Wallet (in `src/lib/persistentBurnerWallet.ts`) uses a deterministic secret key in `localStorage` (`paystreamer_burner_sk`).
    - Shadow DOM Web Components (`<mysten-dapp-kit-connect-modal>`) are interacted with via `page.evaluate()` shadow root element selection to ensure robust cross-browser click dispatching.
-   - Playwright is orchestrated inside `pnpm e2e` (`ci/e2e.sh`) to ensure localnet is seeded with test platforms before browser testing.
+   - Playwright is orchestrated inside `pnpm e2e` (`ci/e2e.sh`) to ensure localnet is seeded with test platforms before running browser testing across `apps/docs` and `apps/portal`.
+   - `apps/portal` Playwright test suite (`apps/portal/tests/e2e/user-flow.spec.ts`) covers the entire user lifecycle (burner wallet connection, PUSD minting, platform registration, tier management, subscription creation, and deposit/withdrawal flows).
+
+### Strict E2E Testing Rules (MANDATORY)
+**Before writing, modifying, or executing any E2E tests**, all agents MUST read and strictly adhere to the rules defined in [E2E_TESTING_RULES.md](./E2E_TESTING_RULES.md). 
+**Crucially, no test build or run is permitted to proceed without the agent first explicitly evaluating and confirming that the test is actually useful** (i.e., verifying it would fail if the application rendered a blank screen). Do not bypass this evaluation.

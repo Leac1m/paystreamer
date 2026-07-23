@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
+import { buildRegisterPlatformTx } from "@paystreamer/sdk/core";
 import {
   Modal,
   ModalContent,
@@ -66,15 +67,14 @@ export function RegisterPlatformModal({ open, onClose }: RegisterPlatformModalPr
 
     const tx = new Transaction();
 
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::register_platform`,
-      arguments: [
-        tx.pure.string(name),
-        tx.pure.string(description),
-        tx.pure.string(category),
-        tx.pure.option("string", iconUrl || null),
-        tx.object(CLOCK_OBJECT_ID),
-      ],
+    buildRegisterPlatformTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      clockId: CLOCK_OBJECT_ID,
+      name,
+      description,
+      category,
+      iconUrl
     });
 
     const toastId = generateToastId();

@@ -164,7 +164,7 @@ export function SubscriptionsPage() {
       ) : filteredSubscriptions.length === 0 ? (
         <Card>
           <CardContent className="p-6">
-            <NoSubscriptionsEmpty />
+            <NoSubscriptionsEmpty onBrowse={() => navigate("/explore")} />
           </CardContent>
         </Card>
       ) : (
