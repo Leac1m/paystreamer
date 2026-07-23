@@ -33,8 +33,8 @@ importers:
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.4.0)(react@19.2.7)
       '@paystreamer/sdk':
-        specifier: workspace:*
-        version: link:packages/sdk
+        specifier: ^0.2.0
+        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       '@protobuf-ts/grpc-transport':
         specifier: ^2.9.4
         version: 2.11.1(@grpc/grpc-js@1.14.4)
@@ -139,8 +139,8 @@ importers:
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.4.0)(react@19.2.7)
       '@paystreamer/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
+        specifier: ^0.2.0
+        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       '@protobuf-ts/grpc-transport':
         specifier: ^2.9.4
         version: 2.11.1(@grpc/grpc-js@1.14.4)
@@ -239,8 +239,8 @@ importers:
         specifier: ^2.19.0
         version: 2.22.0(typescript@5.9.3)
       '@paystreamer/sdk':
-        specifier: ^0.1.0
-        version: 0.1.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+        specifier: ^0.2.0
+        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.101.2(react@19.2.7)
@@ -327,8 +327,8 @@ importers:
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.4.0)(react@19.2.7)
       '@paystreamer/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
+        specifier: ^0.2.0
+        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       '@protobuf-ts/grpc-transport':
         specifier: ^2.9.4
         version: 2.11.1(@grpc/grpc-js@1.14.4)
@@ -1487,8 +1487,8 @@ packages:
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
 
-  '@paystreamer/sdk@0.1.0':
-    resolution: {integrity: sha512-TZxnjQqPIiZuewjcNjVYGzhp/6qHXaAv4nAU7p/b8ULW0c6aN5WyC0SgGEgbLOsxTsxFrUnO0zxDgWTAsEeR3A==}
+  '@paystreamer/sdk@0.2.0':
+    resolution: {integrity: sha512-Qt+8d7G9Px30Ig8HjNelvzll3TjnFv0IWItWPShHRJqns9eeeNKgoaz8xkrJFLbuyAXt8TJXOPBgRhgCVI6uLg==}
     peerDependencies:
       react: ^18.2.0 || ^19.0.0
       react-dom: ^18.2.0 || ^19.0.0
@@ -6697,7 +6697,7 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@paystreamer/sdk@0.1.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)':
+  '@paystreamer/sdk@0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)':
     dependencies:
       '@mysten/dapp-kit-react': 2.1.10(@mysten/sui@2.22.0(typescript@5.9.3))(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
       '@mysten/sui': 2.22.0(typescript@5.9.3)
