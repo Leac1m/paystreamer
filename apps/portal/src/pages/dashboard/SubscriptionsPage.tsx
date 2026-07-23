@@ -30,7 +30,7 @@ interface SubscriptionInfo {
   denomination: string;
 }
 
-import { queryAccountCreatedEvents, queryPlatformInitialVersions } from "../../lib/graphql";
+import {  queryAccountCreatedEvents, queryPlatformInitialVersions  } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function SubscriptionsPage() {
@@ -164,7 +164,7 @@ export function SubscriptionsPage() {
       ) : filteredSubscriptions.length === 0 ? (
         <Card>
           <CardContent className="p-6">
-            <NoSubscriptionsEmpty />
+            <NoSubscriptionsEmpty onBrowse={() => navigate("/explore")} />
           </CardContent>
         </Card>
       ) : (

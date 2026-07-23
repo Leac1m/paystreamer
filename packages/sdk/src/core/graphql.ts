@@ -136,6 +136,65 @@ export async function queryPlatform(platformId: string, network?: SupportedNetwo
   return data.object.asMoveObject.contents.json;
 }
 
+export async function queryMultiplePlatforms(platformIds: string[], network?: SupportedNetwork): Promise<Array<{ objectId: string, initialSharedVersion: number, json: any }>> {
+  if (platformIds.length === 0) return [];
+
+  const query = `
+    query GetPlatforms {
+      ${platformIds.map((id, index) => `
+        obj${index}: object(address: "${id}") {
+          address
+          owner {
+            ... on Shared {
+              initialSharedVersion
+            }
+          }
+          asMoveObject { contents { json } }
+        }
+      `).join("\\n")}
+    }
+  `;
+
+  const data = await executeQuery<Record<string, any>>(query, {}, network);
+  const objects = Object.values(data || {}).filter(Boolean) as any[];
+
+  return objects.map((obj: any) => {
+    const json = obj.asMoveObject?.contents?.json || {};
+    let parsedTiers = [];
+
+    if (json.tiers && Array.isArray(json.tiers)) {
+      parsedTiers = json.tiers;
+    } else if (json.tiers?.contents && Array.isArray(json.tiers.contents)) {
+      parsedTiers = json.tiers.contents.map((t: any) => {
+        const val = t.value || {};
+        let frequency = val.frequency || val.frequency_ms || "monthly";
+        
+        if (frequency === "86400000") frequency = "daily";
+        else if (frequency === "604800000") frequency = "weekly";
+        else if (frequency === "2592000000") frequency = "monthly";
+        else if (frequency === "31536000000") frequency = "yearly";
+
+        return {
+          name: val.name || "",
+          amount: val.amount || "0",
+          frequency,
+          subscriber_count: parseInt(val.subscriber_count || "0", 10),
+          is_active: val.is_active ?? true,
+        };
+      });
+    }
+
+    return {
+      objectId: obj.address,
+      initialSharedVersion: obj.owner?.initialSharedVersion ?? 0,
+      json: {
+        ...json,
+        tiers: parsedTiers,
+      },
+    };
+  });
+}
+
 export async function queryAccount(accountId: string, network?: SupportedNetwork): Promise<SubscriptionAccountObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: SubscriptionAccountObject } } } }>(
     `query GetAccount($id: SuiAddress!) {
@@ -149,19 +208,20 @@ export async function queryAccount(accountId: string, network?: SupportedNetwork
   return data.object.asMoveObject.contents.json;
 }
 
-export async function queryCoinTypeRegistry(registryId: string): Promise<CoinTypeRegistryObject> {
+export async function queryCoinTypeRegistry(registryId: string, network?: SupportedNetwork): Promise<CoinTypeRegistryObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: CoinTypeRegistryObject } } } }>(
     `query GetRegistry($id: SuiAddress!) {
       object(address: $id) {
         asMoveObject { contents { json } }
       }
     }`,
-    { id: registryId }
+    { id: registryId },
+    network
   );
   return data.object.asMoveObject.contents.json;
 }
 
-export async function queryPaymentScheduler(schedulerId: string): Promise<PaymentSchedulerObject> {
+export async function queryPaymentScheduler(schedulerId: string, network?: SupportedNetwork): Promise<PaymentSchedulerObject> {
   const data = await executeQuery<{ object: { asMoveObject: { contents: { json: PaymentSchedulerObject } }, owner: { initialSharedVersion: number } } }>(
     `query GetScheduler($id: SuiAddress!) {
       object(address: $id) {
@@ -169,7 +229,8 @@ export async function queryPaymentScheduler(schedulerId: string): Promise<Paymen
         owner { ... on Shared { initialSharedVersion } }
       }
     }`,
-    { id: schedulerId }
+    { id: schedulerId },
+    network
   );
   return {
     ...data.object.asMoveObject.contents.json,

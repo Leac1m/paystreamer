@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useQuery } from "@tanstack/react-query";
 import { useOwnedPlatforms } from "../lib/platformDiscovery";
-import { queryAccountCreatedEvents, queryRecentEventsByType } from "../lib/graphql";
+import {  queryAccountCreatedEvents, queryRecentEventsByType  } from "@paystreamer/sdk/core";
 import { useTxToast, generateToastId } from "../components/TxStatusToast";
 import { formatMistToPUSD } from "../lib/format";
 import { useAppConfig } from "../hooks/useAppConfig";

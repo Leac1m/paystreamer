@@ -21,8 +21,9 @@ import {
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
-} from "../../constants";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+} from "@paystreamer/sdk";
+import { buildPauseSubscriptionTx, buildResumeSubscriptionTx, buildCancelSubscriptionTx, buildProcessPaymentTx } from "@paystreamer/sdk/core";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SubscriptionCardProps {
@@ -114,15 +115,16 @@ export function SubscriptionCard({
 
     try {
       const tx = new Transaction();
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::billing::pause_subscription`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.object(capId),
-          tx.object(accountId),
-          tx.pure.id(platformId),
-          tx.object(CLOCK_OBJECT_ID),
-        ],
+      tx.setGasBudget(100_000_000);
+
+      buildPauseSubscriptionTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination,
+        accountId,
+        capId,
+        platformId,
       });
 
       const result = await executeSponsored(tx);
@@ -151,15 +153,16 @@ export function SubscriptionCard({
 
     try {
       const tx = new Transaction();
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::billing::resume_subscription`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.object(capId),
-          tx.object(accountId),
-          tx.pure.id(platformId),
-          tx.object(CLOCK_OBJECT_ID),
-        ],
+      tx.setGasBudget(100_000_000);
+
+      buildResumeSubscriptionTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination,
+        accountId,
+        capId,
+        platformId,
       });
 
       const result = await executeSponsored(tx);
@@ -188,15 +191,16 @@ export function SubscriptionCard({
 
     try {
       const tx = new Transaction();
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::billing::cancel_subscription`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.object(capId),
-          tx.object(accountId),
-          tx.pure.id(platformId),
-          tx.object(CLOCK_OBJECT_ID),
-        ],
+      tx.setGasBudget(100_000_000);
+
+      buildCancelSubscriptionTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination,
+        accountId,
+        capId,
+        platformId,
       });
 
       const result = await executeSponsored(tx);
@@ -231,33 +235,18 @@ export function SubscriptionCard({
 
     try {
       const tx = new Transaction();
-      const limiters = tx.moveCall({
-        target: `${config.PACKAGE_ID}::policies::empty_limiters`,
-        arguments: [tx.object(CLOCK_OBJECT_ID)],
-      });
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::policies::ensure_initialized`,
-        typeArguments: [denomination],
-        arguments: [tx.object(accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
-      });
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::scheduler::process_due_payment`,
-        typeArguments: [denomination],
-        arguments: [
-          tx.sharedObjectRef({
-            objectId: PAYMENT_SCHEDULER_ID,
-            initialSharedVersion: PAYMENT_SCHEDULER_INIT_VERSION,
-            mutable: true,
-          }),
-          tx.sharedObjectRef({
-            objectId: platformId,
-            initialSharedVersion: platformInitVersion,
-            mutable: true,
-          }),
-          tx.object(accountId),
-          limiters,
-          tx.object(CLOCK_OBJECT_ID),
-        ],
+      tx.setGasBudget(100_000_000);
+
+      buildProcessPaymentTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination,
+        accountId,
+        platformId,
+        platformInitVersion,
+        schedulerId: PAYMENT_SCHEDULER_ID,
+        schedulerInitVersion: PAYMENT_SCHEDULER_INIT_VERSION,
       });
 
       let digest: string | undefined;

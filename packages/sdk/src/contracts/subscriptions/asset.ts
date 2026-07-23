@@ -12,20 +12,19 @@
  *     denominated in. It carries a `TypeName` of `T` for cheap registry lookups,
  *     but is otherwise a phantom-tag: the actual funds live in a
  *     `BalanceContainer<T>`, not in the `Asset<T>` itself.
- * 2.  `BalanceContainer<T>` — a tagged union of balance implementations. v2 ships
- *     only variant 0, a public `Balance<T>`. A future variant 1 (confidential
- *     `TokenAccount<T>` reference) lives in `extensions::confidential` and is
- *     purely additive: a fresh enum discriminant, a fresh constructor, and an
- *     implementation of the same 4-method interface. Core is unchanged.
+ * 2.  `BalanceContainer<T>` — a tagged union of balance implementations.
+ *     (confidential `TokenAccount<T>` reference) lives in
+ *     `extensions::confidential` and is purely additive: a fresh enum
+ *     discriminant, a fresh constructor, and an implementation of the same
+ *     4-method interface. Core is unchanged.
  * 
  * The 4-method interface — `view_value`, `try_withdraw`, `deposit`,
  * `is_denied_for` — is the only public surface for accessing the underlying
  * balance. `account.move`, `billing.move`, and `payment.move` call these functions
  * and never touch `Balance<T>` directly.
  * 
- * Per the v2 architecture doc (§5.1, §6.3, §7.5): core is asset-agnostic. When Sui
- * confidential transfers stabilize on mainnet, the CT path is added as a new
- * variant in `extensions/confidential.move` and the contract gains a new asset
+ * When Sui confidential transfers stabilize on mainnet, the CT path is added as a
+ * new variant in `extensions/confidential.move` and the contract gains a new asset
  * class without touching `account`, `billing`, `policies`, or `payment`.
  */
 
@@ -39,14 +38,12 @@ export const Asset = new MoveStruct({ name: `${$moduleName}::Asset<phantom T>`, 
         tag: type_name.TypeName
     } });
 export const BalanceContainer = new MoveStruct({ name: `${$moduleName}::BalanceContainer<phantom T>`, fields: {
-        /** Discriminant: 0 = public balance (v2), 1 = confidential (later). */
         variant: bcs.u8(),
         /**
          * Variant 0: the live public `Balance<T>`. Storing the actual `Balance<T>` (rather
-         * than a serialized `vector<u8>` encoding) preserves `Balance`'s special abilities
-         * and avoids a serialize/deserialize round-trip on every operation. A future
-         * variant 1 would leave this empty and use `extension_bytes` for its own opaque
-         * state.
+         * than a serialized `vector<u8>` encoding) serialize/deserialize round-trip on
+         * every operation. A future variant 1 would leave this empty and use
+         * `extension_bytes` for its own opaque state.
          */
         public_balance: balance.Balance,
         /** Reserved for the future confidential extension (variant 1). Empty for variant 0. */
@@ -145,8 +142,7 @@ export interface VariantOptions {
     ];
 }
 /**
- * Variant discriminant of the container. Variant 0 = public balance (v2); future
- * variants (1, …) are confidential.
+ * Variant discriminant of the container. Variant 0 = public balance
  *
  * Role: any caller (read-only view).
  */
@@ -178,9 +174,8 @@ export interface ViewValueOptions {
 }
 /**
  * Read the current headroom in the smallest unit of `T`. For public balances, this
- * is the live `balance::value` of the stored `Balance<T>`. The `clock` argument is
- * unused in v2; it is part of the fixed interface so the confidential extension
- * can consult deny-list timing without changing callers.
+ * is the live `balance::value` of the part of the fixed interface so the
+ * confidential extension can consult deny-list timing without changing callers.
  *
  * #### Aborts
  *
@@ -299,8 +294,7 @@ export interface IsDeniedForOptions {
  * Deny-list query. For public balances there is no on-chain deny-list hook; this
  * always returns `false`. The confidential extension will override semantics here,
  * consulting its issuer's auditor / freeze list. The address parameter is the
- * would-be recipient or sender; in v2 we accept it and ignore it so the interface
- * is fixed across variants.
+ * would-be recipient or sender; variants.
  */
 export function isDeniedFor(options: IsDeniedForOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';

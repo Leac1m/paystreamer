@@ -5,7 +5,7 @@ import {
   SUBSCRIPTION_TESTNET_PACKAGE_ID,
   SUBSCRIPTION_MAINNET_PACKAGE_ID,
   NETWORK,
-} from "./constants.ts";
+} from "@paystreamer/sdk";
 import { createPersistentBurnerWalletInitializer } from "./lib/persistentBurnerWallet.ts";
 
 const GRPC_URLS = {

@@ -36,7 +36,8 @@ import type { WalletInitializer } from '@mysten/dapp-kit-core';
 const STORAGE_KEY = 'paystreamer_burner_sk';
 
 function getChain(network: string): IdentifierString {
-	return `sui:${network}` as IdentifierString;
+	const normalized = network === 'localnet' ? 'local' : network;
+	return `sui:${normalized}` as IdentifierString;
 }
 
 function loadOrCreateKeypair(): Ed25519Keypair {

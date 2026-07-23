@@ -6,9 +6,8 @@
 /**
  * `subscriptions::scheduler` — the on-chain, permissionless payment scheduler.
  * 
- * Per architecture §5.6, §6.9, §7.3: the scheduler is the single entry point that
- * lets **anyone** trigger a due payment. The off-chain indexer that previously
- * signed payments with `SCHEDULER_SECRET` (v1) is gone; v2's indexer is read-only.
+ * entry point that lets **anyone** trigger a due payment. The off-chain indexer
+ * that previously signed payments with
  * 
  * ## Authority model
  * 
@@ -17,15 +16,12 @@
  * per-subscription schedule — both enforced downstream in
  * `payment::process_due_payment`.
  * 
- * The platform's role check is **deferred to a future hardening pass** (the role
- * is declared in `access_control.move` but the per-Platform `AccessControl<AC>` is
- * not yet wired in; see `account.move` and `platform.move` for the bootstrap admin
- * pattern).
+ * The platform's role check is **deferred to a future hardening see `account.move`
+ * and `platform.move` for the bootstrap admin pattern).
  * 
  * ## Error code range
  * 
- * 0x0A\_\_ per the project convention; see `account.move`, `payment.move`, and
- * `platform.move` for sibling ranges.
+ * `payment.move`, and `platform.move` for sibling ranges.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -73,8 +69,6 @@ export interface ProcessDuePaymentOptions {
  * Permissionless entry point. Anyone can call this; the function is gated by the
  * downstream checks in `payment::process_due_payment` (schedule, amount,
  * per-platform rate limiters, per-account policy eval).
- *
- * Steps (architecture §6.9):
  *
  * 1. Delegate to `payment::process_due_payment` (which runs the address-balance
  *    payment flow).

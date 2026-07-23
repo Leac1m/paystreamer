@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { SupportedNetwork } from "../constants";
-import { getGraphQLClient, queryPlatformsByOwner } from "./graphql";
+import {  SupportedNetwork  } from "@paystreamer/sdk";
+import { getGraphQLClient, queryPlatformsByOwner } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../hooks/useAppConfig";
 
 const E2E_TEST_NAME_PREFIX = "PayStreamer E2E";
@@ -111,7 +111,7 @@ export function useOwnedPlatforms(walletAddress: string | null) {
 }
 
 export async function discoverAllPlatforms(network?: SupportedNetwork): Promise<PlatformObject[]> {
-  const events = await import("./graphql").then((m) => m.queryPlatformRegisteredEvents(network));
+  const events = await import("@paystreamer/sdk/core").then((m) => m.queryPlatformRegisteredEvents(network));
   const platformIds = Array.from(
     new Set(events.map((e) => e.platform_id).filter(Boolean))
   );

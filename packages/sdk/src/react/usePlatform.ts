@@ -9,7 +9,7 @@ export interface PlatformTier {
   is_active: boolean;
 }
 
-export interface PlatformObject {
+export interface PlatformWithTiers {
   id: string;
   owner: string;
   name: string;
@@ -48,7 +48,7 @@ export function usePlatform(platformId: string | undefined) {
             }
           ],
           initialSharedVersion: 1
-        } as PlatformObject & { initialSharedVersion: number };
+        } as PlatformWithTiers & { initialSharedVersion: number };
       }
       
       if (!config.graphqlClient) {
@@ -89,7 +89,7 @@ export function usePlatform(platformId: string | undefined) {
       return {
         ...data.object.asMoveObject.contents.json,
         initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
-      } as PlatformObject & { initialSharedVersion: number };
+      } as PlatformWithTiers & { initialSharedVersion: number };
     },
     enabled: !!platformId,
   });

@@ -9,8 +9,7 @@ import { join } from 'path';
 import { PayStreamerProvider, usePlatform, useUserAccount } from '../src/react';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// @ts-ignore
-import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
+import { NETWORK_CONFIGS, NETWORK } from "../src/constants";
 
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
 import { useCurrentNetwork, useDAppKit } from "@mysten/dapp-kit-react";
-import { SUBSCRIPTION_MAINNET_PACKAGE_ID } from "../constants";
+import {  SUBSCRIPTION_MAINNET_PACKAGE_ID  } from "@paystreamer/sdk";
 import { cn } from "../lib/utils";
 
 type SupportedNetwork = "mainnet" | "testnet" | "devnet";

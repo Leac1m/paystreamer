@@ -4,41 +4,23 @@
 
 
 /**
- * `SubscriptionAccount<T>` — the core user-facing object in PayStreamer v2.
+ * This module owns: declared here with the full field set; `billing.move` augments
+ * with mutators and event emissions without redefining the type). 2. The
+ * `PolicySet` value type (same pattern; `policies.move` augments with evaluation,
+ * two-pass consume, and event emissions). 3. The `AccountStatus` lifecycle enum
+ * (active / paused / closed). 4. The shared `SubscriptionAccount<T>` object plus
+ * its discovery handle `AccountCap`.
  * 
- * This module owns:
+ * (bitfield authority). `init`, so per-account ACs are infeasible (and unnecessary
+ * — see Role checks in this module therefore consult `has_permission(cap, perm)`
+ * against the bitfield on the cap, not an embedded AC.
  * 
- * 1.  The `SubscriptionV1` value type (per Option C in the design notes: declared
- *     here with the full field set; `billing.move` augments with mutators and
- *     event emissions without redefining the type).
- * 2.  The `PolicySet` value type (same pattern; `policies.move` augments with
- *     evaluation, two-pass consume, and event emissions).
- * 3.  The `AccountStatus` lifecycle enum (active / paused / closed).
- * 4.  The shared `SubscriptionAccount<T>` object plus its discovery handle
- *     `AccountCap`.
- * 
- * ## Authority model (architecture §7.1)
- * 
- * The v2 authority model is `AccountCap` (discovery) + `AccountCap.permissions`
- * (bitfield authority). There is no embedded `AccessControl<AC>` per account: the
- * OZ `AccessControl` consumes its OTW exactly once at `init`, so per-account ACs
- * are infeasible (and unnecessary — see `access_control.move`). Role checks in
- * this module therefore consult `has_permission(cap, perm)` against the bitfield
- * on the cap, not an embedded AC.
- * 
- * Per the v2 design doc (§5.2, §6.4, §7.7), this module:
- * 
- * - holds a `VecMap<ID, SubscriptionV1>` per the project rules (CLAUDE.md:
- *   subscriptions remain embedded, not standalone objects);
- * - cascades `pause_account` to all active subscriptions (BUG FIX #8);
  * - emits `v: u16 = 2` on every event for indexer discrimination.
  * 
  * ## Build-order note
  * 
- * `SubscriptionV1` and `PolicySet` are declared here per Option C of the design
- * notes. Downstream `billing.move` and `policies.move` add behavior (mutators,
- * event emissions, evaluation) without redefining the types. The v1 module was the
- * style reference for header, imports, and sectioning.
+ * design notes. Downstream `billing.move` and `policies.move` add behavior
+ * (mutators, event emissions, evaluation) without redefining
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -47,7 +29,7 @@ import { type Transaction, type TransactionArgument } from '@mysten/sui/transact
 import * as balance_1 from './deps/sui/balance.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/subscriptions::account';
-export const SubscriptionV1 = new MoveStruct({ name: `${$moduleName}::SubscriptionV1`, fields: {
+export const Subscription = new MoveStruct({ name: `${$moduleName}::Subscription`, fields: {
         platform_id: bcs.Address,
         tier_index: bcs.u64(),
         tier_amount: bcs.u64(),
@@ -85,12 +67,8 @@ export const SubscriptionAccount = new MoveStruct({ name: `${$moduleName}::Subsc
          * payments are processed.
          */
         balance: balance_1.Balance,
-        /**
-         * Per-platform subscriptions, keyed by `platform_id`. The project rules
-         * (CLAUDE.md) keep them embedded; the wrapper type `SubscriptionV1` enables
-         * in-place upgrade to V2.
-         */
-        subscriptions: vec_map.VecMap(bcs.Address, SubscriptionV1),
+        /** Per-platform subscriptions, keyed by `platform_id`. The */
+        subscriptions: vec_map.VecMap(bcs.Address, Subscription),
         /** Policy set. Replaced wholesale via `update_policies`. */
         policies: PolicySet,
         /** Lifecycle status. Pause cascades to subscriptions; close is terminal. */
@@ -137,7 +115,7 @@ export const PoliciesUpdated = new MoveStruct({ name: `${$moduleName}::PoliciesU
         new_policies: PolicySet,
         v: bcs.u16()
     } });
-export interface NewSubscriptionV1Arguments {
+export interface NewSubscriptionArguments {
     platformId: RawTransactionArgument<string>;
     tierIndex: RawTransactionArgument<number | bigint>;
     tierAmount: RawTransactionArgument<number | bigint>;
@@ -155,9 +133,9 @@ export interface NewSubscriptionV1Arguments {
     createdAt: RawTransactionArgument<number | bigint>;
     updatedAt: RawTransactionArgument<number | bigint>;
 }
-export interface NewSubscriptionV1Options {
+export interface NewSubscriptionOptions {
     package?: string;
-    arguments: NewSubscriptionV1Arguments | [
+    arguments: NewSubscriptionArguments | [
         platformId: RawTransactionArgument<string>,
         tierIndex: RawTransactionArgument<number | bigint>,
         tierAmount: RawTransactionArgument<number | bigint>,
@@ -177,13 +155,12 @@ export interface NewSubscriptionV1Options {
     ];
 }
 /**
- * Build a fresh `SubscriptionV1`. The account-module owner holds the canonical
- * constructor; `billing.move` will expose higher-level
+ * canonical constructor; `billing.move` will expose higher-level
  * `create_subscription(account, ...)` that calls this. Time fields are
  * caller-supplied (use `clock.timestamp_ms()`) so the constructor remains pure and
  * testable.
  */
-export function newSubscriptionV1(options: NewSubscriptionV1Options) {
+export function newSubscription(options: NewSubscriptionOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         '0x2::object::ID',
@@ -207,7 +184,7 @@ export function newSubscriptionV1(options: NewSubscriptionV1Options) {
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
-        function: 'new_subscription_v1',
+        function: 'new_subscription',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
@@ -654,8 +631,8 @@ export interface EmptyPolicySetOptions {
     ];
 }
 /**
- * Empty (no-cap) `PolicySet`. Equivalent to the v1 "effectively unlimited"
- * defaults and a safe starting point for new accounts. Role: any caller.
+ * unlimited" defaults and a safe starting point for new accounts. Role: any
+ * caller.
  */
 export function emptyPolicySet(options: EmptyPolicySetOptions = {}) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -928,11 +905,13 @@ export function isClosed(options: IsClosedOptions) {
 }
 export interface CreateAccountArguments {
     Registry: RawTransactionArgument<string>;
+    policies: TransactionArgument;
 }
 export interface CreateAccountOptions {
     package?: string;
     arguments: CreateAccountArguments | [
-        Registry: RawTransactionArgument<string>
+        Registry: RawTransactionArgument<string>,
+        policies: TransactionArgument
     ];
     typeArguments: [
         string
@@ -941,8 +920,7 @@ export interface CreateAccountOptions {
 /**
  * Create a new `SubscriptionAccount<T>` and mint a fresh `AccountCap` with the
  * OWNER permission bit set. The coin `T` must be registered in the
- * `CoinTypeRegistry`; the `AccountType` is resolved at creation time and stored in
- * the account (BUG FIX #3).
+ * `CoinTypeRegistry`; the `AccountType` is resolved at
  *
  * Returns the account and cap by value. The caller (PTB) is responsible for
  * `share_account` to share the account and transfer the cap to the appropriate
@@ -959,9 +937,10 @@ export function createAccount(options: CreateAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
+        null,
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["Registry"];
+    const parameterNames = ["Registry", "policies"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
@@ -1117,8 +1096,8 @@ export interface PauseAccountOptions {
     ];
 }
 /**
- * Pause the account. Cascades to all active subscriptions (sets each `status == 0`
- * to `status == 1`, BUG FIX #8). The cap must hold the OWNER permission.
+ * Pause the account. Cascades to all active subscriptions cap must hold the OWNER
+ * permission.
  *
  * #### Aborts
  *
@@ -1158,8 +1137,7 @@ export interface ResumeAccountOptions {
 }
 /**
  * Resume the account. Does NOT auto-resume subscriptions — the user must call
- * `billing::resume_subscription` per platform to prevent surprise billing (design
- * §7.7). The cap must hold the OWNER permission.
+ * `billing::resume_subscription` per platform to the OWNER permission.
  *
  * #### Aborts
  *

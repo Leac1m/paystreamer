@@ -4,28 +4,17 @@
 
 
 /**
- * `Platform` — the v2 platform registry: shared platform object, tier definitions,
- * treasury timelock, per-platform rate limiters, and `subscriber_count`
- * bookkeeping.
+ * definitions, treasury timelock, per-platform rate limiters, and
+ * `subscriber_count` bookkeeping.
  * 
- * Per architecture §5.5, §6.7: `Platform` is a SHARED object so any caller can
- * read it; mutating functions (`update_platform`, tier management, treasury
- * changes) require the platform owner. v2 does **not** mint a separate
- * `PlatformOwnerCap` (v1 did; v2 simplifies): the owner is the address captured at
- * `register_platform` time and stored in the `Platform.owner` field. The v2 auth
- * model is a **bootstrap `admin_address` style check** — mirroring
- * `subscriptions::registry` — with a doc comment noting the future hardening pass
- * to OZ `Auth<PLATFORM_ADMIN_ROLE>` (see §6.2).
- * 
- * ## Authority model (architecture §7.2, §6.7)
+ * caller can read it; mutating functions (`update_platform`, tier the owner is the
+ * address captured at `register_platform` time and **bootstrap `admin_address`
+ * style check** — mirroring `subscriptions::registry` — with a doc comment noting
+ * the future the bootstrap admin pattern.
  * 
  * The platform is identified by `Platform.owner: address` (set at
  * `register_platform` to `ctx.sender()`). Mutating functions assert
- * `ctx.sender() == platform.owner`. A future hardening pass will replace this with
- * an embedded `AccessControl<AC>` and OZ `Auth<PLATFORM_ADMIN_ROLE>` (one role per
- * module, OZ invariant).
- * 
- * ## Three rate limiters (architecture §6.7 step 7)
+ * `ctx.sender() == platform.owner`. A future hardening pass will
  * 
  * 1.  `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total withdrawal volume
  *     per 30-day window.
@@ -38,13 +27,9 @@
  * observes `try_consume`'s all-or-nothing semantics (failure leaves persisted
  * state untouched).
  * 
- * ## Treasury timelock (architecture §7.8, §6.7)
- * 
  * Two-step `propose_treasury_change(new_addr)` →
- * `accept_treasury_change(platform, clock)` (48h timelock) pattern, same shape as
- * the OZ root-role transfer. Closes the v1 treasury-hijack gap.
- * 
- * ## `subscriber_count` (BUG FIX #6)
+ * `accept_treasury_change(platform, clock)` (48h timelock) pattern,
+ * treasury-hijack gap.
  * 
  * Maintained by `increment_subscriber_count` / `decrement_subscriber_count` (both
  * `public(package)`). The only expected caller is `billing.move` on
@@ -52,12 +37,11 @@
  * 
  * ## Build-order note
  * 
- * `SubscriptionTier` is declared here (the v1 spec lives in this module; no other
- * module needs the type). `billing.move` consumes `tier_amount` and
- * `tier_frequency_ms` via the accessors exposed below. Per the v1 style
- * (`platform_registry.move`), the tier is a value type (`store + copy + drop`)
- * embedded in the platform's `VecMap<u64, SubscriptionTier>` keyed by `tier_index`
- * (sequential) so the index is stable across deactivations.
+ * module; no other module needs the type). `billing.move` consumes `tier_amount`
+ * and `tier_frequency_ms` via the accessors exposed value type
+ * (`store + copy + drop`) embedded in the platform's
+ * `VecMap<u64, SubscriptionTier>` keyed by `tier_index` (sequential) so the index
+ * is stable across deactivations.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -97,13 +81,9 @@ export const Platform = new MoveStruct({ name: `${$moduleName}::Platform`, field
         category: bcs.string(),
         /** Optional webhook URL for off-chain notifications. */
         webhook_url: bcs.option(bcs.string()),
-        /**
-         * Verified-platform flag. Flipped by a future moderation extension; v2 ships the
-         * field only.
-         */
+        /** Verified-platform flag. Flipped by a future moderation */
         is_verified: bcs.bool(),
         /**
-         * BUG FIX #6: actually maintained by `increment_subscriber_count` /
          * `decrement_subscriber_count`. Off-chain indexers can use this directly for
          * discovery / leaderboards.
          */
@@ -427,10 +407,8 @@ export interface RegisterPlatformOptions {
  * treasury. The platform is shared so any caller can read it; mutating functions
  * require the owner.
  *
- * The three rate limiters (`volume_limiter`, `frequency_limiter`,
- * `account_billing_limiter`) are created with the v2 defaults documented in the
- * spec. Off-chain indexers can read the limiter state via `volume_limiter(p)` /
- * `frequency_limiter(p)` / `account_billing_limiter(p)`.
+ * The three rate limiters (`volume_limiter`, `frequency_limiter`, limiter state
+ * via `volume_limiter(p)` / `frequency_limiter(p)` / `account_billing_limiter(p)`.
  *
  * Returns the new `Platform`'s `ID` for caller convenience. The `Platform` itself
  * is shared in this function (no separate transfer call needed).
@@ -618,9 +596,9 @@ export interface DeactivateTierByIndexOptions {
     ];
 }
 /**
- * Deactivate a tier by index. The slot remains in the map (so historical
- * `SubscriptionV1.tier_index` references keep pointing at the right place), but
- * `is_active` flips to `false` and `payment.move` will reject it.
+ * Deactivate a tier by index. The slot remains in the map (so pointing at the
+ * right place), but `is_active` flips to `false` and `payment.move` will reject
+ * it.
  *
  * Caller must be the platform owner. Emits `TierDeactivated`.
  *
@@ -1051,10 +1029,7 @@ export interface SubscriberCountOptions {
         p: RawTransactionArgument<string>
     ];
 }
-/**
- * Lifetime subscriber count (BUG FIX #6: actually maintained). Role: any caller
- * (read-only view).
- */
+/** Role: any caller (read-only view). */
 export function subscriberCount(options: SubscriberCountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [

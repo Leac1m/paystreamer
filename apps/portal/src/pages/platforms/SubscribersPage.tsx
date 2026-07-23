@@ -2,7 +2,7 @@ import { useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PlatformObject } from "../../lib/platformDiscovery";
 import { SubscriberTable } from "../../components/platform/SubscriberTable";
-import { querySubscriptionCreatedEventsByPlatform, queryPaymentProcessedEvents } from "../../lib/graphql";
+import {  querySubscriptionCreatedEventsByPlatform, queryPaymentProcessedEvents  } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 export function SubscribersPage() {

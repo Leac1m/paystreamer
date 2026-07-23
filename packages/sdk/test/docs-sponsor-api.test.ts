@@ -14,6 +14,8 @@ vi.mock('@mysten/sui/graphql', () => {
       return {
         listCoins: mockListCoins,
         executeTransaction: mockExecuteTransaction,
+        getChainIdentifier: vi.fn().mockResolvedValue('2udHrxzeBniyA3F1wUTYhHs6f2JDwivJvAfqjJ2m63hg'),
+        getRawReferenceGasPrice: vi.fn().mockResolvedValue(1000n),
       };
     },
   };
@@ -57,6 +59,7 @@ describe('Docs Sponsor API Endpoints', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SPONSOR_PRIVATE_KEY = 'suiprivkey1qrhc5vekj8h344caqgj752ur72rq2d2w67kdq98qk36s66q4usuhx7q9sep';
   });
 
   afterEach(() => {
@@ -88,17 +91,18 @@ describe('Docs Sponsor API Endpoints', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Missing or invalid "userAddress" field' });
     });
 
-    it('should return 500 if SPONSOR_ADDRESS is not configured', async () => {
-      delete process.env.SPONSOR_ADDRESS;
+    it('should return 500 if SPONSOR_PRIVATE_KEY is not configured', async () => {
+      delete process.env.SPONSOR_PRIVATE_KEY;
+      delete process.env.E2E_PRIVATE_KEY;
       const req = mockRequest('POST', { transaction: '{}', userAddress: VALID_USER_ADDRESS });
       const res = mockResponse();
       await prepareHandler(req, res);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'SPONSOR_ADDRESS environment variable is not configured' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'SPONSOR_PRIVATE_KEY environment variable is not configured' });
     });
 
     it('should return 400 if sponsor has no gas coins', async () => {
-      process.env.SPONSOR_ADDRESS = VALID_SPONSOR_ADDRESS;
+      process.env.SPONSOR_PRIVATE_KEY = 'suiprivkey1qrhc5vekj8h344caqgj752ur72rq2d2w67kdq98qk36s66q4usuhx7q9sep';
       mockListCoins.mockResolvedValueOnce({ objects: [] });
 
       const req = mockRequest('POST', { transaction: '{}', userAddress: VALID_USER_ADDRESS });
@@ -109,7 +113,7 @@ describe('Docs Sponsor API Endpoints', () => {
     });
 
     it('should successfully prepare and build transaction', async () => {
-      process.env.SPONSOR_ADDRESS = VALID_SPONSOR_ADDRESS;
+      process.env.SPONSOR_PRIVATE_KEY = 'suiprivkey1qrhc5vekj8h344caqgj752ur72rq2d2w67kdq98qk36s66q4usuhx7q9sep';
       mockListCoins.mockResolvedValueOnce({
         objects: [
           {

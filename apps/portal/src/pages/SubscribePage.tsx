@@ -13,8 +13,8 @@ import { Badge } from "@paystreamer/sdk";
 import NavBar from "../components/NavBar";
 
 import { SetupSubscriptionModal } from "../components/subscriptions/SetupSubscriptionModal";
-import { queryAccountCreatedEvents, queryAccount, queryCoins, queryPlatform } from "../lib/graphql";
-import { DEMO_PLATFORM_ID, PUSD_TYPE_ARG } from "../constants";
+import {  queryAccountCreatedEvents, queryAccount, queryCoins, queryPlatform  } from "@paystreamer/sdk/core";
+import {  DEMO_PLATFORM_ID, PUSD_TYPE_ARG  } from "@paystreamer/sdk";
 import { formatMistToPUSD, APP_COIN_DECIMALS, formatFrequency, getFrequencyMs } from "../lib/format";
 import { useAppConfig } from "../hooks/useAppConfig";
 

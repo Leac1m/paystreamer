@@ -4,17 +4,13 @@
 
 
 /**
- * `subscriptions::payment` — the single money-moving path for v2.
- * 
- * Per architecture §6.8 (with the per-Platform AC seam deferred to a future
- * hardening pass, see `access_control.move`): `process_due_payment` is the
- * **only** function in the v2 contract that withdraws user funds. It is called by
- * `scheduler.move` (the permissionless on-chain entry point) after the global
- * circuit breaker, the global pause flag, and the platform's
- * `PLATFORM_SCHEDULER_ROLE` grant have been checked upstream. The function then
- * verifies the per-subscription schedule, runs the per-platform rate limiters,
- * performs the two-pass policy evaluation, and uses the address-balance model to
- * transfer funds directly from the subscriber's address to the platform treasury.
+ * `process_due_payment` funds. It is called by `scheduler.move` (the
+ * permissionless on-chain entry point) after the global circuit breaker, the
+ * global pause flag, and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been
+ * checked upstream. The function then verifies the per-subscription schedule, runs
+ * the per-platform rate limiters, performs the two-pass policy evaluation, and
+ * uses the address-balance model to transfer funds directly from the subscriber's
+ * address to the platform treasury.
  * 
  * ## Address-balance payment flow
  * 
@@ -26,8 +22,7 @@
  * 
  * ## Error code range
  * 
- * 0x09\_\_ per the project convention; see `account.move` and `billing.move` for
- * sibling ranges.
+ * `billing.move` for sibling ranges.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -75,22 +70,19 @@ export interface ProcessDuePaymentOptions {
  * the account's balance and sends to treasury. This is a transitional model until
  * address-balance APIs become public.
  *
- * Steps (per design §6.8, scoped to the checks this function owns; the scheduler
- * owns steps 1, 2, 4, 6):
+ * owns; the scheduler owns steps 1, 2, 4, 6):
  *
- * 1. Verify `can_bill` (subscription is active and due)
- * 2. Read `sub.tier_amount` (BUG FIX #5: tier amount is the billed amount, not a
+ * 1. Verify `can_bill` (subscription is active and due) billed amount, not a
  *    caller-supplied value)
- * 3. Check the platform's three rate limiters (`volume`, `frequency`,
+ * 2. Check the platform's three rate limiters (`volume`, `frequency`,
  *    `account_billing`)
- * 4. Two-pass policy evaluation against the account's `PolicySet` and live
+ * 3. Two-pass policy evaluation against the account's `PolicySet` and live
  *    `PolicyLimiters`
- * 5. Withdraw from account's stored balance
- * 6. Send to treasury via `sui::coin::send_funds`
- * 7. `record_payment` on the subscription (advances schedule, bumps the
- *    per-subscription nonce) and `bump_nonce` on the account (bumps the
- *    per-account replay nonce; design §6.8 step 10)
- * 8. Emit `PaymentProcessed` with the policy results
+ * 4. Withdraw from account's stored balance
+ * 5. Send to treasury via `sui::coin::send_funds`
+ * 6. `record_payment` on the subscription (advances schedule, bumps the
+ *    per-subscription nonce) and `bump_nonce` on the step 10)
+ * 7. Emit `PaymentProcessed` with the policy results
  *
  * On a policy violation, `record_failed_payment` is called so the subscription's
  * retry state (attempt_count, last_attempt_time) is correctly stamped for the next

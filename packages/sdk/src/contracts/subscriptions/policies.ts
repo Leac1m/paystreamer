@@ -11,20 +11,17 @@
  * 
  * A naive evaluator that called `rate_limiter::consume_or_abort` (or
  * `try_consume`) at every check would burn tokens from a `Bucket`-shaped limiter
- * on the first failing check, even though no payment actually occurred. The v2
- * design doc fixes this (architecture §5.4, §6.6, §7.4):
+ * on the first failing check, even though no payment actually
  * 
  * 1.  **Project, do not mutate.** For each policy dimension, call the read-only
  *     `rate_limiter::available(clock)` projection. Compare against the requested
- *     amount. Build `vector<PolicyFailure>` with the specific reason and the
- *     headroom the limiter would have given.
+ *     amount. Build `vector<PolicyFailure>` with
  * 2.  **Consume on success.** Only when `failures.is_empty()`, call
  *     `rate_limiter::consume_or_abort` in a sweep. The persisted limiter state is
  *     unchanged on failure.
  * 
- * The two-pass discipline is the bug fix from the v2 proposal: a failed `evaluate`
- * must NOT burn tokens. The `test_evaluate_failed_does_not_burn_tokens` test pins
- * this behavior.
+ * `evaluate` must NOT burn tokens. The `test_evaluate_failed_does_not_burn_tokens`
+ * test pins this behavior.
  * 
  * ## Architecture mapping
  * 
@@ -50,8 +47,7 @@
  * `evaluate` is the only mutating function. `empty_limiters`,
  * `ensure_initialized`, and the accessors are the read/build surface.
  * 
- * Per the v2 architecture doc (§6.6): events for the eval result live in
- * `payment.move` (which calls `evaluate` and emits `PaymentProcessed` with the
+ * in `payment.move` (which calls `evaluate` and emits `PaymentProcessed` with the
  * full `vector<PolicyFailure>` for indexer discrimination). This module emits no
  * events of its own.
  */
@@ -130,11 +126,10 @@ export interface EnsureInitializedOptions {
  * `PolicySet` is the source of truth at the time this function is called. The
  * function is idempotent in the sense that calling it again with the same
  * `PolicySet` produces limiters with the same caps; a future hardening pass may
- * add "skip if unchanged" optimization, but for v2 every call rebuilds.
+ * add rebuilds.
  *
- * Per the v2 design doc (§6.6), this function also anchors the `FixedWindow` to
- * `now` — the new monthly window starts at the call time. This is the
- * OZ-recommended pattern for rate changes (see the rate_limiter module docs,
+ * `FixedWindow` to `now` — the new monthly window starts at the call time. This is
+ * the OZ-recommended pattern for rate changes (see the rate_limiter module docs,
  * "Reconfiguration": any change to the rate must re-anchor to
  * `clock.timestamp_ms()` so the new rate only applies going forward).
  */
@@ -354,8 +349,8 @@ export interface EvaluateOptions {
  * underflow when `current_balance < min_balance`.
  *
  * **Pass 2 — consume on success.** If and only if the failure vector is empty,
- * call `rate_limiter::consume_or_abort` on each non-zero cap. This is the bug fix
- * from the v2 proposal: a failed evaluate must NOT burn tokens.
+ * call `rate_limiter::consume_or_abort` on each failed evaluate must NOT burn
+ * tokens.
  *
  * Returns `(allowed, failures)`. The caller (typically `payment.move`) is
  * responsible for asserting `allowed` before proceeding to the money-moving path.

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
-import { queryPaymentScheduler } from "../../lib/graphql";
+import {  queryPaymentScheduler  } from "@paystreamer/sdk/core";
 import { SchedulerControls } from "../../components/platform/SchedulerControls";
-import { PAYMENT_SCHEDULER_ID } from "../../constants";
+import {  PAYMENT_SCHEDULER_ID  } from "@paystreamer/sdk";
 
 export function SchedulerPage() {
   const { data: scheduler, isPending: schedulerPending } = useQuery({

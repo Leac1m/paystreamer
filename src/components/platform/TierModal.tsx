@@ -13,7 +13,7 @@ import {
 } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import {  PUSD_TYPE_ARG } from "../../constants";
+import {   PUSD_TYPE_ARG  } from "@paystreamer/sdk";
 import { getErrorMessage } from "../../lib/errors";
 import { useTxToast, generateToastId } from "../TxStatusToast";
 import { useAppConfig } from "../../hooks/useAppConfig";

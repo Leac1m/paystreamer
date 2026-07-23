@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { SetupSubscriptionModal } from '@paystreamer/sdk/ui';
 import { DocsDemoWrapper } from '../../components/DocsDemoWrapper';
 
+import { DEMO_PLATFORM_ID } from '@paystreamer/sdk';
+
 export const LiveModal = () => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -17,7 +19,7 @@ export const LiveModal = () => {
         <SetupSubscriptionModal
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
-          platformId="0x1240aa8e48d2df02ff25a359b3b83bc04c749aa6234a923419f5c0d9903d746"
+          platformId={DEMO_PLATFORM_ID}
           tierIndex={0}
           maxAttempts={3}
         />

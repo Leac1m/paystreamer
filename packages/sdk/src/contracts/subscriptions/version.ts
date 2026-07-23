@@ -4,13 +4,9 @@
 
 
 /**
- * Protocol-wide version constants for the PayStreamer v2 contracts.
- * 
- * The protocol-wide `CORE` one-time witness is declared in `access_control.move`
- * (per the OZ invariant: one OTW per module). Every v2 module that needs to mint
- * `AccessControl<CORE>` imports it from there. This module owns the version
- * triples; migration entry points across the package consult `version()` to decide
- * whether to apply.
+ * The protocol-wide `CORE` one-time witness is declared in `ac.move`. from there.
+ * This module owns the version triples; migration entry points across the package
+ * consult `version()` to decide whether to apply.
  */
 
 import { type Transaction } from '@mysten/sui/transactions';

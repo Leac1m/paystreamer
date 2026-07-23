@@ -5,7 +5,7 @@ import { ConnectModal } from '@mysten/dapp-kit-react/ui';
 import { useCurrentAccount, useDAppKit, useWalletConnection, useCurrentClient } from '@mysten/dapp-kit-react';
 import { Button } from "@paystreamer/sdk";
 import NetworkSelector from './NetworkSelector';
-import { useMintPusd } from '../hooks/useMintPusd';
+import { useMintTestPusd } from '@paystreamer/sdk/react';
 import { TxStatusToast, TxStatus } from './TxStatusToast';
 import { parseMoveError } from '../lib/errors';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,7 +23,7 @@ export default function NavBar() {
   const client = useCurrentClient();
   const queryClient = useQueryClient();
   const { isConnecting } = useWalletConnection();
-  const { mintPusd } = useMintPusd();
+  const { mint: mintPusd } = useMintTestPusd();
   const disconnect = () => dAppKit.disconnectWallet();
   console.log("WALLETS:", dAppKit.stores.$wallets.get());
   const isPending = txStatus === "pending";
@@ -33,8 +33,8 @@ export default function NavBar() {
     setTxMessage("Minting Test PUSD...");
     try {
       const result = await mintPusd();
-      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
-      const txDigest = result.digest;
+      if (!result) throw new Error("Transaction failed");
+      const txDigest = result;
       
       await client.waitForTransaction({ digest: txDigest });
       setTimeout(async () => {

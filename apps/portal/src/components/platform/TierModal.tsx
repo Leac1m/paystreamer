@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
+import { buildCreateTierTx } from "@paystreamer/sdk/core";
 import {
   Modal,
   ModalContent,
@@ -102,25 +103,16 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
 
     const tx = new Transaction();
     const amountU64 = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
-    const denominationTypeName = tx.moveCall({
-      target: "0x1::type_name::get",
-      typeArguments: [config.PUSD_TYPE_ARG],
-      arguments: [],
-    });
 
-    tx.moveCall({
-      target: `${config.PACKAGE_ID}::platform::create_tier`,
-      arguments: [
-        tx.sharedObjectRef({
-          objectId: platformId,
-          initialSharedVersion,
-          mutable: true,
-        }),
-        tx.pure.string(name),
-        tx.pure.u64(amountU64),
-        tx.pure.u64(frequencySeconds),
-        denominationTypeName,
-      ],
+    buildCreateTierTx({
+      tx,
+      packageId: config.PACKAGE_ID,
+      platformId,
+      platformInitVersion: initialSharedVersion,
+      name,
+      amount: amountU64,
+      frequencySeconds,
+      pusdTypeArg: config.PUSD_TYPE_ARG,
     });
 
     const toastId = generateToastId();

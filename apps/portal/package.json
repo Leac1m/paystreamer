@@ -7,7 +7,8 @@
     "dev": "vite --port 5177 --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",
@@ -17,7 +18,7 @@
     "@mysten/utils": "^0.4.0",
     "@mysten/wallet-standard": "^0.21.8",
     "@nanostores/react": "^1.0.0",
-    "@paystreamer/sdk": "^0.1.1",
+    "@paystreamer/sdk": "^0.2.0",
     "@protobuf-ts/grpc-transport": "^2.9.4",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-slot": "^1.2.4",

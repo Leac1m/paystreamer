@@ -4,16 +4,10 @@
 
 
 /**
- * `subscriptions::billing` — subscription lifecycle for PayStreamer v2.
- * 
  * This module owns the per-platform subscription state machine: creation, pause,
- * resume, cancellation, and the bookkeeping that happens on every successful or
- * failed bill. The `SubscriptionV1` value type is declared in `account.move` (per
- * the project Option-C pattern); this module adds the behavior — constructors (via
- * `account::new_subscription_v1`), mutators, lifecycle event emissions, and the
- * `can_bill` query.
- * 
- * Authority model (architecture §6.5):
+ * resume, cancellation, and the bookkeeping that value type is declared in
+ * `account.move` (per the project Option-C pattern); this module adds the behavior
+ * — constructors (via emissions, and the `can_bill` query.
  * 
  * - `create_subscription` / `pause_subscription` / `resume_subscription` /
  *   `cancel_subscription` require an `AccountCap` whose `account_id` matches the
@@ -30,10 +24,7 @@
  *   `clock.timestamp_ms() >= next_billing_time`.
  * 
  * All events carry `v: u16 = 2` for indexer discrimination (architecture §8). The
- * `change_kind` field on `SubscriptionUpdated` uses the spec's mapping: 0 = tier
- * change, 1 = resumed, 2 = cancelled, 3 = paused.
- * 
- * Errors use the 0x06\_\_ module-id range per the project convention.
+ * `change_kind` field on `SubscriptionUpdated` uses the
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -77,6 +68,7 @@ export interface CreateSubscriptionArguments {
     tierIndex: RawTransactionArgument<number | bigint>;
     tierAmount: RawTransactionArgument<number | bigint>;
     tierFrequencyMs: RawTransactionArgument<number | bigint>;
+    maxAttempts: RawTransactionArgument<number>;
 }
 export interface CreateSubscriptionOptions {
     package?: string;
@@ -86,7 +78,8 @@ export interface CreateSubscriptionOptions {
         platformId: RawTransactionArgument<string>,
         tierIndex: RawTransactionArgument<number | bigint>,
         tierAmount: RawTransactionArgument<number | bigint>,
-        tierFrequencyMs: RawTransactionArgument<number | bigint>
+        tierFrequencyMs: RawTransactionArgument<number | bigint>,
+        maxAttempts: RawTransactionArgument<number>
     ];
     typeArguments: [
         string
@@ -114,9 +107,10 @@ export function createSubscription(options: CreateSubscriptionOptions) {
         'u64',
         'u64',
         'u64',
+        'u8',
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs"];
+    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "maxAttempts"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'billing',
@@ -255,6 +249,126 @@ export function cancelSubscription(options: CancelSubscriptionOptions) {
         package: packageAddress,
         module: 'billing',
         function: 'cancel_subscription',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionMaxAttemptsArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    maxAttempts: RawTransactionArgument<number>;
+}
+export interface UpdateSubscriptionMaxAttemptsOptions {
+    package?: string;
+    arguments: UpdateSubscriptionMaxAttemptsArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        maxAttempts: RawTransactionArgument<number>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/** Update a subscription's maximum billing attempts per cycle. */
+export function updateSubscriptionMaxAttempts(options: UpdateSubscriptionMaxAttemptsOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u8',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "maxAttempts"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'billing',
+        function: 'update_subscription_max_attempts',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionTierArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    tierIndex: RawTransactionArgument<number | bigint>;
+    tierAmount: RawTransactionArgument<number | bigint>;
+    tierFrequencyMs: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateSubscriptionTierOptions {
+    package?: string;
+    arguments: UpdateSubscriptionTierArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        tierIndex: RawTransactionArgument<number | bigint>,
+        tierAmount: RawTransactionArgument<number | bigint>,
+        tierFrequencyMs: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/** Update a subscription's tier information. */
+export function updateSubscriptionTier(options: UpdateSubscriptionTierOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u64',
+        'u64',
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'billing',
+        function: 'update_subscription_tier',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionScheduleFrequencyArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    scheduleFrequencyMs: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateSubscriptionScheduleFrequencyOptions {
+    package?: string;
+    arguments: UpdateSubscriptionScheduleFrequencyArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        scheduleFrequencyMs: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/**
+ * Update a subscription's schedule frequency (which can deviate from
+ * tier_frequency_ms).
+ */
+export function updateSubscriptionScheduleFrequency(options: UpdateSubscriptionScheduleFrequencyOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "scheduleFrequencyMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'billing',
+        function: 'update_subscription_schedule_frequency',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });

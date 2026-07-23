@@ -4,7 +4,7 @@ import { join, dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = join(__dirname, "../../");
+const rootDir = join(__dirname, "../../../");
 
 function readPublishOutput(dir: string, file: string): any {
   console.log(`Parsing ${file} from ${dir}...`);
@@ -70,7 +70,7 @@ if (!pusdPackageId || !subPackageId) {
 }
 
 // Write to src/constants.ts
-const constantsPath = join(rootDir, "src/constants.ts");
+const constantsPath = join(rootDir, "packages/sdk/src/constants.ts");
 let src = readFileSync(constantsPath, "utf8");
 
 const targetNetwork = process.env.VITE_NETWORK || "local";

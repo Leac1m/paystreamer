@@ -21,19 +21,19 @@ export interface NetworkConfig {
 
 export const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
   local: {
-    PACKAGE_ID: "0x85fc2def8d0a2cae5f9e87b4b499b6b8cb2877cd174d87670ce862547eb4d743",
-    COIN_TYPE_REGISTRY_ID: "0xc608b739a55f23ba620a61474353c54ab0e41a99449aaa57d7926ab398eb2c00",
-    COIN_TYPE_REGISTRY_INIT_VERSION: 2,
-    PAYMENT_SCHEDULER_ID: "0xf26d4f6fb430180c0aa12663aaf4769edf127dcc2dcc5aca30e9b9770c2e87d9",
-    PAYMENT_SCHEDULER_INIT_VERSION: 2,
+    PACKAGE_ID: "0xfc622194842bd044b6f91819b601aec8739542a45333e8b537e8a9af45ada943",
+    COIN_TYPE_REGISTRY_ID: "0x0464dd1df5f6df8906e7a2eb2feac6e58b9f8a50f5521942b7c971ceb9150d07",
+    COIN_TYPE_REGISTRY_INIT_VERSION: 330413,
+    PAYMENT_SCHEDULER_ID: "0x5f92579748fcd5f62e4fe855b86cda9dfc74197934de2157b6e2d92c0b6eaab3",
+    PAYMENT_SCHEDULER_INIT_VERSION: 330413,
     ACCESS_CONTROL_ID: "",
     GRAPHQL_URL: "http://127.0.0.1:8000/graphql",
-    PUSD_PACKAGE_ID: "0xa1cd3f1ca4537b1e8f4ebf8637680d594c15e91488d152d5b7e4b79040c67ecd",
-    PUSD_TYPE_ARG: "0xa1cd3f1ca4537b1e8f4ebf8637680d594c15e91488d152d5b7e4b79040c67ecd::pusd::PUSD",
-    PUSD_TREASURY_CAP_ID: "0x813a6c8521ef5b9d8afdab744817c97f54ddcdfdb1562bb77e1ee12076ac231a",
-    PUSD_TREASURY_CAP_INIT_VERSION: 2,
-    DEMO_PLATFORM_ID: "0x6f1fef30659eac0a91cfc0409b9b4dca0a553d1ee1c4ecaf8f6071be0602777f",
-    DEMO_PLATFORM_INIT_VERSION: 3025,
+    PUSD_PACKAGE_ID: "0x7cac14e1e2bc908bd27b1b107a255b582c8c0fc42fd5d4d5d1f918157c6ebf5f",
+    PUSD_TYPE_ARG: "0x7cac14e1e2bc908bd27b1b107a255b582c8c0fc42fd5d4d5d1f918157c6ebf5f::pusd::PUSD",
+    PUSD_TREASURY_CAP_ID: "0x9620b6580f73239687ab6c519a7e6bb0b997e6e06164d9ac9136258b9267fd3a",
+    PUSD_TREASURY_CAP_INIT_VERSION: 330412,
+    DEMO_PLATFORM_ID: "0x6ebb993f93c4c063f13c0ce5152a2b833c061a2f75c8dae2404df49e4122ea1a",
+    DEMO_PLATFORM_INIT_VERSION: 367767,
   },
   devnet: {
     PACKAGE_ID: "0x0808b08199b07c7786c65fdbca996b2a2a0ccae29de8bd467d36225d2a7a9d73",
@@ -71,10 +71,10 @@ const getEnvNetwork = () => {
   // @ts-ignore
   if (typeof process !== 'undefined' && process.env && process.env.VITE_NETWORK) return process.env.VITE_NETWORK;
   // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_NETWORK) return import.meta.env.VITE_NETWORK;
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_NETWORK) return (import.meta as any).env.VITE_NETWORK;
   return null;
 };
-const isProd = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD;
+const isProd = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.PROD;
 export const NETWORK = (getEnvNetwork() || (isProd ? "testnet" : "devnet")) as SupportedNetwork;
 
 export function getConfig(network?: SupportedNetwork): NetworkConfig {

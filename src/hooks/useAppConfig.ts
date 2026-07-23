@@ -1,5 +1,5 @@
 import { useCurrentNetwork } from "@mysten/dapp-kit-react";
-import { NETWORK_CONFIGS, SupportedNetwork } from "../constants";
+import {  NETWORK_CONFIGS, SupportedNetwork  } from "@paystreamer/sdk";
 
 export function useAppConfig() {
   const currentNetwork = useCurrentNetwork() as SupportedNetwork;

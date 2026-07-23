@@ -15,7 +15,7 @@ import {
   queryPaymentProcessedEvents,
   queryDepositEvents,
   queryPaymentFailedEvents
-} from "../../lib/graphql";
+} from "@paystreamer/sdk/core";
 import {
   CheckCircle,
   XCircle,
@@ -90,7 +90,9 @@ export function ActivityFeed() {
     enabled: accountIds.length > 0,
   });
 
-  const isPending = eventsPending || depositsPending || failedPending;
+  const accountsPending = accounts === undefined && !!account;
+  const isPending = accountsPending || (accountIds.length > 0 && (eventsPending || depositsPending || failedPending));
+
 
   const allRows: EventRow[] = [
     ...(events || []).map((e) => ({

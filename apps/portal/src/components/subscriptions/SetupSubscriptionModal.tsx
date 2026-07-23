@@ -8,15 +8,15 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { APP_COIN_DECIMALS, parsePUSDToMist } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
-import { useMintPusd } from "../../hooks/useMintPusd";
-import { useSponsoredTransaction } from "../../hooks/useSponsoredTransaction";
+import { useMintTestPusd } from "@paystreamer/sdk/react";
+import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
-} from "../../constants";
-import { queryCoins } from "../../lib/graphql";
+} from "@paystreamer/sdk";
+import { queryCoins, buildSubscribeTx } from "@paystreamer/sdk/core";
 import { useAppConfig } from "../../hooks/useAppConfig";
 
 interface SetupSubscriptionModalProps {
@@ -51,7 +51,7 @@ export function SetupSubscriptionModal({
   const account = useCurrentAccount();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { mintPusd } = useMintPusd();
+  const { mint: mintPusd } = useMintTestPusd();
   const { executeSponsored } = useSponsoredTransaction();
   
   const hasAccount = !!accountId && !!accountCapId;
@@ -131,60 +131,21 @@ export function SetupSubscriptionModal({
       const tx = new Transaction();
       tx.setGasBudget(100_000_000);
 
-      let workingAccountObj: any;
-      let workingCap: any;
-
-      if (!hasAccount) {
-        const [newAccountObj, newCap] = tx.moveCall({
-          target: `${config.PACKAGE_ID}::account::create_account`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [
-            tx.object(COIN_TYPE_REGISTRY_ID),
-            tx.object(CLOCK_OBJECT_ID),
-          ],
-        });
-        workingAccountObj = newAccountObj;
-        workingCap = newCap;
-      } else {
-        workingAccountObj = tx.object(accountId!);
-        workingCap = tx.object(accountCapId!);
-      }
-
-      if (depositMist > 0n && coinsToUse.length > 0) {
-        const coinObjs = coinsToUse.map(id => tx.object(id));
-        if (coinObjs.length > 1) {
-           tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
-        }
-        const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositMist)]);
-        
-        tx.moveCall({
-          target: `${config.PACKAGE_ID}::account::deposit`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [workingCap, workingAccountObj, splitCoin, tx.object(CLOCK_OBJECT_ID)],
-        });
-      }
-
-      tx.moveCall({
-        target: `${config.PACKAGE_ID}::billing::create_subscription`,
-        typeArguments: [PUSD_TYPE_ARG],
-        arguments: [
-          workingCap,
-          workingAccountObj,
-          tx.pure.id(platformId),
-          tx.pure.u64(BigInt(tierIndex)),
-          tx.pure.u64(tierAmount),
-          tx.pure.u64(tierFrequencyMs),
-          tx.object(CLOCK_OBJECT_ID),
-        ],
+      buildSubscribeTx({
+        tx,
+        packageId: config.PACKAGE_ID,
+        registryId: COIN_TYPE_REGISTRY_ID,
+        clockId: CLOCK_OBJECT_ID,
+        denomination: PUSD_TYPE_ARG,
+        platformId,
+        tierIndex,
+        tierAmount,
+        tierFrequencyMs,
+        accountId,
+        accountCapId,
+        depositAmount: depositMist,
+        coinsToUse,
       });
-
-      if (!hasAccount) {
-        tx.moveCall({
-          target: `${config.PACKAGE_ID}::account::share_account`,
-          typeArguments: [PUSD_TYPE_ARG],
-          arguments: [workingAccountObj, workingCap],
-        });
-      }
 
       const result = await executeSponsored(tx);
       if (result.error) throw new Error(result.error);
@@ -210,8 +171,8 @@ export function SetupSubscriptionModal({
     setTxMessage("Minting Test PUSD...");
     try {
       const result = await mintPusd();
-      if (result.error || !result.digest) throw new Error(result.error || "Transaction failed");
-      const txDigest = result.digest;
+      if (!result) throw new Error("Transaction failed");
+      const txDigest = result;
       
       await client.waitForTransaction({ digest: txDigest });
       

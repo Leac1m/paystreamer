@@ -4,58 +4,16 @@
 
 
 /**
- * Protocol-wide access control primitives for PayStreamer v2.
- * 
  * This module owns:
  * 
- * 1.  The protocol-wide `AC` one-time witness (OTW) — the VM-required upper-case
- *     of the module name `access_control`. The OTW is consumed by
- *     `openzeppelin_access::access_control::new` to mint the protocol-wide
- *     `AccessControl<AC>` singleton.
- * 2.  The eight role types consumed by every other core module.
- * 3.  The user-facing `AccountCap` carrying the delegated permission bitfield (BUG
- *     FIX #1 from the v2 architecture doc, §2 and §5.2).
- * 
- * Per the OpenZeppelin invariant, all role types live in the same module as the
- * OTW. The `init` function mints and shares the protocol-wide `AccessControl<AC>`
- * for the global `CoinTypeRegistry` multisig; per-Platform and per-Account
- * `AccessControl<AC>` registries are minted in their own modules.
- * 
- * `Auth<Role>` is a self-validating typed witness. The phantom `AC` tag (the OTW)
- * is the type parameter on every `AccessControl<AC>` instance in the protocol.
+ * 1.  The user-facing `AccountCap` carrying the delegated permission.
+ * 2.  The permission bitfield constants used across the protocol.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/subscriptions::ac';
-export const AC = new MoveStruct({ name: `${$moduleName}::AC`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const PLATFORM_ADMIN_ROLE = new MoveStruct({ name: `${$moduleName}::PLATFORM_ADMIN_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const PLATFORM_SCHEDULER_ROLE = new MoveStruct({ name: `${$moduleName}::PLATFORM_SCHEDULER_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const PLATFORM_TREASURY_ROLE = new MoveStruct({ name: `${$moduleName}::PLATFORM_TREASURY_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const PLATFORM_GLOBAL_ADMIN_ROLE = new MoveStruct({ name: `${$moduleName}::PLATFORM_GLOBAL_ADMIN_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const ACCOUNT_OWNER_ROLE = new MoveStruct({ name: `${$moduleName}::ACCOUNT_OWNER_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const ACCOUNT_DEPOSITOR_ROLE = new MoveStruct({ name: `${$moduleName}::ACCOUNT_DEPOSITOR_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const ACCOUNT_AGENT_ROLE = new MoveStruct({ name: `${$moduleName}::ACCOUNT_AGENT_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
-export const REGISTRY_ADMIN_ROLE = new MoveStruct({ name: `${$moduleName}::REGISTRY_ADMIN_ROLE`, fields: {
-        dummy_field: bcs.bool()
-    } });
 export const AccountCap = new MoveStruct({ name: `${$moduleName}::AccountCap`, fields: {
         id: bcs.Address,
         /** ID of the `SubscriptionAccount<T>` this cap authorizes. */
@@ -85,8 +43,8 @@ export interface NewAccountCapOptions {
  * bitfield. The cap is returned by value; the caller is responsible for
  * transferring it to the appropriate address.
  *
- * Role: caller must already hold `ACCOUNT_OWNER_ROLE` on the account's embedded
- * `AccessControl<AC>` (checked at the call site in `account.move`).
+ * Role: caller must already hold `ACCOUNT_OWNER_ROLE` on the account (checked at
+ * the call site in `account.move`).
  */
 export function newAccountCap(options: NewAccountCapOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -285,12 +243,10 @@ export interface TransferAccountCapOptions {
     ];
 }
 /**
- * Transfer a freshly-minted `AccountCap` to a recipient. Since `AccountCap` is
- * `key`-only (not `store`) per the design doc (§5.2: "non-transferable by
- * default"), the only way to relocate it on chain is via this helper. This is
- * intentionally narrow: the cap is minted and then handed to the user exactly
- * once. Subsequent re-transfers are a future hardening pass (the v1→v2 migration
- * path will add a `transfer_account_cap_to`).
+ * Transfer a freshly-minted `AccountCap` to a recipient. Since (§5.2:
+ * "non-transferable by default"), the only way to relocate it on chain is via this
+ * helper. This is intentionally narrow: the cap is minted and then handed to the
+ * user exactly once. Subsequent re-transfers are a future hardening pass (the
  *
  * Role: any caller. The cap is `key`-only, so the only entity that can pass it to
  * this function is the one that just minted or currently holds it.

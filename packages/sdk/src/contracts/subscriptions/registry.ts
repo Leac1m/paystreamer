@@ -11,20 +11,17 @@
  * `REGISTRY_ADMIN_ROLE` holders populate to add new stablecoin types without a
  * package upgrade. The registry is the single source of truth for which coin types
  * are accepted by the protocol; `account.move` and `payment.move` look up the
- * discriminant here at account-creation time and at deposit time (denomination
- * enforcement, architecture §6.4).
+ * discriminant here at account-creation time
  * 
- * Per the v2 architecture doc (§5.7, §6.10): stablecoin diversity is
  * **governance-extensible**. The bootstrap path uses the multisig
  * `register_coin_type<T>(ctx)` flow.
  * 
  * Discriminant 0 is reserved for native SUI.
  * 
- * `AccessControl<AC>` (see `access_control.move`) is reserved for a future
- * hardening pass. The v2 bootstrap uses a simple `admin_address` field as the
- * authority. The bootstrap admin must be rotated to the multisig in the same
- * publish tx that calls `init`-time registrations; the `rotate_admin` entry point
- * handles the rotation with an off-chain script and on-chain audit trail.
+ * `admin_address` field as the authority. The bootstrap admin must be rotated to
+ * the multisig in the same publish tx that calls `init`-time registrations; the
+ * `rotate_admin` entry point handles the rotation with an off-chain script and
+ * on-chain audit trail.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -44,9 +41,7 @@ export const CoinTypeRegistry = new MoveStruct({ name: `${$moduleName}::CoinType
         types: table.Table,
         /**
          * The address authorized to add or remove coin types. Bootstrap field; the
-         * protocol-wide `AccessControl<AC>` is the source of truth
-         * (`REGISTRY_ADMIN_ROLE`). We mirror the address for O(1) reads; the AC is the
-         * authority.
+         * bootstrap admin address is the source of truth.
          */
         admin_address: bcs.Address,
         /** Schema version. Bumped on metadata-format changes. */
@@ -70,10 +65,7 @@ export interface AdminAddressOptions {
         r: RawTransactionArgument<string>
     ];
 }
-/**
- * Current bootstrap admin address. The protocol-wide `AccessControl<AC>` is the
- * source of truth for the `REGISTRY_ADMIN_ROLE`; this is the O(1) mirror.
- */
+/** Current bootstrap admin address. */
 export function adminAddress(options: AdminAddressOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
@@ -212,10 +204,7 @@ export interface RegisterCoinTypeOptions {
 }
 /**
  * Register a new coin type. The caller must equal
- * `CoinTypeRegistry.admin_address`. The protocol-wide `AccessControl<AC>` is the
- * source of truth for the `REGISTRY_ADMIN_ROLE`; for v2 we use a simple
- * `admin_address` check as a bootstrap mechanism (will be replaced by
- * `Auth<REGISTRY_ADMIN_ROLE>` in a future hardening pass).
+ * `CoinTypeRegistry.admin_address`.
  *
  * Discriminant allocation: auto-assigns the next available `u8` discriminant by
  * finding the maximum existing discriminant in `types` and adding 1. Discriminant
@@ -288,8 +277,7 @@ export interface RotateAdminOptions {
     ];
 }
 /**
- * Rotate the bootstrap admin address. Should be replaced by an OZ
- * `Auth<REGISTRY_ADMIN_ROLE>` flow in a future hardening pass. Production
+ * Rotate the bootstrap admin address. Should be replaced by an OZ Production
  * deployments must call this once at bootstrap to transfer authority to the
  * multisig.
  *

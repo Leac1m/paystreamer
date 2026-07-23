@@ -6,8 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PayStreamerProvider } from '../src/react';
 import { SetupSubscriptionModal, PayStreamerThemeProvider } from '../src/ui';
-// @ts-ignore
-import { NETWORK_CONFIGS, NETWORK } from '../../../src/constants';
+import { NETWORK_CONFIGS, NETWORK } from "../src/constants";
 
 const activeConfig = NETWORK_CONFIGS[NETWORK];
 
