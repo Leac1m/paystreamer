@@ -7,7 +7,9 @@ import {
 } from '../src/core/graphql';
 import { NETWORK_CONFIGS } from '../src/constants';
 
-describe('GraphQL Core E2E (Localnet)', () => {
+const skipLocalnet = (!!process.env.CI && !process.env.ENABLE_LOCALNET_TESTS) || process.env.SKIP_LOCALNET === 'true';
+
+describe.skipIf(skipLocalnet)('GraphQL Core E2E (Localnet)', () => {
   const activeConfig = NETWORK_CONFIGS['local'];
 
   it('should fetch the coin type registry', async () => {

@@ -51,7 +51,7 @@ pnpm exec tsx packages/sdk/scripts/e2e-payment-cycle.ts
 echo "======================================================"
 echo " ⚛️  Running React SDK E2E Tests..."
 echo "======================================================"
-(cd packages/sdk && pnpm exec vitest run test/react-e2e.test.tsx test/graphql-e2e.test.ts)
+(cd packages/sdk && ENABLE_LOCALNET_TESTS=true pnpm exec vitest run test/react-e2e.test.tsx test/graphql-e2e.test.ts)
 
 echo "======================================================"
 echo " ⚙️  Running Scheduler Backend E2E Tests..."
