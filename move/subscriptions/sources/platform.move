@@ -10,17 +10,9 @@
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
 /// `ctx.sender() == platform.owner`. A future hardening pass will
 ///
-/// 1. `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total
-///    withdrawal volume per 30-day window.
-/// 2. `frequency_limiter` (`Bucket`, 1000/hr, refill 100/hr) — bounds
-///    total payment frequency per platform per hour.
-/// 3. `account_billing_limiter` (`Bucket`, 10000/hr, refill 1000/hr) —
-///    bounds distinct accounts billed per hour (DoS bound).
+
 ///
-/// All three are OZ `RateLimiter` values; `payment.move` calls
-/// `try_consume_*` and observes `try_consume`'s all-or-nothing
-/// semantics (failure leaves persisted state untouched).
-///
+
 /// Two-step `propose_treasury_change(new_addr)` →
 /// `accept_treasury_change(platform, clock)` (48h timelock) pattern,
 /// treasury-hijack gap.
@@ -46,7 +38,6 @@ module subscriptions::platform {
     use sui::transfer;
     use sui::tx_context::TxContext;
     use std::string::String;
-    use openzeppelin_utils::rate_limiter::{Self, RateLimiter};
     use std::type_name::{Self, TypeName};
 
     // === Errors ===
@@ -202,15 +193,6 @@ module subscriptions::platform {
         /// `is_active = false`) so historical subscriptions keep
         /// pointing at the right `tier_index`.
         tiers: VecMap<u64, SubscriptionTier>,
-        /// Volume limiter: `FixedWindow`, 30d, $1M default. Bounds the
-        /// total withdrawal volume per 30-day window.
-        volume_limiter: RateLimiter,
-        /// Frequency limiter: `Bucket`, 1000/hr, refill 100/hr. Bounds
-        /// the total number of payments per hour.
-        frequency_limiter: RateLimiter,
-        /// Account-billing limiter: `Bucket`, 10000/hr, refill 1000/hr.
-        /// Bounds the distinct accounts billed per hour (DoS bound).
-        account_billing_limiter: RateLimiter,
         /// Schema version. Currently `2`.
         version: u16,
     }
@@ -301,10 +283,6 @@ module subscriptions::platform {
     /// and the initial treasury. The platform is shared so any caller
     /// can read it; mutating functions require the owner.
     ///
-    /// The three rate limiters (`volume_limiter`, `frequency_limiter`,
-    /// limiter state via `volume_limiter(p)` / `frequency_limiter(p)` /
-    /// `account_billing_limiter(p)`.
-    ///
     /// Returns the new `Platform`'s `ID` for caller convenience. The
     /// `Platform` itself is shared in this function (no separate
     /// transfer call needed).
@@ -333,29 +311,6 @@ module subscriptions::platform {
             subscriber_count: 0,
             created_at: now,
             tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
             version: 2,
         };
         transfer::share_object(platform);
@@ -408,29 +363,6 @@ module subscriptions::platform {
             subscriber_count: 0,
             created_at: now,
             tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
             version: 2,
         };
 
@@ -699,49 +631,6 @@ module subscriptions::platform {
         });
     }
 
-    // === Rate-limiter accessors (used by payment.move) ===
-
-    /// Read-only handle to the volume limiter.
-    /// Role: any caller (read-only view).
-    public fun volume_limiter(platform: &Platform): &RateLimiter { &platform.volume_limiter }
-    /// Read-only handle to the frequency limiter.
-    /// Role: any caller (read-only view).
-    public fun frequency_limiter(platform: &Platform): &RateLimiter { &platform.frequency_limiter }
-    /// Read-only handle to the account-billing limiter.
-    /// Role: any caller (read-only view).
-    public fun account_billing_limiter(platform: &Platform): &RateLimiter {
-        &platform.account_billing_limiter
-    }
-
-    /// Try to consume `amount` from the platform's volume limiter.
-    /// `public(package)` — only `payment.move` should call this. All-or-nothing:
-    /// on failure (`false`) persisted state is left untouched, so a
-    /// downstream step that aborts will not have burned limiter headroom.
-    public(package) fun try_consume_volume(
-        platform: &mut Platform,
-        amount: u64,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.volume_limiter, amount, clock)
-    }
-
-    /// Try to consume 1 unit from the platform's frequency limiter.
-    /// `public(package)`. See `try_consume_volume` for all-or-nothing semantics.
-    public(package) fun try_consume_frequency(
-        platform: &mut Platform,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.frequency_limiter, 1, clock)
-    }
-
-    /// Try to consume 1 unit from the platform's account-billing limiter.
-    /// `public(package)`. See `try_consume_volume` for all-or-nothing semantics.
-    public(package) fun try_consume_account_billing(
-        platform: &mut Platform,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.account_billing_limiter, 1, clock)
-    }
 
     // === Accessors (view) ===
 
@@ -832,29 +721,6 @@ module subscriptions::platform {
             subscriber_count: 0,
             created_at: now,
             tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
             version: 2,
         }
     }
@@ -863,9 +729,7 @@ module subscriptions::platform {
     /// `drop`, so unit tests need an explicit way to dispose of
     /// platforms they constructed. The tier `VecMap` is drained
     /// entry-by-entry (its values are `SubscriptionTier` with
-    /// `copy + drop + store`). The three `RateLimiter` fields are
-    /// OZ-owned and bound by the limiter's own `drop`, so destructuring
-    /// with `_` is sufficient.
+    /// `copy + drop + store`).
     #[test_only]
     public fun destroy_for_testing(p: Platform) {
         let Platform {
@@ -881,9 +745,6 @@ module subscriptions::platform {
             subscriber_count: _,
             created_at: _,
             mut tiers,
-            volume_limiter: _,
-            frequency_limiter: _,
-            account_billing_limiter: _,
             version: _,
         } = p;
         object::delete(id);

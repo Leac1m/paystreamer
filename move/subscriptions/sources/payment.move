@@ -4,7 +4,7 @@
 /// entry point) after the global circuit breaker, the global pause flag,
 /// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked
 /// upstream. The function then verifies the per-subscription schedule,
-/// runs the per-platform rate limiters, performs the two-pass policy
+/// performs the two-pass policy
 /// evaluation, and uses the address-balance model to transfer funds
 /// directly from the subscriber's address to the platform treasury.
 ///
@@ -52,12 +52,6 @@ module subscriptions::payment {
     #[allow(unused_const)]
     const EInsufficientBalance: u64 = 0x09003;
 
-    /// One of the platform's three rate limiters
-    /// (`volume_limiter`, `frequency_limiter`, `account_billing_limiter`)
-    /// refused the consume. The persisted limiter state is untouched
-    /// (OZ `try_consume` is all-or-nothing), so a downstream caller can
-    /// retry the same `process_due_payment` after the limiters refill.
-    const EPlatformRateLimited: u64 = 0x09004;
 
     /// The two-pass policy evaluation rejected the request. The full
     /// `vector<PolicyFailure>` is emitted in the `PaymentFailed` event
@@ -87,7 +81,7 @@ module subscriptions::payment {
     }
 
     /// Emitted on a failed `process_due_payment`. The `reason` field
-    /// is one of `ENotDue`, `EPlatformRateLimited`, `EPolicyViolation`,
+    /// is one of `ENotDue`, `EPolicyViolation`,
     /// `EInsufficientBalance`, or `EZeroAmount`. The `amount` is the
     /// `tier_amount` at the time of the attempt (0 for `ENotDue` since
     /// the schedule is consulted first).
@@ -113,21 +107,19 @@ module subscriptions::payment {
     /// owns; the scheduler owns steps 1, 2, 4, 6):
     ///  1. Verify `can_bill` (subscription is active and due)
     ///     billed amount, not a caller-supplied value)
-    ///  3. Check the platform's three rate limiters
-    ///     (`volume`, `frequency`, `account_billing`)
-    ///  4. Two-pass policy evaluation against the account's
+    ///  3. Two-pass policy evaluation against the account's
     ///     `PolicySet` and live `PolicyLimiters`
-    ///  5. Withdraw from account's stored balance
-    ///  6. Send to treasury via `sui::coin::send_funds`
-    ///  7. `record_payment` on the subscription (advances schedule,
+    ///  4. Withdraw from account's stored balance
+    ///  5. Send to treasury via `sui::coin::send_funds`
+    ///  6. `record_payment` on the subscription (advances schedule,
     ///     bumps the per-subscription nonce) and `bump_nonce` on the
-    ///     step 10)
-    ///  8. Emit `PaymentProcessed` with the policy results
+    ///     account
+    ///  7. Emit `PaymentProcessed` with the policy results
     ///
     /// On a policy violation, `record_failed_payment` is called so the
     /// subscription's retry state (attempt_count, last_attempt_time) is
     /// correctly stamped for the next call. On other failures
-    /// (`ENotDue`, `EPlatformRateLimited`, `EZeroAmount`) the call
+    /// (`ENotDue`, `EZeroAmount`) the call
     /// aborts before any state change; the `PaymentFailed` event
     /// records the reason.
     public fun process_due_payment<T>(
@@ -155,10 +147,6 @@ module subscriptions::payment {
         let amount = account::tier_amount_via_sub(account, platform_id);
         assert!(amount > 0, EZeroAmount);
 
-        // 3. platform rate limiters.
-        assert!(platform::try_consume_volume(platform, amount, clock), EPlatformRateLimited);
-        assert!(platform::try_consume_frequency(platform, clock), EPlatformRateLimited);
-        assert!(platform::try_consume_account_billing(platform, clock), EPlatformRateLimited);
 
         // 4. two-pass policy evaluation.
         let (allowed, failures) = policies::evaluate(

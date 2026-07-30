@@ -6,7 +6,7 @@ module subscriptions::platform_tests {
     use std::type_name;
     use sui::test_scenario as ts;
     use sui::clock;
-    use openzeppelin_utils::rate_limiter;
+
 
     public struct TEST_USDC has drop {}
     public struct TEST_USDSUI has drop {}
@@ -382,53 +382,6 @@ module subscriptions::platform_tests {
         assert!(platform::subscriber_count(&p) == 0, 0);
 
         ts::return_shared(p);
-        clock::destroy_for_testing(clock);
-        sc.end();
-    }
-
-    #[test]
-    fun test_rate_limiters_can_consume() {
-        let owner = @0xA;
-        let mut sc = ts::begin(owner);
-        let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
-        clock::set_for_testing(&mut clock, 1_000_000);
-
-        let mut p = platform::new_platform_for_testing(&clock, ts::ctx(&mut sc));
-        assert!(
-            rate_limiter::available(platform::volume_limiter(&p), &clock)
-                == 1_000_000_000_000,
-            0,
-        );
-        assert!(
-            rate_limiter::available(platform::frequency_limiter(&p), &clock) == 1000,
-            1,
-        );
-        assert!(
-            rate_limiter::available(platform::account_billing_limiter(&p), &clock)
-                == 10_000,
-            2,
-        );
-
-        assert!(platform::try_consume_volume(&mut p, 100, &clock) == true, 3);
-        assert!(platform::try_consume_frequency(&mut p, &clock) == true, 4);
-        assert!(platform::try_consume_account_billing(&mut p, &clock) == true, 5);
-
-        assert!(
-            rate_limiter::available(platform::volume_limiter(&p), &clock)
-                == 1_000_000_000_000 - 100,
-            6,
-        );
-        assert!(
-            rate_limiter::available(platform::frequency_limiter(&p), &clock) == 999,
-            7,
-        );
-        assert!(
-            rate_limiter::available(platform::account_billing_limiter(&p), &clock)
-                == 9_999,
-            8,
-        );
-
-        platform::destroy_for_testing(p);
         clock::destroy_for_testing(clock);
         sc.end();
     }
