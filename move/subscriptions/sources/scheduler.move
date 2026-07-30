@@ -28,7 +28,8 @@ module subscriptions::scheduler {
     use subscriptions::account::{Self, SubscriptionAccount};
     use subscriptions::platform::{Self, Platform};
     use subscriptions::policies::{Self, PolicyLimiters};
-    use subscriptions::payment;
+    use subscriptions::payment::{Self, RoutingPotato};
+    use sui::coin::Coin;
 
     // === Events ===
     //
@@ -107,6 +108,7 @@ module subscriptions::scheduler {
     /// - Any abort from `payment::process_due_payment` (e.g.
     ///   `ENotDue`, `EPolicyViolation`, `EZeroAmount`).
     public fun process_due_payment<T>(
+        registry: &subscriptions::registry::Registry,
         scheduler: &mut PaymentScheduler,
         platform: &mut Platform,
         account: &mut SubscriptionAccount<T>,
@@ -120,9 +122,69 @@ module subscriptions::scheduler {
         // Delegate to payment.move. The actual payment transfer
         // happens inside that function using the address-balance model.
         payment::process_due_payment(
+            registry,
             platform,
             account,
             policy_limiters,
+            clock,
+            ctx,
+        );
+
+        scheduler.last_processed_at = clock.timestamp_ms();
+        event::emit(DuePaymentSubmitted {
+            account_id,
+            platform_id,
+            submitted_by: ctx.sender(),
+            v: 2,
+        });
+    }
+    // === Routed Payments ===
+
+    /// Step 1 of a routed payment. The scheduler withdraws `max_spend` of
+    /// `FundingCoin` to perform an off-chain or DEX swap into `PlatformCoin`.
+    public fun withdraw_for_route<FundingCoin, PlatformCoin>(
+        _scheduler: &mut PaymentScheduler,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        policy_limiters: &mut PolicyLimiters,
+        clock: &Clock,
+        max_spend: u64,
+        ctx: &mut TxContext,
+    ): (Coin<FundingCoin>, RoutingPotato<FundingCoin, PlatformCoin>) {
+        payment::withdraw_for_route(
+            platform,
+            account,
+            policy_limiters,
+            clock,
+            max_spend,
+            ctx,
+        )
+    }
+
+    /// Step 2 of a routed payment. The scheduler consumes the `RoutingPotato`
+    /// and settles the payment by providing the `Coin<PlatformCoin>` and returning
+    /// any unspent `FundingCoin` change.
+    public fun process_routed_payment<FundingCoin, PlatformCoin>(
+        registry: &subscriptions::registry::Registry,
+        scheduler: &mut PaymentScheduler,
+        potato: RoutingPotato<FundingCoin, PlatformCoin>,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        coin: Coin<PlatformCoin>,
+        change: Coin<FundingCoin>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let account_id = object::id(account);
+        let platform_id = object::id(platform);
+
+        payment::process_routed_payment(
+            potato,
+            registry,
+            platform,
+            account,
+            coin,
+            change,
             clock,
             ctx,
         );

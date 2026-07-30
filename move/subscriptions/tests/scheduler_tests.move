@@ -1,6 +1,7 @@
 #[test_only]
 module subscriptions::scheduler_tests {
     use subscriptions::account;
+    use subscriptions::registry;
     
     
     use subscriptions::payment;
@@ -73,6 +74,7 @@ module subscriptions::scheduler_tests {
     fun test_process_due_payment_succeeds() {
         let owner = @0xA;
         let mut sc = ts::begin(owner);
+        registry::init_for_testing(ts::ctx(&mut sc));
         let clock = fresh_clock(&mut sc);
 
         let (account_id, platform_id) = setup_account_with_subscription(
@@ -87,6 +89,8 @@ module subscriptions::scheduler_tests {
         scheduler::share_for_testing(scheduler);
 
         ts::next_tx(&mut sc, owner);
+
+        let mut registry = ts::take_shared<registry::Registry>(&sc);
 
         let mut account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
             &sc, account_id,
@@ -105,6 +109,7 @@ module subscriptions::scheduler_tests {
         ts::return_to_address(owner, cap);
 
         scheduler::process_due_payment<TEST_USDC>(
+            &registry,
             &mut scheduler,
             &mut p,
             &mut account,
@@ -124,14 +129,20 @@ module subscriptions::scheduler_tests {
         account::destroy_account_for_testing(account);
 
         ts::next_tx(&mut sc, owner);
-        let received_coin = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
-        assert!(received_coin.value() == 100, 8);
-        std::unit_test::destroy(received_coin);
+        let c1 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let c2 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let c3 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let total = c1.value() + c2.value() + c3.value();
+        assert!(total == 100, 8);
+        std::unit_test::destroy(c1);
+        std::unit_test::destroy(c2);
+        std::unit_test::destroy(c3);
 
         let _effects = test_scenario::next_tx(&mut sc, owner);
         let _ = _effects;
 
         clock::destroy_for_testing(clock);
+        ts::return_shared(registry);
         sc.end();
     }
 }

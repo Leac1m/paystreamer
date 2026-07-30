@@ -459,8 +459,22 @@ module subscriptions::account {
         account.nonce = account.nonce + 1;
     }
 
-    /// Withdraw `amount` from the account's balance and send as Coin<T>
-    /// to the treasury address.
+    /// Internal withdraw for routed payments.
+    /// `public(package)` ensures only `payment.move` (same package) can call this.
+    public(package) fun internal_withdraw<T>(
+        account: &mut SubscriptionAccount<T>,
+        amount: u64,
+        ctx: &mut TxContext,
+    ): Coin<T> {
+        assert!(!is_closed(&account.status), EAccountClosed);
+        assert!(amount > 0, EZeroAmount);
+        assert!(account.balance.value() >= amount, EInsufficientBalance);
+        
+        coin::from_balance(account.balance.split(amount), ctx)
+    }
+
+    /// Withdraw `amount` from the account's balance and distribute as Coin<T>
+    /// to the platform treasury, protocol treasury, and scheduler.
     ///
     /// `public(package)` ensures only `payment.move` (same package)
     /// can call this.
@@ -469,18 +483,40 @@ module subscriptions::account {
     /// - `EAccountClosed` if the account is closed.
     /// - `EZeroAmount` if `amount == 0`.
     /// - `EInsufficientBalance` if live headroom is below `amount`.
-    public(package) fun withdraw_and_send<T>(
+    public(package) fun withdraw_and_distribute<T>(
         account: &mut SubscriptionAccount<T>,
         amount: u64,
-        treasury: address,
+        platform_treasury: address,
+        protocol_treasury: address,
+        scheduler: address,
         ctx: &mut TxContext,
     ) {
         assert!(!is_closed(&account.status), EAccountClosed);
         assert!(amount > 0, EZeroAmount);
         assert!(account.balance.value() >= amount, EInsufficientBalance);
-        let b = account.balance.split(amount);
-        let c = coin::from_balance(b, ctx);
-        transfer::public_transfer(c, treasury);
+
+        let scheduler_fee = (amount * 100) / 10000;
+        let protocol_fee = (amount * 200) / 10000;
+        let platform_amount = amount - scheduler_fee - protocol_fee;
+
+        let mut b = account.balance.split(amount);
+        
+        if (scheduler_fee > 0) {
+            let scheduler_coin = coin::from_balance(b.split(scheduler_fee), ctx);
+            transfer::public_transfer(scheduler_coin, scheduler);
+        };
+        
+        if (protocol_fee > 0) {
+            let protocol_coin = coin::from_balance(b.split(protocol_fee), ctx);
+            transfer::public_transfer(protocol_coin, protocol_treasury);
+        };
+
+        if (platform_amount > 0) {
+            let platform_coin = coin::from_balance(b, ctx);
+            transfer::public_transfer(platform_coin, platform_treasury);
+        } else {
+            b.destroy_zero();
+        };
     }
 
     /// Read the subscription's `tier_amount` by `platform_id`. Used by

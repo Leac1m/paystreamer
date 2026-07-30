@@ -25,6 +25,7 @@ module subscriptions::payment {
     use sui::event;
     use sui::tx_context::TxContext;
     use sui::clock::Clock;
+    use sui::coin::{Self, Coin};
     use subscriptions::account::{Self, SubscriptionAccount, can_bill, record_payment, record_failed_payment};
     
     use subscriptions::policies::{Self, PolicyLimiters, PolicyFailure};
@@ -63,6 +64,9 @@ module subscriptions::payment {
     /// programmer / configuration error; aborts before money moves.
     const EZeroAmount: u64 = 0x09006;
 
+    /// The provided `RoutingPotato` is invalid for this payment settlement.
+    const EInvalidPotato: u64 = 0x09007;
+
     // === Events ===
 
     /// Emitted on every successful `process_due_payment`. The
@@ -75,6 +79,9 @@ module subscriptions::payment {
         account_id: ID,
         platform_id: ID,
         amount: u64,
+        platform_amount: u64,
+        protocol_fee: u64,
+        scheduler_fee: u64,
         policy_failures_count: u64,
         nonce: u64,
         v: u16,
@@ -91,6 +98,15 @@ module subscriptions::payment {
         amount: u64,
         reason: u64,
         v: u16,
+    }
+
+    // === Routing Potato ===
+
+    /// A Hot Potato ensuring a withdrawn routed payment is settled in the same transaction.
+    public struct RoutingPotato<phantom FundingCoin, phantom PlatformCoin> {
+        account_id: ID,
+        platform_id: ID,
+        amount_needed: u64,
     }
 
     // === process_due_payment ===
@@ -122,7 +138,8 @@ module subscriptions::payment {
     /// (`ENotDue`, `EZeroAmount`) the call
     /// aborts before any state change; the `PaymentFailed` event
     /// records the reason.
-    public fun process_due_payment<T>(
+    public(package) fun process_due_payment<T>(
+        registry: &subscriptions::registry::Registry,
         platform: &mut Platform,
         account: &mut SubscriptionAccount<T>,
         policy_limiters: &mut PolicyLimiters,
@@ -168,12 +185,23 @@ module subscriptions::payment {
         };
         let failure_count = failures.length();
 
-        // 5. Withdraw from account's balance and send to treasury.
-        // The subscriber must have deposited funds into the account first.
-        // This is a transitional implementation until address-balance APIs
-        // (create_withdrawal, redeem) become publicly accessible.
-        let treasury_addr = platform::treasury(platform);
-        account::withdraw_and_send<T>(account, amount, treasury_addr, ctx);
+        // 5. Withdraw from account's balance and distribute to platform, protocol, and scheduler.
+        let platform_treasury = platform::treasury(platform);
+        let protocol_treasury = subscriptions::registry::protocol_treasury(registry);
+        let scheduler_addr = ctx.sender();
+        
+        let scheduler_fee = (amount * 100) / 10000;
+        let protocol_fee = (amount * 200) / 10000;
+        let platform_amount = amount - scheduler_fee - protocol_fee;
+
+        account::withdraw_and_distribute<T>(
+            account, 
+            amount, 
+            platform_treasury, 
+            protocol_treasury, 
+            scheduler_addr, 
+            ctx
+        );
 
         // 6. record_payment (advances schedule, bumps sub nonce) and
         // bump the per-account replay nonce.
@@ -186,7 +214,153 @@ module subscriptions::payment {
             account_id,
             platform_id,
             amount,
+            platform_amount,
+            protocol_fee,
+            scheduler_fee,
             policy_failures_count: failure_count,
+            nonce: new_nonce,
+            v: 2,
+        });
+    }
+
+    // === Routed Payments ===
+
+    /// Withdraws a `max_spend` of `FundingCoin` from the user's account to swap it
+    /// into `PlatformCoin` off-chain or via a DEX. The user's policies are evaluated
+    /// against `max_spend` to protect them from bad exchange rates (slippage limits).
+    /// Returns a Hot Potato that must be settled via `process_routed_payment`.
+    public(package) fun withdraw_for_route<FundingCoin, PlatformCoin>(
+        platform: &Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        policy_limiters: &mut PolicyLimiters,
+        clock: &Clock,
+        max_spend: u64,
+        ctx: &mut TxContext,
+    ): (Coin<FundingCoin>, RoutingPotato<FundingCoin, PlatformCoin>) {
+        let platform_id = object::id(platform);
+        let account_id = object::id(account);
+
+        // 1. can_bill check.
+        if (!can_bill(account, platform_id, clock)) {
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount: 0,
+                reason: ENotDue,
+                v: 2,
+            });
+            abort ENotDue
+        };
+
+        let amount_needed = account::tier_amount_via_sub(account, platform_id);
+        assert!(amount_needed > 0, EZeroAmount);
+
+        // 2. two-pass policy evaluation against `max_spend`.
+        let (allowed, _failures) = policies::evaluate(
+            account,
+            policy_limiters,
+            max_spend,
+            clock,
+        );
+        if (!allowed) {
+            record_failed_payment(account, platform_id, amount_needed, EPolicyViolation, clock);
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount: amount_needed,
+                reason: EPolicyViolation,
+                v: 2,
+            });
+            abort EPolicyViolation
+        };
+
+        // 3. Withdraw the max_spend to allow the scheduler to perform the swap
+        let withdrawn_coin = account::internal_withdraw<FundingCoin>(account, max_spend, ctx);
+
+        let potato = RoutingPotato<FundingCoin, PlatformCoin> {
+            account_id,
+            platform_id,
+            amount_needed,
+        };
+
+        (withdrawn_coin, potato)
+    }
+
+    /// Settles the routed payment by consuming the Hot Potato. Verifies the exact
+    /// `amount_needed` in `PlatformCoin` was provided, processes the fee distribution,
+    /// and refunds any unspent `FundingCoin` change back to the user's account.
+    public(package) fun process_routed_payment<FundingCoin, PlatformCoin>(
+        potato: RoutingPotato<FundingCoin, PlatformCoin>,
+        registry: &subscriptions::registry::Registry,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        coin: Coin<PlatformCoin>,
+        mut change: Coin<FundingCoin>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let RoutingPotato { account_id, platform_id, amount_needed } = potato;
+        
+        assert!(account_id == object::id(account), EInvalidPotato);
+        assert!(platform_id == object::id(platform), EInvalidPotato);
+        
+        let amount_provided = coin.value();
+        assert!(amount_provided == amount_needed, EZeroAmount); // Require exact payment
+
+        // 1. Refund the change
+        if (change.value() > 0) {
+            account::deposit(account, change, ctx);
+        } else {
+            change.destroy_zero();
+        };
+
+        // 2. Distribute fees
+        let platform_treasury = platform::treasury(platform);
+        let protocol_treasury = subscriptions::registry::protocol_treasury(registry);
+        let scheduler_addr = ctx.sender();
+        
+        let scheduler_fee = (amount_needed * 100) / 10000;
+        let protocol_fee = (amount_needed * 200) / 10000;
+        let platform_amount = amount_needed - scheduler_fee - protocol_fee;
+
+        let mut b = coin.into_balance();
+        
+        if (scheduler_fee > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(scheduler_fee), ctx), 
+                scheduler_addr
+            );
+        };
+        
+        if (protocol_fee > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(protocol_fee), ctx), 
+                protocol_treasury
+            );
+        };
+
+        if (platform_amount > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(platform_amount), ctx), 
+                platform_treasury
+            );
+        };
+        b.destroy_zero();
+
+        // 3. record_payment (advances schedule, bumps sub nonce) and bump account replay nonce.
+        record_payment(account, platform_id, amount_needed, clock);
+        account::bump_nonce(account);
+
+        // 4. emit event.
+        let new_nonce = account::nonce(account);
+        event::emit(PaymentProcessed {
+            account_id,
+            platform_id,
+            amount: amount_needed,
+            platform_amount,
+            protocol_fee,
+            scheduler_fee,
+            policy_failures_count: 0,
             nonce: new_nonce,
             v: 2,
         });
