@@ -312,9 +312,9 @@ module subscriptions::account {
         ctx: &mut TxContext,
     ) {
         assert!(!is_closed(&account.status), EAccountClosed);
-        let amt = coin::value(&coin);
+        let amt = coin.value();
         assert!(amt > 0, EZeroAmount);
-        let value = coin::into_balance(coin);
+        let value = coin.into_balance();
         account.balance.join(value);
         event::emit(Deposit {
             account_id: object::id(account),
@@ -366,7 +366,7 @@ module subscriptions::account {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
         account.status = account_status_paused();
-        let sub_count = vec_map::length(&account.subscriptions);
+        let sub_count = account.subscriptions.length();
         event::emit(AccountPaused {
             account_id: object::id(account),
             subscription_count: sub_count,
@@ -492,7 +492,7 @@ module subscriptions::account {
         account: &SubscriptionAccount<T>,
         platform_id: ID,
     ): u64 {
-        subscriptions::subscription::tier_amount(vec_map::get(&account.subscriptions, &platform_id))
+        subscriptions::subscription::tier_amount(account.subscriptions.get(&platform_id))
     }
 
     // === Accessors (view) ===
@@ -555,14 +555,14 @@ module subscriptions::account {
     public fun has_subscription<T>(
         account: &SubscriptionAccount<T>,
         platform_id: &ID,
-    ): bool { vec_map::contains(&account.subscriptions, platform_id) }
+    ): bool { account.subscriptions.contains(platform_id) }
 
     /// Read-only lookup of a single subscription by `platform_id`.
     /// Role: any caller (read-only view).
     public fun get_subscription<T>(
         account: &SubscriptionAccount<T>,
         platform_id: &ID,
-    ): &Subscription { vec_map::get(&account.subscriptions, platform_id) }
+    ): &Subscription { account.subscriptions.get(platform_id) }
 
     /// Mutable lookup of a single subscription by `platform_id`.
     /// `public(package)` so only `billing.move` (same package) can mutate
@@ -572,7 +572,7 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         platform_id: &ID,
     ): &mut Subscription {
-        vec_map::get_mut(&mut account.subscriptions, platform_id)
+        account.subscriptions.get_mut(platform_id)
     }
 
     /// Remove a subscription entry from the VecMap by `platform_id`.
@@ -581,13 +581,13 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         platform_id: &ID,
     ) {
-        vec_map::remove(&mut account.subscriptions, platform_id);
+        account.subscriptions.remove(platform_id);
     }
 
     /// Number of embedded subscriptions.
     /// Role: any caller (read-only view).
     public fun subscription_count<T>(account: &SubscriptionAccount<T>): u64 {
-        vec_map::length(&account.subscriptions)
+        account.subscriptions.length()
     }
 
     // === create_subscription ===
@@ -860,7 +860,7 @@ module subscriptions::account {
         // is destructured and dropped. `VecMap::pop` is the right call:
         // it returns `(K, V)` and is the canonical way to walk a `VecMap`
         // in reverse insertion order.
-        while (!vec_map::is_empty(&subscriptions)) {
+        while (!subscriptions.is_empty()) {
             let (_k, _sub) = vec_map::pop(&mut subscriptions);
             // sub is dropped implicitly
         };
