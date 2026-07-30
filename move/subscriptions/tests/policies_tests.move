@@ -3,18 +3,13 @@ module subscriptions::policies_tests {
     use subscriptions::account::{Self, PolicySet};
     use subscriptions::ac;
     use subscriptions::policies::{Self, PolicyLimiters, PolicyFailure};
-    use subscriptions::registry;
+
     use std::string;
     use sui::test_scenario as ts;
     use sui::clock;
 
     public struct TEST_USDC has drop {}
 
-    fun registry_with_test_usdc(scenario: &mut ts::Scenario): registry::CoinTypeRegistry {
-        let mut r = registry::new_registry_for_testing(ts::ctx(scenario));
-        registry::register_coin_type<TEST_USDC>(&mut r, ts::ctx(scenario));
-        r
-    }
 
     fun fresh_clock(scenario: &mut ts::Scenario): clock::Clock {
         let mut c = clock::create_for_testing(ts::ctx(scenario));
@@ -26,10 +21,7 @@ module subscriptions::policies_tests {
     fun test_evaluate_passes_when_no_policies_set() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -53,7 +45,7 @@ module subscriptions::policies_tests {
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -62,20 +54,12 @@ module subscriptions::policies_tests {
     fun test_evaluate_blocks_per_tx() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
-        let ps: PolicySet = account::new_policy_set(
-            100,
-            0,
-            0,
-            0,
-        );
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
+        let ps: PolicySet = account::new_policy_set(100, 0, 0, 0);
         account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
 
         let mut limiters = policies::empty_limiters(&clock);
@@ -100,7 +84,7 @@ module subscriptions::policies_tests {
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -109,20 +93,12 @@ module subscriptions::policies_tests {
     fun test_evaluate_blocks_monthly_after_capacity() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
-        let ps: PolicySet = account::new_policy_set(
-            0,
-            1_000,
-            0,
-            0,
-        );
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
+        let ps: PolicySet = account::new_policy_set(0, 1_000, 0, 0);
         account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
 
         let mut limiters = policies::empty_limiters(&clock);
@@ -147,7 +123,7 @@ module subscriptions::policies_tests {
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -156,20 +132,12 @@ module subscriptions::policies_tests {
     fun test_evaluate_blocks_frequency_during_cooldown() {
         let mut sc = ts::begin(@0xA);
         let mut clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
-        let ps: PolicySet = account::new_policy_set(
-            0,
-            0,
-            0,
-            1_000,
-        );
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
         );
+        let ps: PolicySet = account::new_policy_set(0, 0, 0, 1_000);
         account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
 
         let mut limiters = policies::empty_limiters(&clock);
@@ -204,7 +172,7 @@ module subscriptions::policies_tests {
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -213,8 +181,6 @@ module subscriptions::policies_tests {
     fun test_evaluate_failed_does_not_burn_tokens() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let ps: PolicySet = account::new_policy_set(
             0,
             1_000,
@@ -222,7 +188,6 @@ module subscriptions::policies_tests {
             0,
         );
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -261,7 +226,7 @@ module subscriptions::policies_tests {
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }

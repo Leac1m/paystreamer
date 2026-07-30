@@ -3,8 +3,7 @@
 ///
 /// caller can read it; mutating functions (`update_platform`, tier
 /// the owner is the address captured at `register_platform` time and
-/// **bootstrap `admin_address` style check** — mirroring
-/// `subscriptions::registry` — with a doc comment noting the future
+/// **bootstrap `admin_address` style check** — with a doc comment noting the future
 /// the bootstrap admin pattern.
 ///
 /// The platform is identified by `Platform.owner: address` (set at

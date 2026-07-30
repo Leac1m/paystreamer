@@ -3,18 +3,13 @@ module subscriptions::billing_tests {
     use subscriptions::account;
     use subscriptions::ac;
     use subscriptions::billing;
-    use subscriptions::registry;
+
     use sui::object;
     use sui::test_scenario as ts;
     use sui::clock;
 
     public struct TEST_USDC has drop {}
 
-    fun registry_with_test_usdc(scenario: &mut ts::Scenario): registry::CoinTypeRegistry {
-        let mut r = registry::new_registry_for_testing(ts::ctx(scenario));
-        registry::register_coin_type<TEST_USDC>(&mut r, ts::ctx(scenario));
-        r
-    }
 
     fun fresh_clock(scenario: &mut ts::Scenario): clock::Clock {
         let mut c = clock::create_for_testing(ts::ctx(scenario));
@@ -26,10 +21,7 @@ module subscriptions::billing_tests {
     fun test_create_subscription_basic() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -65,7 +57,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -75,10 +67,7 @@ module subscriptions::billing_tests {
     fun test_create_subscription_duplicate_fails() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -110,7 +99,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -119,10 +108,7 @@ module subscriptions::billing_tests {
     fun test_cancel_subscription() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -153,7 +139,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -162,10 +148,7 @@ module subscriptions::billing_tests {
     fun test_cancel_subscription_idempotent() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -207,7 +190,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -216,10 +199,7 @@ module subscriptions::billing_tests {
     fun test_resubscribe_after_cancel() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -263,7 +243,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -272,10 +252,7 @@ module subscriptions::billing_tests {
     fun test_record_payment_advances_schedule() {
         let mut sc = ts::begin(@0xA);
         let mut clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -319,7 +296,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -329,10 +306,7 @@ module subscriptions::billing_tests {
     fun test_record_payment_on_paused_fails() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -361,7 +335,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -370,10 +344,7 @@ module subscriptions::billing_tests {
     fun test_can_bill_after_time() {
         let mut sc = ts::begin(@0xA);
         let mut clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -419,7 +390,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -428,10 +399,7 @@ module subscriptions::billing_tests {
     fun test_can_bill_false_before_time() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -453,7 +421,7 @@ module subscriptions::billing_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -463,10 +431,7 @@ module subscriptions::billing_tests {
     fun test_pause_subscription_depositor_cap_fails() {
         let mut sc = ts::begin(@0xA);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -501,7 +466,7 @@ module subscriptions::billing_tests {
         ac::destroy_account_cap_for_testing(dep_cap);
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }

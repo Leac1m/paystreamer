@@ -95,8 +95,7 @@ module subscriptions::asset_tests {
 
     /// `Asset<T>` constructor captures `TypeName::with_original_ids<T>`.
     /// Two `asset<TEST_USDC>()` calls return tags whose `TypeName` is
-    /// equal to the type name extracted directly from `T`. This is the
-    /// registry-compatibility check.
+    /// equal to the type name extracted directly from `T`.
     #[test]
     fun test_asset_tag_type_name_matches() {
         let a = asset::asset<TEST_USDC>();

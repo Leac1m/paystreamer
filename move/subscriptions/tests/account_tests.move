@@ -2,7 +2,6 @@
 module subscriptions::account_tests {
     use subscriptions::account::{Self, AccountStatus, PolicySet, Subscription};
     use subscriptions::ac;
-    use subscriptions::registry;
     use std::type_name;
     use sui::object;
     use sui::test_scenario as ts;
@@ -11,11 +10,7 @@ module subscriptions::account_tests {
 
     public struct TEST_USDC has drop {}
 
-    fun registry_with_test_usdc(scenario: &mut ts::Scenario): registry::CoinTypeRegistry {
-        let mut r = registry::new_registry_for_testing(ts::ctx(scenario));
-        registry::register_coin_type<TEST_USDC>(&mut r, ts::ctx(scenario));
-        r
-    }
+
 
     fun depositor_cap(account_id: object::ID, scenario: &mut ts::Scenario): ac::AccountCap {
         ac::new_account_cap_for_testing(
@@ -56,10 +51,8 @@ module subscriptions::account_tests {
     fun test_create_account_with_registered_coin_succeeds() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -72,13 +65,12 @@ module subscriptions::account_tests {
         assert!(account::subscription_count(&account) == 0, 4);
         assert!(account::is_active(account::status(&account)), 5);
 
-        let tn = account::account_type<TEST_USDC>();
+        let tn = account::account_type(&account);
         let expected = type_name::with_original_ids<TEST_USDC>();
         assert!(tn == expected, 6);
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -87,10 +79,8 @@ module subscriptions::account_tests {
     fun test_update_policies_replaces_wholesale() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -118,7 +108,6 @@ module subscriptions::account_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -127,10 +116,8 @@ module subscriptions::account_tests {
     fun test_mint_delegated_cap_requires_owner() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -157,7 +144,6 @@ module subscriptions::account_tests {
         ac::destroy_account_cap_for_testing(delegated);
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -167,10 +153,8 @@ module subscriptions::account_tests {
     fun test_mint_delegated_cap_depositor_cap_fails() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (account, _cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -190,7 +174,6 @@ module subscriptions::account_tests {
         ac::destroy_account_cap_for_testing(dep_cap);
         ac::destroy_account_cap_for_testing(_cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -199,10 +182,8 @@ module subscriptions::account_tests {
     fun test_close_account_flips_status() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -213,7 +194,6 @@ module subscriptions::account_tests {
 
         ac::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -222,10 +202,8 @@ module subscriptions::account_tests {
     fun test_share_account_shares_and_transfers_cap() {
         let mut sc = ts::begin(@0xA);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
-        let r = registry_with_test_usdc(&mut sc);
 
         let (account, cap) = account::create_account<TEST_USDC>(
-            &r,
             account::empty_policy_set(),
             &clock,
             ts::ctx(&mut sc),
@@ -244,7 +222,6 @@ module subscriptions::account_tests {
 
         ac::destroy_account_cap_for_testing(cap_in_inventory);
         account::destroy_account_for_testing(shared_account);
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
         sc.end();
     }

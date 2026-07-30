@@ -6,7 +6,7 @@ module subscriptions::payment_tests {
     use subscriptions::payment;
     use subscriptions::platform;
     use subscriptions::policies;
-    use subscriptions::registry;
+
     use sui::coin;
     use std::string;
     use sui::object;
@@ -16,11 +16,6 @@ module subscriptions::payment_tests {
 
     public struct TEST_USDC has drop {}
 
-    fun registry_with_test_usdc(scenario: &mut ts::Scenario): registry::CoinTypeRegistry {
-        let mut r = registry::new_registry_for_testing(ts::ctx(scenario));
-        registry::register_coin_type<TEST_USDC>(&mut r, ts::ctx(scenario));
-        r
-    }
 
     fun fresh_clock(scenario: &mut ts::Scenario): clock::Clock {
         let mut c = clock::create_for_testing(ts::ctx(scenario));
@@ -38,7 +33,6 @@ module subscriptions::payment_tests {
     }
 
     fun setup_account_with_subscription(
-        r: &registry::CoinTypeRegistry,
         clock: &clock::Clock,
         scenario: &mut ts::Scenario,
         tier_amount: u64,
@@ -54,7 +48,6 @@ module subscriptions::payment_tests {
         );
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            r,
             account::empty_policy_set(),
             clock,
             ts::ctx(scenario),
@@ -82,10 +75,7 @@ module subscriptions::payment_tests {
         let owner = @0xA;
         let mut sc = ts::begin(owner);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (account_id, platform_id) = setup_account_with_subscription(
-            &r,
             &clock,
             &mut sc,
             100,
@@ -121,7 +111,7 @@ module subscriptions::payment_tests {
         ts::return_shared(p);
         account::destroy_account_for_testing(account);
 
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -132,10 +122,7 @@ module subscriptions::payment_tests {
         let owner = @0xA;
         let mut sc = ts::begin(owner);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (account_id, platform_id) = setup_account_with_subscription(
-            &r,
             &clock,
             &mut sc,
             100,
@@ -161,7 +148,7 @@ module subscriptions::payment_tests {
         policies::destroy_limiters_for_testing(limiters);
         ts::return_shared(p);
         account::destroy_account_for_testing(account);
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }
@@ -171,10 +158,7 @@ module subscriptions::payment_tests {
         let owner = @0xA;
         let mut sc = ts::begin(owner);
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
-
         let (account_id, platform_id) = setup_account_with_subscription(
-            &r,
             &clock,
             &mut sc,
             100,
@@ -212,7 +196,7 @@ module subscriptions::payment_tests {
         ts::return_shared(p);
         account::destroy_account_for_testing(account);
 
-        registry::destroy_for_testing(r);
+
         clock::destroy_for_testing(clock);
         sc.end();
     }

@@ -1,7 +1,7 @@
 #[test_only]
 module subscriptions::platform_tests {
     use subscriptions::platform;
-    use subscriptions::registry;
+
     use std::string;
     use std::type_name;
     use sui::test_scenario as ts;

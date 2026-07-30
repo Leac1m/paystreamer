@@ -552,7 +552,7 @@ module subscriptions::billing {
         _account: &SubscriptionAccount<T>,
         _platform_id: ID,
     ): std::type_name::TypeName {
-        account::account_type<T>()
+        account::account_type(_account)
     }
 
     // === Module-local helpers ===

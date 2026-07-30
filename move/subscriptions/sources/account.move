@@ -39,7 +39,6 @@ module subscriptions::account {
         permission_owner,
         permission_depositor,
     };
-    use subscriptions::registry::{Self, CoinTypeRegistry};
 
     // === Subscription (declared here, augmented by billing.move) ===
 
@@ -231,6 +230,8 @@ module subscriptions::account {
     /// `has_permission(cap, ...)` bitfield test.
     public struct SubscriptionAccount<phantom T> has key, store {
         id: object::UID,
+        /// Coin denomination of the account.
+        coin_type: TypeName,
         /// Stored balance for the account. Subscriber deposits funds via
         /// `deposit` before payments are processed.
         balance: Balance<T>,
@@ -265,11 +266,6 @@ module subscriptions::account {
     const EZeroAmount: u64 = 0x01004;
     /// `internal_withdraw` for an amount exceeding live headroom.
     const EInsufficientBalance: u64 = 0x01005;
-    /// The coin `T` is not registered in the `CoinTypeRegistry`.
-    const ECoinTypeNotRegistered: u64 = 0x01006;
-    /// The `u8` discriminant in the registry is non-standard (no built-in
-    /// `AccountType` variant). Treat as a misconfiguration.
-    const EInvalidDiscriminant: u64 = 0x01007;
     /// The cap's `permissions` bitfield does not include the required
     /// bit. Wrong role.
     const EUnauthorized: u64 = 0x01008;
@@ -340,20 +336,13 @@ module subscriptions::account {
     // === create_account ===
 
     /// Create a new `SubscriptionAccount<T>` and mint a fresh `AccountCap`
-    /// with the OWNER permission bit set. The coin `T` must be registered
-    /// in the `CoinTypeRegistry`; the `AccountType` is resolved at
+    /// with the OWNER permission bit set.
     ///
     /// Returns the account and cap by value. The caller (PTB) is
     /// responsible for `share_account` to share the account and
     /// transfer the cap to the appropriate address. The cap's
     /// `account_id` field is pre-bound to the freshly-minted account.
-    ///
-    /// #### Aborts
-    /// - `ECoinTypeNotRegistered` if `T` is not in the registry.
-    /// - `EInvalidDiscriminant` if the registry's `u8` does not map to
-    ///   a built-in `AccountType` variant.
     public fun create_account<T>(
-        _registry: &CoinTypeRegistry,
         policies: PolicySet,
         clock: &Clock,
         ctx: &mut TxContext,
@@ -365,6 +354,7 @@ module subscriptions::account {
 
         let account = SubscriptionAccount<T> {
             id: acct_uid,
+            coin_type: type_name::with_original_ids<T>(),
             balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
             policies,
@@ -667,14 +657,14 @@ module subscriptions::account {
 
     // === Accessors (view) ===
 
-    /// `object::id` of the account.
+    /// object::id of the account.
     /// Role: any caller (read-only view).
     public fun id<T>(account: &SubscriptionAccount<T>): ID { object::id(account) }
 
-    /// Coin denomination (immutable after creation). Derived from `T`'s TypeName.
+    /// Coin denomination (immutable after creation).
     /// Role: any caller (read-only view).
-    public fun account_type<T>(): TypeName {
-        type_name::with_original_ids<T>()
+    public fun account_type<T>(account: &SubscriptionAccount<T>): TypeName {
+        account.coin_type
     }
 
     /// Live headroom in the smallest unit of `T`.
@@ -830,7 +820,6 @@ module subscriptions::account {
     /// `new_registry_for_testing` pattern in `registry.move`.
     #[test_only]
     public fun new_account_for_testing<T>(
-        _registry: &CoinTypeRegistry,
         initial_policies: PolicySet,
         clock: &Clock,
         ctx: &mut TxContext,
@@ -838,6 +827,7 @@ module subscriptions::account {
         let now = clock.timestamp_ms();
         SubscriptionAccount<T> {
             id: object::new(ctx),
+            coin_type: type_name::with_original_ids<T>(),
             balance: balance::zero<T>(),
             subscriptions: vec_map::empty(),
             policies: initial_policies,
@@ -855,6 +845,7 @@ module subscriptions::account {
     public fun destroy_account_for_testing<T>(account: SubscriptionAccount<T>) {
         let SubscriptionAccount<T> {
             id,
+            coin_type: _,
             balance,
             mut subscriptions,
             policies: _,

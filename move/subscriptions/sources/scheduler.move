@@ -80,8 +80,7 @@ module subscriptions::scheduler {
     /// (E02003 forbids parameters other than the OTW + `&mut
     /// TxContext`).
     ///
-    /// The scheduler is shared so any PTB can take `&mut` on it
-            /// `registry.move`).
+    /// The scheduler is shared so any PTB can take `&mut` on it.
     fun init(_otw: SCHEDULER, ctx: &mut TxContext) {
         let scheduler = PaymentScheduler {
             id: object::new(ctx),
