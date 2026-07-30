@@ -362,18 +362,11 @@ module subscriptions::account {
     public fun pause_account<T>(
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
-        clock: &Clock,
     ) {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
         account.status = account_status_paused();
         let sub_count = vec_map::length(&account.subscriptions);
-        let mut i: u64 = 0;
-        while (i < sub_count) {
-            let (_, sub) = vec_map::get_entry_by_idx_mut(&mut account.subscriptions, i);
-            subscriptions::subscription::cascade_pause(sub, clock);
-            i = i + 1;
-        };
         event::emit(AccountPaused {
             account_id: object::id(account),
             subscription_count: sub_count,
