@@ -1,23 +1,16 @@
-/// `subscriptions::scheduler` — the on-chain, permissionless payment
-/// scheduler.
+/// `subscriptions::scheduler` — the permissionless payment scheduler.
 ///
-/// entry point that lets **anyone** trigger a due payment. The
-/// off-chain indexer that previously signed payments with
+/// This module provides the entry points for external callers (schedulers)
+/// to trigger due payments. 
 ///
 /// ## Authority model
 ///
-/// `process_due_payment` is **permissionless**: any caller can submit.
-/// The function is gated by the platform's `PLATFORM_SCHEDULER_ROLE`
-/// grant and the per-subscription schedule — both enforced downstream
-/// in `payment::process_due_payment`.
+/// Scheduling functions are **permissionless**: any caller can submit a PTB
+/// calling `process_due_payment` or the routed payment flow.
+/// The functions rely on the underlying `payment` module to enforce
+/// subscription schedules, policies, and circuit breakers.
 ///
-/// The platform's role check is **deferred to a future hardening
-/// see `account.move` and `platform.move` for the bootstrap admin
-/// pattern).
-///
-/// ## Error code range
-///
-/// `payment.move`, and `platform.move` for sibling ranges.
+/// Schedulers are incentivized with a 1% protocol fee for successful executions.
 #[allow(lint(share_owned))]
 module subscriptions::scheduler {
     use sui::object;

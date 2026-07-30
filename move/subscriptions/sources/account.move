@@ -1,25 +1,16 @@
+/// `subscriptions::account` — Core subscription account management.
 ///
 /// This module owns:
-///    declared here with the full field set; `billing.move` augments with
-///    mutators and event emissions without redefining the type).
-/// 2. The `PolicySet` value type (same pattern; `policies.move` augments
-///    with evaluation, two-pass consume, and event emissions).
+/// 1. The `SubscriptionAccount<T>` shared object, holding the user's funds (`Balance<T>`).
+/// 2. The `AccountCap` object, which grants ownership and management rights over the account.
 /// 3. The `AccountStatus` lifecycle enum (active / paused / closed).
-/// 4. The shared `SubscriptionAccount<T>` object plus its discovery
-///    handle `AccountCap`.
+/// 4. `PolicySet` definitions which restrict maximum spending over specific periods.
 ///
-/// (bitfield authority).
-/// `init`, so per-account ACs are infeasible (and unnecessary — see
-/// Role checks in this module therefore consult
-/// `has_permission(cap, perm)` against the bitfield on the cap, not an
-/// embedded AC.
+/// ## Architecture
 ///
-/// - emits `v: u16 = 2` on every event for indexer discrimination.
-///
-/// ## Build-order note
-///
-/// design notes. Downstream `billing.move` and `policies.move` add
-/// behavior (mutators, event emissions, evaluation) without redefining
+/// Users fund a `SubscriptionAccount<T>` with a specific coin type `T`.
+/// Subscriptions are registered within this account. Schedulers then use the `payment`
+/// module (which calls `internal_withdraw` here) to process payments against the user's balance.
 #[allow(lint(share_owned, custom_state_change))]
 module subscriptions::account {
     use sui::object;
@@ -111,9 +102,7 @@ module subscriptions::account {
 
     /// The user's subscription account. Shared object, phantom-typed by
     /// the denomination. The `AccountCap` minted alongside is the
-    /// wallet-visible discovery handle; its `permissions` bitfield is
-    /// wallet-visible discovery handle.
-    /// `cap.account_id == object::id(account)` check.
+    /// wallet-visible discovery handle and ownership capability.
     public struct SubscriptionAccount<phantom T> has key, store {
         id: object::UID,
         /// Coin denomination of the account.

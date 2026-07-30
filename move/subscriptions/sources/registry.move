@@ -1,3 +1,12 @@
+/// `subscriptions::registry` — Global protocol registry and treasury management.
+///
+/// This module manages the `Registry` shared object which tracks the protocol's
+/// global treasury address, where the 2% protocol fee is routed.
+///
+/// ## Authority model
+///
+/// The `RegistryAdminCap` is granted to the package publisher on `init`.
+/// Mutating functions like `propose_treasury_change` require this cap.
 module subscriptions::registry {
     use sui::object::{Self, UID, ID};
     use sui::transfer;

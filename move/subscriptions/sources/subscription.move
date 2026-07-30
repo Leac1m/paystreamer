@@ -1,3 +1,7 @@
+/// `subscriptions::subscription` — Subscription lifecycle and record keeping.
+///
+/// Manages the `Subscription` struct which is embedded in the `SubscriptionAccount`.
+/// Keeps track of the billing schedule, failures, and active/paused/cancelled status.
 module subscriptions::subscription {
     use sui::object::ID;
     use sui::clock::Clock;

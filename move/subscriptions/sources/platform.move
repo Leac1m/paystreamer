@@ -1,26 +1,25 @@
-/// definitions, treasury timelock, per-platform rate limiters, and
-/// `subscriber_count` bookkeeping.
+/// `subscriptions::platform` — Core platform and tier management.
 ///
-/// caller can read it; mutating functions (`update_platform`, tier
-/// the owner is the address captured at `register_platform` time and
-/// **bootstrap `admin_address` style check** — with a doc comment noting the future
-/// the bootstrap admin pattern.
+/// This module manages the `Platform` shared object which tracks tier 
+/// definitions, treasury configuration, and `subscriber_count` bookkeeping.
+///
+/// ## Authority model
 ///
 /// The platform is identified by `Platform.owner: address` (set at
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
-/// `ctx.sender() == platform.owner`. A future hardening pass will
+/// `ctx.sender() == platform.owner`.
 ///
-
+/// ## Treasury Timelock
 ///
-
-/// Two-step `propose_treasury_change(new_addr)` →
-/// `accept_treasury_change(platform, clock)` (48h timelock) pattern,
-/// treasury-hijack gap.
+/// Treasury address changes use a two-step `propose_treasury_change(new_addr)` →
+/// `accept_treasury_change(platform, clock)` with a 48h timelock to protect
+/// against immediate treasury hijacking.
 ///
-/// Maintained by `increment_subscriber_count` /
-/// `decrement_subscriber_count` (both `public(package)`). The only
-/// expected caller is `billing.move` on `create_subscription` /
-/// `cancel_subscription`. Discovery is finally not broken.
+/// ## Subscriber Bookkeeping
+///
+/// Maintained by `increment_subscriber_count` and `decrement_subscriber_count` 
+/// (both `public(package)`), called by `account.move` on subscription creation
+/// and cancellation.
 ///
 /// ## Build-order note
 ///
@@ -84,8 +83,8 @@ module subscriptions::platform {
 
     // === SubscriptionTier ===
 
-    /// A platform-defined billing tier. `copy + drop + store` so it can
-    /// off-chain indexers without lifetime gymnastics. `name` is the
+    /// A platform-defined billing tier. Has `copy + drop + store` so it can
+    /// be emitted in events and read easily by off-chain indexers. `name` is the
     /// human-readable label (e.g. `"Basic"`, `"Pro"`); uniqueness is
     /// enforced at `create_tier` time.
     public struct SubscriptionTier has copy, drop, store {
@@ -167,13 +166,11 @@ module subscriptions::platform {
     /// shared object so any caller can read it; mutating functions
     /// require the platform owner (`ctx.sender() == platform.owner`).
     ///
-    /// `owner` is the bootstrap admin address. A future hardening
-    /// pass will replace this with an embedded
-        /// (one role per module, OZ invariant). The same role is
-        ///
-    /// `tiers` is keyed by `tier_index` (sequential insertion order)
-    /// stores `tier_index`, not a tier id, and re-uses the slot on
-    /// `deactivate_tier_by_index` without renumbering.
+    /// `owner` is the bootstrap admin address.
+    ///
+    /// `tiers` is a `VecMap` keyed by `tier_index` (sequential insertion order).
+    /// Deactivating a tier simply marks it as inactive rather than renumbering
+    /// subsequent tiers, ensuring that active subscription records don't break.
     public struct Platform has key, store {
         id: object::UID,
         /// Bootstrap admin (captured from `ctx.sender()` at registration).

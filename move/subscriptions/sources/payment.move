@@ -1,23 +1,22 @@
+/// `subscriptions::payment` — Core payment processing module.
 ///
-/// `process_due_payment`
-/// funds. It is called by `scheduler.move` (the permissionless on-chain
-/// entry point) after the global circuit breaker, the global pause flag,
-/// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked
-/// upstream. The function then verifies the per-subscription schedule,
-/// performs the two-pass policy
-/// evaluation, and uses the address-balance model to transfer funds
-/// directly from the subscriber's address to the platform treasury.
+/// Handles both standard and cross-currency routed payments.
+/// These functions are `public(package)` and must be called through
+/// the `scheduler.move` entry points to ensure circuit breakers
+/// and platform permissions are enforced.
 ///
 /// ## Address-balance payment flow
 ///
-/// The payment uses Sui's address balance model:
-/// 1. Create a withdrawal from the subscriber's address balance
-/// 2. Redeem the withdrawal to get `Balance<T>`
-/// 3. Send the balance to the platform treasury
+/// Payments use Sui's address balance model via the `SubscriptionAccount`:
+/// 1. Withdraw from the subscriber's account balance
+/// 2. Split fees for scheduler (1%) and protocol (2%)
+/// 3. Send the remainder to the platform treasury
 ///
-/// ## Error code range
+/// ## Routed Payments
 ///
-/// `billing.move` for sibling ranges.
+/// Schedulers can execute cross-currency payments via atomic PTB swaps
+/// using the `RoutingPotato` pattern, allowing users to fund subscriptions
+/// with a single coin type while paying platforms in their requested token.
 #[allow(lint(share_owned))]
 module subscriptions::payment {
     use sui::object;
@@ -57,7 +56,7 @@ module subscriptions::payment {
     /// The two-pass policy evaluation rejected the request. The full
     /// `vector<PolicyFailure>` is emitted in the `PaymentFailed` event
     /// so off-chain indexers can see *which* dimension failed and
-    /// *why`. Persisted limiter state is untouched (a failed pass-1
+    /// *why*. Persisted limiter state is untouched.
     const EPolicyViolation: u64 = 0x09005;
 
     /// The subscription's `tier_amount` resolved to `0`. Treated as a
@@ -112,32 +111,24 @@ module subscriptions::payment {
     // === process_due_payment ===
 
     /// THE single money-moving path. Called by `scheduler.move` (which
-    /// has already checked the global circuit breaker, the global pause
-    /// flag, and the platform's `PLATFORM_SCHEDULER_ROLE` grant).
+    /// has already checked the global circuit breaker and platform permissions).
     ///
     /// Note: Due to Sui framework limitations, this function requires the
     /// subscriber to have deposited a Coin<T> into the account first.
-    /// The scheduler withdraws from the account's balance and sends to treasury.
-    /// This is a transitional model until address-balance APIs become public.
+    /// The scheduler withdraws from the account's balance and routes it to the treasury.
     ///
-    /// owns; the scheduler owns steps 1, 2, 4, 6):
+    /// Payment execution steps:
     ///  1. Verify `can_bill` (subscription is active and due)
-    ///     billed amount, not a caller-supplied value)
-    ///  3. Two-pass policy evaluation against the account's
-    ///     `PolicySet` and live `PolicyLimiters`
-    ///  4. Withdraw from account's stored balance
-    ///  5. Send to treasury via `sui::coin::send_funds`
-    ///  6. `record_payment` on the subscription (advances schedule,
-    ///     bumps the per-subscription nonce) and `bump_nonce` on the
-    ///     account
-    ///  7. Emit `PaymentProcessed` with the policy results
+    ///  2. Fetch the required payment amount from the platform's tier
+    ///  3. Perform a two-pass policy evaluation against the account's limiters
+    ///  4. Withdraw the required amount from the account's balance
+    ///  5. Distribute fees (1% scheduler, 2% protocol, 97% platform)
+    ///  6. Record the payment on the subscription and advance the schedule
+    ///  7. Emit a `PaymentProcessed` event detailing the fee breakdown
     ///
     /// On a policy violation, `record_failed_payment` is called so the
-    /// subscription's retry state (attempt_count, last_attempt_time) is
-    /// correctly stamped for the next call. On other failures
-    /// (`ENotDue`, `EZeroAmount`) the call
-    /// aborts before any state change; the `PaymentFailed` event
-    /// records the reason.
+    /// subscription's retry state is correctly updated. On other failures
+    /// (`ENotDue`, `EZeroAmount`) the transaction aborts safely.
     public(package) fun process_due_payment<T>(
         registry: &subscriptions::registry::Registry,
         platform: &mut Platform,
