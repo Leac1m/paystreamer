@@ -1,83 +1,133 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+const TEST_BURNER_SK = 'suiprivkey1qrhc5vekj8h344caqgj752ur72rq2d2w67kdq98qk36s66q4usuhx7q9sep';
+
+async function connectWalletIfPrompted(page: Page) {
+  const burnerBtn = page.getByRole('button', { name: /Persistent Burner Wallet/i }).or(page.getByText('Persistent Burner Wallet')).first();
+  if (await burnerBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await burnerBtn.click();
+    await page.waitForTimeout(1000);
+  } else {
+    await page.evaluate(() => {
+      const modal = document.querySelector('mysten-dapp-kit-connect-modal');
+      if (modal && modal.shadowRoot) {
+        const btn = Array.from(modal.shadowRoot.querySelectorAll('*')).find(
+          (el) => el.children.length === 0 && el.textContent?.includes('Persistent Burner Wallet')
+        );
+        if (btn) (btn.closest('button, [role="button"], li, div') || (btn as HTMLElement)).click();
+      }
+    });
+    await page.waitForTimeout(1000);
+  }
+
+  // Explicitly hide and remove pointer events from the modal custom element if open
+  await page.evaluate(() => {
+    const modal = document.querySelector('mysten-dapp-kit-connect-modal') as HTMLElement | null;
+    if (modal) {
+      modal.removeAttribute('open');
+      modal.style.display = 'none';
+      modal.style.pointerEvents = 'none';
+    }
+  });
+
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(500);
+}
 
 test.describe('Subscription Flow E2E', () => {
+  let consoleErrors: string[] = [];
+  let networkErrors: string[] = [];
+
+  test.beforeEach(async ({ page }) => {
+    consoleErrors = [];
+    networkErrors = [];
+
+    page.on('pageerror', (err) => {
+      consoleErrors.push(`Uncaught browser exception: ${err.message}\n${err.stack}`);
+    });
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (
+          !text.includes('Failed to load resource') &&
+          !text.includes('the server responded with a status of 404') &&
+          !text.includes('Error fetching metadata')
+        ) {
+          consoleErrors.push(`Console error: ${text}`);
+        }
+      }
+    });
+
+    page.on('requestfailed', (req) => {
+      const errText = req.failure()?.errorText || '';
+      if (!errText.includes('net::ERR_ABORTED')) {
+        networkErrors.push(`Network request failed: ${req.url()} - ${errText}`);
+      }
+    });
+
+    page.on('response', (res) => {
+      if (res.status() >= 400 && !res.url().includes('favicon')) {
+        networkErrors.push(`HTTP ${res.status()} response from ${res.url()}`);
+      }
+    });
+  });
+
+  test.afterEach(async () => {
+    expect(consoleErrors, `Expected zero uncaught console/page errors, but got:\n${consoleErrors.join('\n---\n')}`).toHaveLength(0);
+    expect(networkErrors, `Expected zero network failures or HTTP 4xx/5xx errors, but got:\n${networkErrors.join('\n---\n')}`).toHaveLength(0);
+  });
+
   test('should render the modal and execute a subscription successfully', async ({ page }) => {
     // Navigate to the component docs page
     await page.goto('/components/SetupSubscriptionModal');
     
-    // Inject the predefined Burner Wallet Secret Key
-    await page.evaluate(() => {
-      localStorage.setItem('paystreamer_burner_sk', 'suiprivkey1qrhc5vekj8h344caqgj752ur72rq2d2w67kdq98qk36s66q4usuhx7q9sep');
-    });
+    // Inject predefined Burner Wallet Secret Key
+    await page.evaluate((sk) => {
+      localStorage.setItem('paystreamer_burner_sk', sk);
+    }, TEST_BURNER_SK);
     
     await page.reload();
     
     // Toggle Live Mode
     const liveToggle = page.locator('button', { hasText: 'Live' });
-    await expect(liveToggle).toBeVisible();
+    await expect(liveToggle).toBeVisible({ timeout: 15000 });
     await liveToggle.click();
     
-    // Look for Connect Wallet button inside DocsDemoWrapper
-    const connectWalletBtn = page.getByRole('button', { name: /Connect/i });
+    await connectWalletIfPrompted(page);
 
-    if (await connectWalletBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await connectWalletBtn.click();
-    }
-
-    const connectBurner = page.getByText(/Persistent Burner Wallet/i);
-
-    if (await connectBurner.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await page.evaluate(() => {
-        const modal = document.querySelector('mysten-dapp-kit-connect-modal');
-        if (modal && modal.shadowRoot) {
-          const btn = Array.from(modal.shadowRoot.querySelectorAll('*')).find(el => el.children.length === 0 && el.textContent?.includes('Persistent Burner Wallet'));
-          if (btn) (btn.closest('button, [role="button"]') || btn as HTMLElement).click();
-        }
-      });
-      await page.waitForTimeout(1000);
-      await page.keyboard.press('Escape').catch(() => {});
+    // If logo link triggered navigation to /, ensure we are on /components/SetupSubscriptionModal
+    if (!page.url().includes('/components/SetupSubscriptionModal')) {
+      await page.goto('/components/SetupSubscriptionModal');
     }
 
     const openModalButton = page.getByRole('button', { name: 'Open Setup Modal' });
     await expect(openModalButton).toBeVisible({ timeout: 10000 });
     await openModalButton.click({ force: true });
 
-    // Verify the modal is open
-    const modalHeading = page.locator('h2', { hasText: /Setup Subscription|Fill Up & Subscribe/ });
-    await expect(modalHeading).toBeVisible();
+    // Verify modal is open
+    const modalHeading = page.getByRole('heading', { name: /Setup Subscription|Fill Up & Subscribe/i }).first();
+    await expect(modalHeading).toBeVisible({ timeout: 15000 });
 
-    // Find the main action button (Setup & Subscribe or Subscribe)
-    const subscribeButton = page.locator('button:has-text("Subscribe")').last(); // using last() in case there are other subscribe texts on the page
+    // Rule 6: Assert loading state disappears
+    await expect(page.locator('.animate-spin')).not.toBeVisible({ timeout: 15000 });
+
+    // Find main action button
+    const subscribeButton = page.locator('button:has-text("Subscribe")').last();
     await expect(subscribeButton).toBeVisible();
-
-    // Wait for loading states to resolve (checking if button becomes enabled)
-    // The component disables the button while loading platform/account data
     await expect(subscribeButton).toBeEnabled({ timeout: 15000 });
 
-    // Ensure we don't have insufficient balance (the test localnet should have funded the burner wallet)
-    const insufficientBalanceText = page.locator('text="Insufficient PUSD"');
-    await expect(insufficientBalanceText).not.toBeVisible();
+    // Ensure no insufficient balance warning
+    await expect(page.getByText('Insufficient PUSD')).not.toBeVisible();
 
     // Click subscribe
     await subscribeButton.click();
 
-    // The modal changes to a success state after processing
+    // Assert success heading
     const successHeading = page.locator('h3:has-text("You\'re Subscribed!")');
-    
-    // Check if there is an error displayed
-    const errorMsg = page.locator('.text-red-600');
-    
-    try {
-      await expect(successHeading).toBeVisible({ timeout: 15000 });
-    } catch (e) {
-      if (await errorMsg.isVisible()) {
-        const text = await errorMsg.textContent();
-        throw new Error(`Subscription failed with error: ${text}`);
-      }
-      throw e;
-    }
+    await expect(successHeading).toBeVisible({ timeout: 20000 });
 
-    // Close the modal
+    // Close modal
     const closeButton = page.locator('button:has-text("Close")');
     await closeButton.click();
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev:all": "concurrently \"pnpm run dev\" \"pnpm --filter @paystreamer/portal dev\" \"pnpm --filter @paystreamer/checkout dev\" \"pnpm --filter docs dev\" \"docker compose up\"",
     "dev": "vite --port 5176 --host 0.0.0.0",
-    "build": "tsc && vite build",
+    "build": "pnpm --filter @paystreamer/sdk build && tsc && vite build",
     "preview": "vite preview",
     "codegen": "pnpm --filter @paystreamer/sdk codegen",
     "seed:demo": "pnpm --filter @paystreamer/sdk run seed:demo",
