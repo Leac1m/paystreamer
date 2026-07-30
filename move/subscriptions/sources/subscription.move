@@ -258,6 +258,11 @@ module subscriptions::subscription {
         let now = clock.timestamp_ms();
         s.attempt_count = s.attempt_count + 1;
         s.last_attempt_time = now;
+        
+        if (s.attempt_count >= 3) {
+            s.status = 1; // PAUSED
+        };
+
         s.updated_at = now;
         event::emit(FailedPaymentRecorded {
             account_id,

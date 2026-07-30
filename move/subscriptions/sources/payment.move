@@ -41,15 +41,9 @@ module subscriptions::payment {
     const EInvalidAmount: u64 = 0x09002;
 
     /// The account's live headroom is below the requested `amount`.
-    /// Surfaces `account::internal_withdraw`'s `EInsufficientBalance`
-    /// at the payment-flow level so off-chain indexers can distinguish
-    /// a billing failure (insufficient balance) from a schedule failure
-    /// (`ENotDue`). Currently a forward-reserved code; the actual
-    /// abort path is `account::internal_withdraw`'s native abort, so
-    /// the constant is intentionally not referenced (and not asserted
-    /// against) inside the function body. Kept for stable cross-module
-    /// error-code references.
-    #[allow(unused_const)]
+    /// Caught early to ensure `record_failed_payment` is called and
+    /// the subscription's retry state advances, preventing users from
+    /// avoiding suspension by emptying their wallets.
     const EInsufficientBalance: u64 = 0x09003;
 
 
@@ -155,6 +149,19 @@ module subscriptions::payment {
         let amount = account::tier_amount_via_sub(account, platform_id);
         assert!(amount > 0, EZeroAmount);
 
+        // 3a. Check for sufficient balance gracefully to prevent users from
+        // dodging payments by keeping their balance at 0.
+        if (account::balance(account) < amount) {
+            record_failed_payment(account, platform_id, amount, EInsufficientBalance, clock);
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount,
+                reason: EInsufficientBalance,
+                v: 2,
+            });
+            return
+        };
 
         // 4. two-pass policy evaluation.
         let (allowed, failures) = policies::evaluate(

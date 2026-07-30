@@ -538,6 +538,23 @@ module subscriptions::account {
         account.balance.value()
     }
 
+    /// Read-only helper for Seal/Access-Control integrations. Returns true
+    /// if the account has an active, unpaused subscription to the platform.
+    public fun has_active_subscription<T>(
+        account: &SubscriptionAccount<T>, 
+        platform_id: ID
+    ): bool {
+        if (!account.subscriptions.contains(&platform_id)) {
+            return false
+        };
+        
+        if (!is_active(&account.status)) {
+            return false
+        };
+
+        true
+    }
+
     /// Account lifecycle status.
     /// Role: any caller (read-only view).
     public fun status<T>(account: &SubscriptionAccount<T>): &AccountStatus {

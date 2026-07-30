@@ -296,4 +296,73 @@ module subscriptions::payment_tests {
         ts::return_shared(registry);
         sc.end();
     }
+
+    #[test]
+    fun test_process_due_payment_insufficient_balance() {
+        let owner = @0xA;
+        let mut sc = ts::begin(owner);
+        registry::init_for_testing(ts::ctx(&mut sc));
+        let clock = fresh_clock(&mut sc);
+        let (account_id, platform_id) = setup_account_with_subscription(
+            &clock,
+            &mut sc,
+            100,
+            0,
+        );
+
+        ts::next_tx(&mut sc, owner);
+
+        let registry = ts::take_shared<registry::Registry>(&sc);
+
+        let mut account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
+            &sc, account_id,
+        );
+        let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
+        let mut limiters = fresh_initialized_limiters(&account, &clock);
+
+        // Intentionally DO NOT deposit funds, so balance is 0.
+
+        // Call process_due_payment 3 times to trigger the auto-pause
+        payment::process_due_payment<TEST_USDC>(
+            &registry,
+            &mut p,
+            &mut account,
+            &mut limiters,
+            &clock,
+            ts::ctx(&mut sc),
+        );
+        
+        // Assert attempt count is 1
+        assert!(account::subscription_status(&account, platform_id) == 0, 1); // Still active
+
+        payment::process_due_payment<TEST_USDC>(
+            &registry,
+            &mut p,
+            &mut account,
+            &mut limiters,
+            &clock,
+            ts::ctx(&mut sc),
+        );
+        
+        payment::process_due_payment<TEST_USDC>(
+            &registry,
+            &mut p,
+            &mut account,
+            &mut limiters,
+            &clock,
+            ts::ctx(&mut sc),
+        );
+
+        // After 3 failures, status should be paused (1)
+        assert!(account::subscription_status(&account, platform_id) == 1, 2); 
+        // has_active_subscription should return false!
+        assert!(!account::has_active_subscription(&account, platform_id), 3);
+
+        policies::destroy_limiters_for_testing(limiters);
+        ts::return_shared(p);
+        account::destroy_account_for_testing(account);
+        clock::destroy_for_testing(clock);
+        ts::return_shared(registry);
+        sc.end();
+    }
 }
