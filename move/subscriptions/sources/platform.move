@@ -79,6 +79,9 @@ module subscriptions::platform {
     /// 48h between `propose` and `accept`.
     const ETreasuryChangeNotYetDue: u64 = 0x0800A;
 
+    /// The provided `PlatformRegistrationReceipt` does not match the `Platform` being registered.
+    const EInvalidReceipt: u64 = 0x0800B;
+
     // === SubscriptionTier ===
 
     /// A platform-defined billing tier. `copy + drop + store` so it can
@@ -149,6 +152,13 @@ module subscriptions::platform {
     /// becomes valid.
     public fun pending_treasury_execute_after_ms(p: &PendingTreasuryChange): u64 {
         p.execute_after_ms
+    }
+
+    // === PlatformRegistrationReceipt ===
+
+    /// Hot potato to ensure `Platform` is shared via `register_platform`.
+    public struct PlatformRegistrationReceipt {
+        platform_id: ID,
     }
 
     // === Platform ===
@@ -277,23 +287,23 @@ module subscriptions::platform {
         v: u16,
     }
 
-    // === register_platform ===
+    // === create_platform & register_platform ===
 
-    /// Register a new platform. The caller becomes the platform owner
-    /// and the initial treasury. The platform is shared so any caller
-    /// can read it; mutating functions require the owner.
+    /// Create a new platform object. The caller becomes the platform owner
+    /// and the initial treasury. 
     ///
-    /// Returns the new `Platform`'s `ID` for caller convenience. The
-    /// `Platform` itself is shared in this function (no separate
-    /// transfer call needed).
-    public fun register_platform(
+    /// Returns the new `Platform` and a `PlatformRegistrationReceipt` which must
+    /// be consumed in the same transaction by calling `register_platform`.
+    /// This separation allows calling mutating functions (like `create_tier`)
+    /// on the platform in a PTB before it is finally shared.
+    public fun create_platform(
         name: String,
         description: String,
         category: String,
         webhook_url: std::option::Option<String>,
         clock: &Clock,
         ctx: &mut TxContext,
-    ): ID {
+    ): (Platform, PlatformRegistrationReceipt) {
         let now = clock.timestamp_ms();
         let platform_uid = object::new(ctx);
         let platform_id = object::uid_to_inner(&platform_uid);
@@ -313,87 +323,26 @@ module subscriptions::platform {
             tiers: vec_map::empty(),
             version: 2,
         };
-        transfer::share_object(platform);
-        event::emit(PlatformRegistered {
-            platform_id,
-            owner: ctx.sender(),
-            name,
-            v: 2,
-        });
-        platform_id
+        let receipt = PlatformRegistrationReceipt { platform_id };
+        (platform, receipt)
     }
 
-    /// Register a new platform and create its first tier atomically.
-    /// Both operations succeed or both abort — the tier is only appended
-    /// if the platform registration succeeds.
-    ///
-    /// Returns `(platform_id, tier_index = 0)`. Emits both
-    /// `PlatformRegistered` and `TierCreated`.
-    ///
-    /// The tier's `denomination` is derived from the generic type `T` via
-    /// `type_name::with_original_ids<T>()`.
-    public fun register_platform_with_tier<T>(
-        name: String,
-        description: String,
-        category: String,
-        webhook_url: std::option::Option<String>,
-        tier_name: String,
-        tier_amount: u64,
-        tier_frequency_ms: u64,
-        clock: &Clock,
-        ctx: &mut TxContext,
-    ): (ID, u64) {
-        let now = clock.timestamp_ms();
-        let platform_uid = object::new(ctx);
-        let platform_id = object::uid_to_inner(&platform_uid);
-
-        assert!(tier_amount > 0, EInvalidAmount);
-        assert!(tier_frequency_ms > 0, EInvalidFrequency);
-
-        let mut platform = Platform {
-            id: platform_uid,
-            owner: ctx.sender(),
-            treasury: ctx.sender(),
-            pending_treasury: std::option::none(),
-            name,
-            description,
-            category,
-            webhook_url,
-            is_verified: false,
-            subscriber_count: 0,
-            created_at: now,
-            tiers: vec_map::empty(),
-            version: 2,
-        };
-
-        let tier_index = 0u64;
-        let tier = new_tier(
-            tier_name,
-            tier_amount,
-            tier_frequency_ms,
-            type_name::with_original_ids<T>(),
-        );
-        vec_map::insert(&mut platform.tiers, tier_index, tier);
-
-        event::emit(TierCreated {
-            platform_id,
-            tier_index,
-            tier_name,
-            amount: tier_amount,
-            frequency_ms: tier_frequency_ms,
-            denomination: type_name::with_original_ids<T>(),
-            v: 2,
-        });
-
-        transfer::share_object(platform);
+    /// Register the platform by consuming the `PlatformRegistrationReceipt`,
+    /// emitting `PlatformRegistered`, and sharing the `Platform` object.
+    /// This must be called in the same transaction as `create_platform`.
+    public fun register_platform(
+        platform: Platform,
+        receipt: PlatformRegistrationReceipt,
+    ) {
+        let PlatformRegistrationReceipt { platform_id } = receipt;
+        assert!(object::id(&platform) == platform_id, EInvalidReceipt);
         event::emit(PlatformRegistered {
             platform_id,
-            owner: ctx.sender(),
-            name,
+            owner: platform.owner,
+            name: platform.name,
             v: 2,
         });
-
-        (platform_id, tier_index)
+        transfer::share_object(platform);
     }
 
     // === update_platform (owner only) ===

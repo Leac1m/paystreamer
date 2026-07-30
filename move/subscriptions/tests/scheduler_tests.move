@@ -37,7 +37,7 @@ module subscriptions::scheduler_tests {
         tier_amount: u64,
         frequency_ms: u64,
     ): (object::ID, object::ID) {
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"TestPlatform"),
             string::utf8(b"d"),
             string::utf8(b"Test"),
@@ -45,6 +45,8 @@ module subscriptions::scheduler_tests {
             clock,
             ts::ctx(scenario),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
             account::empty_policy_set(),
