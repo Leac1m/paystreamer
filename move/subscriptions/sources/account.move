@@ -551,6 +551,12 @@ module subscriptions::account {
         if (!is_active(&account.status)) {
             return false
         };
+        
+        // Also check if the specific subscription is paused
+        let sub = account.subscriptions.get(&platform_id);
+        if (!subscription::is_active(sub)) {
+            return false
+        };
 
         true
     }
