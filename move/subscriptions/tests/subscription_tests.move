@@ -39,9 +39,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             frequency_ms,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
 
         assert!(account::subscription_tier_amount(&account, platform_id) == 1_000_000, 0);
         assert!(account::subscription_tier_frequency_ms(&account, platform_id) == frequency_ms, 1);
@@ -82,9 +80,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         account::create_subscription<TEST_USDC>(
             &cap,
             &mut account,
@@ -93,9 +89,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
 
         account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
@@ -123,18 +117,14 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(account::subscription_status(&account, platform_id) == 0, 0);
 
         account::cancel_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(!account::has_subscription(&account, &platform_id), 1);
 
         account::destroy_account_cap_for_testing(cap);
@@ -163,16 +153,12 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         account::cancel_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(!account::has_subscription(&account, &platform_id), 0);
 
         account::create_subscription<TEST_USDC>(
@@ -183,9 +169,7 @@ module subscriptions::subscription_tests {
             2_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(account::subscription_status(&account, platform_id) == 0, 1);
 
         account::destroy_account_cap_for_testing(cap);
@@ -214,18 +198,14 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(account::subscription_status(&account, platform_id) == 0, 0);
 
         account::cancel_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(!account::has_subscription(&account, &platform_id), 1);
 
         account::create_subscription<TEST_USDC>(
@@ -236,9 +216,7 @@ module subscriptions::subscription_tests {
             2_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(account::subscription_status(&account, platform_id) == 0, 2);
 
         account::destroy_account_cap_for_testing(cap);
@@ -268,9 +246,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             frequency_ms,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
 
         clock::set_for_testing(&mut clock, 1_000_000);
         account::record_payment<TEST_USDC>(&mut account, platform_id, 1_000_000, &clock);
@@ -321,16 +297,12 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         account::pause_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         account::record_payment<TEST_USDC>(&mut account, platform_id, 1_000_000, &clock);
 
         account::destroy_account_cap_for_testing(cap);
@@ -359,9 +331,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             0,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         let now = clock.timestamp_ms();
         assert!(account::subscription_next_billing_time(&account, platform_id) == now, 0);
         assert!(account::can_bill(&account, platform_id, &clock), 1);
@@ -370,18 +340,14 @@ module subscriptions::subscription_tests {
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(!account::can_bill(&account, platform_id, &clock), 2);
 
         account::resume_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         clock::set_for_testing(&mut clock, now + 1);
         assert!(account::can_bill(&account, platform_id, &clock), 3);
 
@@ -414,9 +380,7 @@ module subscriptions::subscription_tests {
             1_000_000,
             86_400_000,
             3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
+            &clock);
         assert!(!account::can_bill(&account, platform_id, &clock), 0);
 
         account::destroy_account_cap_for_testing(cap);

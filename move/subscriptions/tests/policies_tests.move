@@ -60,7 +60,7 @@ module subscriptions::policies_tests {
             ts::ctx(&mut sc),
         );
         let ps: PolicySet = account::new_policy_set(100, 0, 0, 0);
-        account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
+        account::update_policies<TEST_USDC>(&cap, &mut account, ps);
 
         let mut limiters = policies::empty_limiters(&clock);
         policies::ensure_initialized<TEST_USDC>(&account, &mut limiters, &clock);
@@ -99,7 +99,7 @@ module subscriptions::policies_tests {
             ts::ctx(&mut sc),
         );
         let ps: PolicySet = account::new_policy_set(0, 1_000, 0, 0);
-        account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
+        account::update_policies<TEST_USDC>(&cap, &mut account, ps);
 
         let mut limiters = policies::empty_limiters(&clock);
         policies::ensure_initialized<TEST_USDC>(&account, &mut limiters, &clock);
@@ -138,7 +138,7 @@ module subscriptions::policies_tests {
             ts::ctx(&mut sc),
         );
         let ps: PolicySet = account::new_policy_set(0, 0, 0, 1_000);
-        account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
+        account::update_policies<TEST_USDC>(&cap, &mut account, ps);
 
         let mut limiters = policies::empty_limiters(&clock);
         policies::ensure_initialized<TEST_USDC>(&account, &mut limiters, &clock);
@@ -192,7 +192,7 @@ module subscriptions::policies_tests {
             &clock,
             ts::ctx(&mut sc),
         );
-        account::update_policies<TEST_USDC>(&cap, &mut account, ps, &clock);
+        account::update_policies<TEST_USDC>(&cap, &mut account, ps);
 
         let mut limiters = policies::empty_limiters(&clock);
         policies::ensure_initialized<TEST_USDC>(&account, &mut limiters, &clock);

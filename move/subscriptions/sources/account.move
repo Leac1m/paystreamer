@@ -309,7 +309,6 @@ module subscriptions::account {
     public fun deposit<T>(
         account: &mut SubscriptionAccount<T>,
         coin: Coin<T>,
-        _clock: &Clock,
         ctx: &mut TxContext,
     ) {
         assert!(!is_closed(&account.status), EAccountClosed);
@@ -368,7 +367,6 @@ module subscriptions::account {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
         account.status = account_status_paused();
-        let now = clock.timestamp_ms();
         let sub_count = vec_map::length(&account.subscriptions);
         let mut i: u64 = 0;
         while (i < sub_count) {
@@ -394,8 +392,7 @@ module subscriptions::account {
     public fun resume_account<T>(
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
-        _clock: &Clock,
-    ) {
+        ) {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(is_paused(&account.status), EAccountNotPaused);
         account.status = account_status_active();
@@ -416,8 +413,7 @@ module subscriptions::account {
     public fun close_account<T>(
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
-        _clock: &Clock,
-    ) {
+        ) {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         account.status = account_status_closed();
         event::emit(AccountClosed {
@@ -439,8 +435,7 @@ module subscriptions::account {
         cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
         new_policies: PolicySet,
-        _clock: &Clock,
-    ) {
+        ) {
         assert!(cap.account_id == object::id(account), EInvalidCap);
         let old_policies = account.policies;
         account.policies = new_policies;
@@ -502,9 +497,9 @@ module subscriptions::account {
     /// `vec_map::get` abort path.
     public(package) fun tier_amount_via_sub<T>(
         account: &SubscriptionAccount<T>,
-        _platform_id: ID,
+        platform_id: ID,
     ): u64 {
-        subscriptions::subscription::tier_amount(vec_map::get(&account.subscriptions, &_platform_id))
+        subscriptions::subscription::tier_amount(vec_map::get(&account.subscriptions, &platform_id))
     }
 
     // === Accessors (view) ===
@@ -613,7 +608,6 @@ module subscriptions::account {
         tier_frequency_ms: u64,
         max_attempts: u8,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let status_ref = status(account);
@@ -647,7 +641,6 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         platform_id: ID,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -660,7 +653,6 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         platform_id: ID,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -673,7 +665,6 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         platform_id: ID,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -690,7 +681,6 @@ module subscriptions::account {
         platform_id: ID,
         max_attempts: u8,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -706,7 +696,6 @@ module subscriptions::account {
         tier_amount: u64,
         tier_frequency_ms: u64,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -720,7 +709,6 @@ module subscriptions::account {
         platform_id: ID,
         schedule_frequency_ms: u64,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
         let account_id = object::id(account);
@@ -821,10 +809,9 @@ module subscriptions::account {
     }
 
     public fun subscription_denomination<T>(
-        _account: &SubscriptionAccount<T>,
-        _platform_id: ID,
+        account: &SubscriptionAccount<T>,
     ): std::type_name::TypeName {
-        account_type(_account)
+        account_type(account)
     }
 
     // === Test-only helpers ===

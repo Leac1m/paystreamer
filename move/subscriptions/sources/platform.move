@@ -511,7 +511,6 @@ module subscriptions::platform {
     public fun accept_treasury_change(
         platform: &mut Platform,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(platform.pending_treasury.is_some(), ENoPendingTreasuryChange);
         let now = clock.timestamp_ms();

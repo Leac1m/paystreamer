@@ -248,7 +248,7 @@ module subscriptions::platform_tests {
             &mut clock,
             t0 + platform::treasury_change_delay_ms(),
         );
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
         assert!(platform::treasury(&p) == new_treasury, 4);
         assert!(platform::pending_treasury(&p).is_none(), 5);
 
@@ -290,7 +290,7 @@ module subscriptions::platform_tests {
             &mut clock,
             t0 + platform::treasury_change_delay_ms() - 1,
         );
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
 
         ts::return_shared(p);
         clock::destroy_for_testing(clock);
@@ -331,7 +331,7 @@ module subscriptions::platform_tests {
         assert!(platform::pending_treasury(&p).is_none(), 1);
         assert!(platform::treasury(&p) == owner, 2);
 
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
 
         ts::return_shared(p);
         clock::destroy_for_testing(clock);

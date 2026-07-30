@@ -63,9 +63,7 @@ module subscriptions::payment_tests {
             tier_amount,
             frequency_ms,
             3,
-            clock,
-            ts::ctx(scenario),
-        );
+            clock);
 
         let account_id = object::id(&account);
         account::share_account<TEST_USDC>(account, cap, ts::ctx(scenario));
@@ -94,7 +92,7 @@ module subscriptions::payment_tests {
 
         let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         payment::process_due_payment<TEST_USDC>(
@@ -177,7 +175,7 @@ module subscriptions::payment_tests {
 
         let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         payment::process_due_payment<TEST_USDC>(

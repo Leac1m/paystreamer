@@ -89,7 +89,7 @@ module subscriptions::account_tests {
             500,
             60_000,
         );
-        account::update_policies<TEST_USDC>(&cap, &mut account, new_set, &clock);
+        account::update_policies<TEST_USDC>(&cap, &mut account, new_set);
 
         let p = account::policies(&account);
         assert!(account::policy_per_tx_max(p) == 1_000, 4);
@@ -116,7 +116,7 @@ module subscriptions::account_tests {
             ts::ctx(&mut sc),
         );
 
-        account::close_account<TEST_USDC>(&cap, &mut account, &clock);
+        account::close_account<TEST_USDC>(&cap, &mut account);
         assert!(account::is_closed(account::status(&account)), 0);
 
         account::destroy_account_cap_for_testing(cap);
