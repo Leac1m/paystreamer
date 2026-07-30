@@ -1,6 +1,7 @@
 #[test_only]
 module subscriptions::account_tests {
-    use subscriptions::account::{Self, AccountStatus, PolicySet, Subscription, AccountCap};
+    use subscriptions::account::{Self, AccountStatus, PolicySet, AccountCap};
+    use subscriptions::subscription::{Self, Subscription};
     use std::type_name;
     use sui::object;
     use sui::test_scenario as ts;
@@ -18,7 +19,7 @@ module subscriptions::account_tests {
         _scenario: &mut ts::Scenario,
     ): Subscription {
         let now = 0;
-        account::new_subscription(
+        subscription::new_for_testing(
             platform_id,
             0,
             100,
@@ -157,7 +158,7 @@ module subscriptions::account_tests {
         let mut sc = ts::begin(@0xA);
         let platform_id = object::id_from_address(@0xCAFEBABE);
         let now: u64 = 1_700_000_000_000;
-        let sub = account::new_subscription(
+        let sub = subscription::new_for_testing(
             platform_id,
             3,
             5_000_000,
@@ -175,22 +176,22 @@ module subscriptions::account_tests {
             now - 30 * 86_400_000,
             now,
         );
-        assert!(account::sub_platform_id(&sub) == platform_id, 0);
-        assert!(account::sub_tier_index(&sub) == 3, 1);
-        assert!(account::sub_tier_amount(&sub) == 5_000_000, 2);
-        assert!(account::sub_tier_frequency_ms(&sub) == 2_592_000_000, 3);
-        assert!(account::sub_schedule_frequency_ms(&sub) == 7_776_000_000, 4);
-        assert!(account::sub_next_billing_time(&sub) == 1_700_000_000_000, 5);
-        assert!(account::sub_last_billing_time(&sub) == 1_699_900_000_000, 6);
-        assert!(account::sub_total_paid(&sub) == 50_000_000, 7);
-        assert!(account::sub_payment_count(&sub) == 10, 8);
-        assert!(account::sub_last_attempt_time(&sub) == 1_699_950_000_000, 9);
-        assert!(account::sub_attempt_count(&sub) == 2, 10);
-        assert!(account::sub_max_attempts(&sub) == 5, 11);
-        assert!(account::sub_nonce(&sub) == 7, 12);
-        assert!(account::sub_is_active(&sub), 13);
-        assert!(!account::sub_is_paused(&sub), 14);
-        assert!(!account::sub_is_cancelled(&sub), 15);
+        assert!(subscription::platform_id(&sub) == platform_id, 0);
+        assert!(subscription::tier_index(&sub) == 3, 1);
+        assert!(subscription::tier_amount(&sub) == 5_000_000, 2);
+        assert!(subscription::tier_frequency_ms(&sub) == 2_592_000_000, 3);
+        assert!(subscription::schedule_frequency_ms(&sub) == 7_776_000_000, 4);
+        assert!(subscription::next_billing_time(&sub) == 1_700_000_000_000, 5);
+        assert!(subscription::last_billing_time(&sub) == 1_699_900_000_000, 6);
+        assert!(subscription::total_paid(&sub) == 50_000_000, 7);
+        assert!(subscription::payment_count(&sub) == 10, 8);
+        assert!(subscription::last_attempt_time(&sub) == 1_699_950_000_000, 9);
+        assert!(subscription::attempt_count(&sub) == 2, 10);
+        assert!(subscription::max_attempts(&sub) == 5, 11);
+        assert!(subscription::nonce(&sub) == 7, 12);
+        assert!(subscription::is_active(&sub), 13);
+        assert!(!subscription::is_paused(&sub), 14);
+        assert!(!subscription::is_cancelled(&sub), 15);
         let _ = now;
         let _ = sub;
         sc.end();

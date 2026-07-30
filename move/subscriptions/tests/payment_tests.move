@@ -2,7 +2,7 @@
 module subscriptions::payment_tests {
     use subscriptions::account;
     
-    use subscriptions::billing;
+    
     use subscriptions::payment;
     use subscriptions::platform;
     use subscriptions::policies;
@@ -55,7 +55,7 @@ module subscriptions::payment_tests {
             ts::ctx(scenario),
         );
 
-        billing::create_subscription<TEST_USDC>(
+        account::create_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
@@ -106,8 +106,8 @@ module subscriptions::payment_tests {
         );
 
         assert!(account::nonce(&account) == 1, 0);
-        assert!(billing::subscription_total_paid(&account, platform_id) == 100, 2);
-        assert!(billing::subscription_payment_count(&account, platform_id) == 1, 3);
+        assert!(account::subscription_total_paid(&account, platform_id) == 100, 2);
+        assert!(account::subscription_payment_count(&account, platform_id) == 1, 3);
 
         policies::destroy_limiters_for_testing(limiters);
         ts::return_shared(p);

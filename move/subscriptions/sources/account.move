@@ -27,123 +27,18 @@ module subscriptions::account {
     use sui::coin::{Self, Coin};
     use sui::clock::Clock;
     use sui::vec_map::{Self, VecMap};
+    use subscriptions::subscription::{Self, Subscription};
     use sui::event;
     use sui::transfer;
     use sui::tx_context::TxContext;
     use std::type_name::{Self, TypeName};
 
-    // === Subscription (declared here, augmented by billing.move) ===
-
-    /// Per-platform subscription, embedded in the account's
-    ///
-    /// `status: u8` is the lifecycle discriminant: 0 = active, 1 = paused,
-    /// 2 = cancelled. Cascading the account-level pause flips active subs
-    /// to 1 (paused); resuming the account does NOT flip them back
-    /// billing).
-    public struct Subscription has store, drop {
-        platform_id: ID,
-        tier_index: u64,
-        tier_amount: u64,
-        tier_frequency_ms: u64,
-        status: u8,
-        schedule_frequency_ms: u64,
-        next_billing_time: u64,
-        last_billing_time: u64,
-        total_paid: u64,
-        payment_count: u64,
-        last_attempt_time: u64,
-        attempt_count: u8,
-        max_attempts: u8,
-        nonce: u64,
-        created_at: u64,
-        updated_at: u64,
-    }
-
-    /// canonical constructor; `billing.move` will expose higher-level
-    /// `create_subscription(account, ...)` that calls this. Time fields
-    /// are caller-supplied (use `clock.timestamp_ms()`) so the
-    /// constructor remains pure and testable.
-    public fun new_subscription(
-        platform_id: ID,
-        tier_index: u64,
-        tier_amount: u64,
-        tier_frequency_ms: u64,
-        status: u8,
-        schedule_frequency_ms: u64,
-        next_billing_time: u64,
-        last_billing_time: u64,
-        total_paid: u64,
-        payment_count: u64,
-        last_attempt_time: u64,
-        attempt_count: u8,
-        max_attempts: u8,
-        nonce: u64,
-        created_at: u64,
-        updated_at: u64,
-    ): Subscription {
-        Subscription {
-            platform_id,
-            tier_index,
-            tier_amount,
-            tier_frequency_ms,
-            status,
-            schedule_frequency_ms,
-            next_billing_time,
-            last_billing_time,
-            total_paid,
-            payment_count,
-            last_attempt_time,
-            attempt_count,
-            max_attempts,
-            nonce,
-            created_at,
-            updated_at,
-        }
-    }
-
-    // === Subscription accessors ===
-
-    /// `platform_id` (map key).
-    /// Role: any caller (read-only view).
-    public fun sub_platform_id(s: &Subscription): ID { s.platform_id }
-    /// `tier_index`.
-    public fun sub_tier_index(s: &Subscription): u64 { s.tier_index }
-    /// `tier_amount` (smallest unit of `T`).
-    public fun sub_tier_amount(s: &Subscription): u64 { s.tier_amount }
-    /// `tier_frequency_ms` between successful payments.
-    public fun sub_tier_frequency_ms(s: &Subscription): u64 { s.tier_frequency_ms }
-    /// `status` (0 active, 1 paused, 2 cancelled).
-    public fun sub_status(s: &Subscription): u8 { s.status }
-    /// True iff `status == 0`.
-    public fun sub_is_active(s: &Subscription): bool { s.status == 0 }
-    /// True iff `status == 1`.
-    public fun sub_is_paused(s: &Subscription): bool { s.status == 1 }
-    /// True iff `status == 2`.
-    public fun sub_is_cancelled(s: &Subscription): bool { s.status == 2 }
-    /// `schedule_frequency_ms` (may differ from `tier_frequency_ms` after edits).
-    public fun sub_schedule_frequency_ms(s: &Subscription): u64 { s.schedule_frequency_ms }
-    /// `next_billing_time` (ms).
-    public fun sub_next_billing_time(s: &Subscription): u64 { s.next_billing_time }
-    /// `last_billing_time` (ms; 0 if never billed).
-    public fun sub_last_billing_time(s: &Subscription): u64 { s.last_billing_time }
-    /// `total_paid` lifetime.
-    public fun sub_total_paid(s: &Subscription): u64 { s.total_paid }
-    /// `payment_count` lifetime.
-    public fun sub_payment_count(s: &Subscription): u64 { s.payment_count }
-    /// `last_attempt_time` ms (for failed-attempt retry).
-    public fun sub_last_attempt_time(s: &Subscription): u64 { s.last_attempt_time }
-    /// `attempt_count` (lifetime failed attempts; reset on success).
-    public fun sub_attempt_count(s: &Subscription): u8 { s.attempt_count }
-    /// `max_attempts` (per cycle; 0 = no cap).
-    public fun sub_max_attempts(s: &Subscription): u8 { s.max_attempts }
-    /// `nonce` (per-subscription replay nonce; bumped on successful payment).
-    public fun sub_nonce(s: &Subscription): u64 { s.nonce }
-    /// `created_at` ms.
-    public fun sub_created_at(s: &Subscription): u64 { s.created_at }
-    /// `updated_at` ms.
-    public fun sub_updated_at(s: &Subscription): u64 { s.updated_at }
-
-    // === PolicySet (declared here, augmented by policies.move) ===
+    
+    #[allow(unused_const)]
+    const ESubscriptionNotFound: u64 = 0x06002;
+    const ESubscriptionAlreadyExists: u64 = 0x06003;
+    const EAccountPaused: u64 = 0x06006;
+// === PolicySet (declared here, augmented by policies.move) ===
 
     /// `policies.move` will wrap these in `Option<...>` and add the
     /// OZ `RateLimiter` machinery. For now the values are direct caps
@@ -270,7 +165,6 @@ module subscriptions::account {
     const EInvalidCap: u64 = 0x01001;
     /// The account is paused (`status.variant == 1`).
     #[allow(unused_const)]
-    const EAccountPaused: u64 = 0x01002;
     /// The account is closed (`status.variant == 2`).
     const EAccountClosed: u64 = 0x01003;
     /// A zero-amount deposit. Programmer error.
@@ -479,10 +373,7 @@ module subscriptions::account {
         let mut i: u64 = 0;
         while (i < sub_count) {
             let (_, sub) = vec_map::get_entry_by_idx_mut(&mut account.subscriptions, i);
-            if (sub.status == 0) {
-                sub.status = 1;
-                sub.updated_at = now;
-            };
+            subscriptions::subscription::cascade_pause(sub, clock);
             i = i + 1;
         };
         event::emit(AccountPaused {
@@ -613,7 +504,7 @@ module subscriptions::account {
         account: &SubscriptionAccount<T>,
         _platform_id: ID,
     ): u64 {
-        sub_tier_amount(vec_map::get(&account.subscriptions, &_platform_id))
+        subscriptions::subscription::tier_amount(vec_map::get(&account.subscriptions, &_platform_id))
     }
 
     // === Accessors (view) ===
@@ -711,67 +602,229 @@ module subscriptions::account {
         vec_map::length(&account.subscriptions)
     }
 
-    // === Subscription mutators (public(package) — billing.move only) ===
-    //
-    // is the only module that should mutate per-platform subscription
-    // state, so we expose the necessary writes here as `public(package)`
-    // helpers rather than making the fields themselves package-visible.
-    // Each helper is a single, audit-friendly write so reviewers can see
-    // exactly which fields a given operation touches.
+    // === create_subscription ===
 
-    /// Set the subscription's `status` field. Used by `pause/resume/cancel`.
-    public(package) fun sub_set_status(s: &mut Subscription, status: u8) {
-        s.status = status;
+    public fun create_subscription<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_ms: u64,
+        max_attempts: u8,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let status_ref = status(account);
+        assert!(is_active(status_ref), EAccountPaused);
+        assert!(!is_closed(status_ref), EAccountClosed);
+
+        if (vec_map::contains(subscriptions(account), &platform_id)) {
+            let existing = get_subscription(account, &platform_id);
+            assert!(
+                subscription::status(existing) == 2,
+                ESubscriptionAlreadyExists,
+            );
+        };
+
+        let sub = subscription::create(
+            object::id(account),
+            platform_id,
+            tier_index,
+            tier_amount,
+            tier_frequency_ms,
+            max_attempts,
+            clock
+        );
+        vec_map::insert(subscriptions_mut(account), platform_id, sub);
     }
 
-    /// Set the subscription's `updated_at` field (ms).
-    public(package) fun sub_set_updated_at(s: &mut Subscription, updated_at: u64) {
-        s.updated_at = updated_at;
+    // === pause / resume / cancel ===
+
+    public fun pause_subscription<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::pause(sub, account_id, clock);
     }
 
-    /// Apply the post-payment state update on a successful billing. All
-    /// fields written here are part of the same logical step; bundling
-    /// them in a single function keeps the schedule and counter invariants
-    /// together. `now` is `clock.timestamp_ms()` from the caller.
-    public(package) fun sub_apply_payment(
-        s: &mut Subscription,
+    public fun resume_subscription<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::resume(sub, account_id, clock);
+    }
+
+    public fun cancel_subscription<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        let removed = subscription::cancel(sub, account_id, clock);
+        if (removed) {
+            remove_subscription(account, &platform_id);
+        }
+    }
+
+    public fun update_subscription_max_attempts<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        max_attempts: u8,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::update_max_attempts(sub, account_id, max_attempts, clock);
+    }
+
+    public fun update_subscription_tier<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        tier_index: u64,
+        tier_amount: u64,
+        tier_frequency_ms: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::update_tier(sub, account_id, tier_index, tier_amount, tier_frequency_ms, clock);
+    }
+
+    public fun update_subscription_schedule_frequency<T>(
+        cap: &AccountCap,
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        schedule_frequency_ms: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        assert!(account_cap_id(cap) == object::id(account), EInvalidCap);
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::update_schedule_frequency(sub, account_id, schedule_frequency_ms, clock);
+    }
+
+    // === record_payment ===
+
+    public(package) fun record_payment<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
         amount: u64,
-        now: u64,
+        clock: &Clock,
     ) {
-        s.total_paid = s.total_paid + amount;
-        s.payment_count = s.payment_count + 1;
-        s.last_billing_time = now;
-        s.next_billing_time = now + s.tier_frequency_ms;
-        s.last_attempt_time = now;
-        s.attempt_count = 0;
-        s.nonce = s.nonce + 1;
-        s.updated_at = now;
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::record_payment(sub, account_id, amount, clock);
     }
 
-    public(package) fun sub_set_max_attempts(s: &mut Subscription, max_attempts: u8) {
-        s.max_attempts = max_attempts;
-    }
+    // === record_failed_payment ===
 
-    public(package) fun sub_set_tier(s: &mut Subscription, tier_index: u64, tier_amount: u64, tier_frequency_ms: u64) {
-        s.tier_index = tier_index;
-        s.tier_amount = tier_amount;
-        s.tier_frequency_ms = tier_frequency_ms;
-    }
-
-    public(package) fun sub_set_schedule_frequency(s: &mut Subscription, schedule_frequency_ms: u64) {
-        s.schedule_frequency_ms = schedule_frequency_ms;
-    }
-
-    /// Apply the failed-attempt state update. Bumps `attempt_count`,
-    /// stamps `last_attempt_time` and `updated_at`. Does not touch the
-    /// billing schedule (a failed bill does not advance `next_billing_time`).
-    public(package) fun sub_apply_failed_attempt(
-        s: &mut Subscription,
-        now: u64,
+    public(package) fun record_failed_payment<T>(
+        account: &mut SubscriptionAccount<T>,
+        platform_id: ID,
+        amount: u64,
+        reason: u64,
+        clock: &Clock,
     ) {
-        s.attempt_count = s.attempt_count + 1;
-        s.last_attempt_time = now;
-        s.updated_at = now;
+        let account_id = object::id(account);
+        let sub = get_subscription_mut(account, &platform_id);
+        subscription::record_failed_payment(sub, account_id, amount, reason, clock);
+    }
+
+    // === can_bill ===
+
+    public fun can_bill<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+        clock: &Clock,
+    ): bool {
+        if (!vec_map::contains(subscriptions(account), &platform_id)) {
+            return false
+        };
+        let sub = vec_map::get(subscriptions(account), &platform_id);
+        subscription::can_bill(sub, clock)
+    }
+
+    // === Accessors (read-only) ===
+
+    public fun subscription_status<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u8 {
+        subscription::status(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_total_paid<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::total_paid(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_payment_count<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::payment_count(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_nonce<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::nonce(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_tier_amount<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::tier_amount(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_tier_frequency_ms<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::tier_frequency_ms(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_next_billing_time<T>(
+        account: &SubscriptionAccount<T>,
+        platform_id: ID,
+    ): u64 {
+        subscription::next_billing_time(vec_map::get(subscriptions(account), &platform_id))
+    }
+
+    public fun subscription_denomination<T>(
+        _account: &SubscriptionAccount<T>,
+        _platform_id: ID,
+    ): std::type_name::TypeName {
+        account_type(_account)
     }
 
     // === Test-only helpers ===
@@ -828,25 +881,8 @@ module subscriptions::account {
         // it returns `(K, V)` and is the canonical way to walk a `VecMap`
         // in reverse insertion order.
         while (!vec_map::is_empty(&subscriptions)) {
-            let (_k, sub) = vec_map::pop(&mut subscriptions);
-            let Subscription {
-                platform_id: _,
-                tier_index: _,
-                tier_amount: _,
-                tier_frequency_ms: _,
-                status: _,
-                schedule_frequency_ms: _,
-                next_billing_time: _,
-                last_billing_time: _,
-                total_paid: _,
-                payment_count: _,
-                last_attempt_time: _,
-                attempt_count: _,
-                max_attempts: _,
-                nonce: _,
-                created_at: _,
-                updated_at: _,
-            } = sub;
+            let (_k, _sub) = vec_map::pop(&mut subscriptions);
+            // sub is dropped implicitly
         };
         vec_map::destroy_empty(subscriptions);
     }

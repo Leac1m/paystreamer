@@ -2,7 +2,7 @@
 module subscriptions::scheduler_tests {
     use subscriptions::account;
     
-    use subscriptions::billing;
+    
     use subscriptions::payment;
     use subscriptions::platform;
     use subscriptions::policies;
@@ -54,7 +54,7 @@ module subscriptions::scheduler_tests {
             ts::ctx(scenario),
         );
 
-        billing::create_subscription<TEST_USDC>(
+        account::create_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
@@ -116,8 +116,8 @@ module subscriptions::scheduler_tests {
         );
 
         assert!(account::nonce(&account) == 1, 3);
-        assert!(billing::subscription_total_paid(&account, platform_id) == 100, 4);
-        assert!(billing::subscription_payment_count(&account, platform_id) == 1, 5);
+        assert!(account::subscription_total_paid(&account, platform_id) == 100, 4);
+        assert!(account::subscription_payment_count(&account, platform_id) == 1, 5);
         assert!(scheduler::last_processed_at(&scheduler) == 1_000, 6);
 
         policies::destroy_limiters_for_testing(limiters);

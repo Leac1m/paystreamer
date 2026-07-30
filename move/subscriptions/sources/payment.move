@@ -25,8 +25,8 @@ module subscriptions::payment {
     use sui::event;
     use sui::tx_context::TxContext;
     use sui::clock::Clock;
-    use subscriptions::account::{Self, SubscriptionAccount};
-    use subscriptions::billing::{Self, can_bill, record_payment, record_failed_payment};
+    use subscriptions::account::{Self, SubscriptionAccount, can_bill, record_payment, record_failed_payment};
+    
     use subscriptions::policies::{Self, PolicyLimiters, PolicyFailure};
     use subscriptions::platform::{Self, Platform};
 
