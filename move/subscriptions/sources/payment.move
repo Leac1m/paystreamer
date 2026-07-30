@@ -166,7 +166,7 @@ module subscriptions::payment {
             });
             abort EPolicyViolation
         };
-        let failure_count = vector::length(&failures);
+        let failure_count = failures.length();
 
         // 5. Withdraw from account's balance and send to treasury.
         // The subscriber must have deposited funds into the account first.

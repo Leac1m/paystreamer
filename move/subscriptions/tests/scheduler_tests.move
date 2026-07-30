@@ -125,7 +125,7 @@ module subscriptions::scheduler_tests {
 
         ts::next_tx(&mut sc, owner);
         let received_coin = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
-        assert!(coin::value(&received_coin) == 100, 8);
+        assert!(received_coin.value() == 100, 8);
         std::unit_test::destroy(received_coin);
 
         let _effects = test_scenario::next_tx(&mut sc, owner);

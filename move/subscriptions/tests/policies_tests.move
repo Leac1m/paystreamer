@@ -34,13 +34,13 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1, &clock,
         );
         assert!(allowed, 0);
-        assert!(vector::length(&failures) == 0, 1);
+        assert!(failures.length() == 0, 1);
 
         let (allowed2, failures2) = policies::evaluate<TEST_USDC>(
             &account, &mut limiters, 1_000_000_000, &clock,
         );
         assert!(allowed2, 2);
-        assert!(vector::length(&failures2) == 0, 3);
+        assert!(failures2.length() == 0, 3);
 
         account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
@@ -69,8 +69,8 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 200, &clock,
         );
         assert!(!allowed, 0);
-        assert!(vector::length(&failures) == 1, 1);
-        let f: &PolicyFailure = vector::borrow(&failures, 0);
+        assert!(failures.length() == 1, 1);
+        let f: &PolicyFailure = &failures[0];
         assert!(policies::failure_code(f) == 0x07001, 2);
         assert!(policies::failure_amount_required(f) == 200, 3);
         assert!(policies::failure_amount_available(f) == 100, 4);
@@ -79,7 +79,7 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 100, &clock,
         );
         assert!(allowed2, 5);
-        assert!(vector::length(&failures2) == 0, 6);
+        assert!(failures2.length() == 0, 6);
 
         account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
@@ -108,14 +108,14 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1_000, &clock,
         );
         assert!(allowed1, 0);
-        assert!(vector::length(&failures1) == 0, 1);
+        assert!(failures1.length() == 0, 1);
 
         let (allowed2, failures2) = policies::evaluate<TEST_USDC>(
             &account, &mut limiters, 1, &clock,
         );
         assert!(!allowed2, 2);
-        assert!(vector::length(&failures2) == 1, 3);
-        let f: &PolicyFailure = vector::borrow(&failures2, 0);
+        assert!(failures2.length() == 1, 3);
+        let f: &PolicyFailure = &failures2[0];
         assert!(policies::failure_code(f) == 0x07002, 4);
         assert!(policies::failure_amount_required(f) == 1, 5);
         assert!(policies::failure_amount_available(f) == 0, 6);
@@ -147,7 +147,7 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1, &clock,
         );
         assert!(allowed1, 0);
-        assert!(vector::length(&failures1) == 0, 1);
+        assert!(failures1.length() == 0, 1);
 
         clock::set_for_testing(&mut clock, 1_500);
 
@@ -155,8 +155,8 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1, &clock,
         );
         assert!(!allowed2, 2);
-        assert!(vector::length(&failures2) == 1, 3);
-        let f: &PolicyFailure = vector::borrow(&failures2, 0);
+        assert!(failures2.length() == 1, 3);
+        let f: &PolicyFailure = &failures2[0];
         assert!(policies::failure_code(f) == 0x07004, 4);
         assert!(policies::failure_amount_required(f) == 1, 5);
         assert!(policies::failure_amount_available(f) == 0, 6);
@@ -167,7 +167,7 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1, &clock,
         );
         assert!(allowed3, 7);
-        assert!(vector::length(&failures3) == 0, 8);
+        assert!(failures3.length() == 0, 8);
 
         account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
@@ -201,26 +201,26 @@ module subscriptions::policies_tests {
             &account, &mut limiters, 1_500, &clock,
         );
         assert!(!allowed1, 0);
-        assert!(vector::length(&failures1) == 1, 1);
+        assert!(failures1.length() == 1, 1);
 
         let (allowed2, failures2) = policies::evaluate<TEST_USDC>(
             &account, &mut limiters, 500, &clock,
         );
         assert!(allowed2, 2);
-        assert!(vector::length(&failures2) == 0, 3);
+        assert!(failures2.length() == 0, 3);
 
         let (allowed3, failures3) = policies::evaluate<TEST_USDC>(
             &account, &mut limiters, 500, &clock,
         );
         assert!(allowed3, 4);
-        assert!(vector::length(&failures3) == 0, 5);
+        assert!(failures3.length() == 0, 5);
 
         let (allowed4, failures4) = policies::evaluate<TEST_USDC>(
             &account, &mut limiters, 1, &clock,
         );
         assert!(!allowed4, 6);
-        assert!(vector::length(&failures4) == 1, 7);
-        let f: &PolicyFailure = vector::borrow(&failures4, 0);
+        assert!(failures4.length() == 1, 7);
+        let f: &PolicyFailure = &failures4[0];
         assert!(policies::failure_code(f) == 0x07002, 8);
 
         account::destroy_account_cap_for_testing(cap);

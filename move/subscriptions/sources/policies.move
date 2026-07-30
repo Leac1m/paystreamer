@@ -279,9 +279,7 @@ module subscriptions::policies {
 
         // per_tx: pure arithmetic against the cap; no limiter call.
         if (account::policy_per_tx_max(ps) > 0 && amount > account::policy_per_tx_max(ps)) {
-            vector::push_back(
-                &mut failures,
-                failure_per_tx(amount, account::policy_per_tx_max(ps)),
+            failures.push_back(failure_per_tx(amount, account::policy_per_tx_max(ps)),
             );
         };
 
@@ -290,9 +288,7 @@ module subscriptions::policies {
         // mutating the persisted state.
         let monthly_avail = rate_limiter::available(&limiters.monthly, clock);
         if (account::policy_monthly_max(ps) > 0 && amount > monthly_avail) {
-            vector::push_back(
-                &mut failures,
-                failure_monthly(amount, monthly_avail),
+            failures.push_back(failure_monthly(amount, monthly_avail),
             );
         };
 
@@ -303,9 +299,7 @@ module subscriptions::policies {
         // `freq_avail > 0` is equivalent to `freq_avail == 1`.)
         let freq_avail = rate_limiter::available(&limiters.frequency, clock);
         if (account::policy_frequency_min_ms(ps) > 0 && freq_avail == 0) {
-            vector::push_back(
-                &mut failures,
-                failure_frequency(amount, 0),
+            failures.push_back(failure_frequency(amount, 0),
             );
         };
 

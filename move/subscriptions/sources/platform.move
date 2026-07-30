@@ -53,7 +53,7 @@ module subscriptions::platform {
     /// footprint of a single platform.
     const ETooManyTiers: u64 = 0x08003;
 
-    /// The `tier_index` is out of range. `tier_index >= vec_map::length(&tiers)`.
+    /// The `tier_index` is out of range. `tier_index >= tiers.length()`.
     const ETierNotFound: u64 = 0x08004;
 
     /// A zero address was supplied where a real address is required
@@ -379,12 +379,12 @@ module subscriptions::platform {
     // === Tier management (owner only) ===
 
     /// Create a new tier and append it to the platform's tier map at
-    /// `tier_index = vec_map::length(&tiers)` (sequential). The
+    /// `tier_index = tiers.length()` (sequential). The
     /// `is_active` field defaults to `true`.
     ///
     /// Rejects duplicate names (compared structurally on the `String`).
     /// Rejects zero `amount` and zero `frequency_ms`. Enforces
-    /// `vec_map::length(&tiers) < MAX_TIERS` (20).
+    /// `tiers.length() < MAX_TIERS` (20).
     ///
     /// Caller must be the platform owner. Emits `TierCreated`.
     ///
@@ -405,17 +405,17 @@ module subscriptions::platform {
         assert!(ctx.sender() == platform.owner, EInvalidOwner);
         assert!(amount > 0, EInvalidAmount);
         assert!(frequency_ms > 0, EInvalidFrequency);
-        assert!(vec_map::length(&platform.tiers) < MAX_TIERS, ETooManyTiers);
+        assert!(platform.tiers.length() < MAX_TIERS, ETooManyTiers);
         let mut i: u64 = 0;
-        let n = vec_map::length(&platform.tiers);
+        let n = platform.tiers.length();
         while (i < n) {
             let (_, t) = vec_map::get_entry_by_idx(&platform.tiers, i);
             assert!(t.name != name, EInvalidTier);
             i = i + 1;
         };
-        let tier_index = vec_map::length(&platform.tiers);
+        let tier_index = platform.tiers.length();
         let tier = new_tier(name, amount, frequency_ms, denomination);
-        vec_map::insert(&mut platform.tiers, tier_index, tier);
+        platform.tiers.insert(tier_index, tier);
         event::emit(TierCreated {
             platform_id: object::id(platform),
             tier_index,
@@ -435,15 +435,15 @@ module subscriptions::platform {
     ///
     /// #### Aborts
     /// - `EInvalidOwner` if `ctx.sender() != platform.owner`.
-    /// - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+    /// - `ETierNotFound` if `tier_index >= tiers.length()`.
     public fun deactivate_tier_by_index(
         platform: &mut Platform,
         tier_index: u64,
         ctx: &mut TxContext,
     ) {
         assert!(ctx.sender() == platform.owner, EInvalidOwner);
-        assert!(tier_index < vec_map::length(&platform.tiers), ETierNotFound);
-        let tier = vec_map::get_mut(&mut platform.tiers, &tier_index);
+        assert!(tier_index < platform.tiers.length(), ETierNotFound);
+        let tier = platform.tiers.get_mut(&tier_index);
         tier.is_active = false;
         event::emit(TierDeactivated {
             platform_id: object::id(platform),
@@ -456,10 +456,10 @@ module subscriptions::platform {
     /// Role: any caller (read-only view).
     ///
     /// #### Aborts
-    /// - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+    /// - `ETierNotFound` if `tier_index >= tiers.length()`.
     public fun get_tier(platform: &Platform, tier_index: &u64): &SubscriptionTier {
-        assert!(*tier_index < vec_map::length(&platform.tiers), ETierNotFound);
-        vec_map::get(&platform.tiers, tier_index)
+        assert!(*tier_index < platform.tiers.length(), ETierNotFound);
+        platform.tiers.get(tier_index)
     }
 
     // === Treasury timelock ===
@@ -628,7 +628,7 @@ module subscriptions::platform {
     /// Number of tiers. Includes deactivated tiers (slots stay
     /// populated, see `deactivate_tier_by_index`).
     /// Role: any caller (read-only view).
-    public fun tier_count(p: &Platform): u64 { vec_map::length(&p.tiers) }
+    public fun tier_count(p: &Platform): u64 { p.tiers.length() }
 
     /// Read-only handle to the full tier map. Lets off-chain tooling
     /// iterate without re-fetching.
@@ -696,7 +696,7 @@ module subscriptions::platform {
             version: _,
         } = p;
         object::delete(id);
-        while (!vec_map::is_empty(&tiers)) {
+        while (!tiers.is_empty()) {
             let (_k, _t) = vec_map::pop(&mut tiers);
         };
         vec_map::destroy_empty(tiers);
