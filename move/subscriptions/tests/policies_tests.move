@@ -1,7 +1,7 @@
 #[test_only]
 module subscriptions::policies_tests {
     use subscriptions::account::{Self, PolicySet};
-    use subscriptions::ac;
+    
     use subscriptions::policies::{Self, PolicyLimiters, PolicyFailure};
 
     use std::string;
@@ -42,7 +42,7 @@ module subscriptions::policies_tests {
         assert!(allowed2, 2);
         assert!(vector::length(&failures2) == 0, 3);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
 
@@ -81,7 +81,7 @@ module subscriptions::policies_tests {
         assert!(allowed2, 5);
         assert!(vector::length(&failures2) == 0, 6);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
 
@@ -120,7 +120,7 @@ module subscriptions::policies_tests {
         assert!(policies::failure_amount_required(f) == 1, 5);
         assert!(policies::failure_amount_available(f) == 0, 6);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
 
@@ -169,7 +169,7 @@ module subscriptions::policies_tests {
         assert!(allowed3, 7);
         assert!(vector::length(&failures3) == 0, 8);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
 
@@ -223,7 +223,7 @@ module subscriptions::policies_tests {
         let f: &PolicyFailure = vector::borrow(&failures4, 0);
         assert!(policies::failure_code(f) == 0x07002, 8);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         policies::destroy_limiters_for_testing(limiters);
 

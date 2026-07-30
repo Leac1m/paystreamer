@@ -30,8 +30,7 @@ module subscriptions::billing {
     use sui::vec_map;
     use sui::event;
     use sui::tx_context::TxContext;
-    use subscriptions::account::{Self, SubscriptionAccount};
-    use subscriptions::ac::{Self, AccountCap};
+    use subscriptions::account::{Self, SubscriptionAccount, AccountCap};
 
     // === Errors ===
 
@@ -145,14 +144,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let status_ref = account::status(account);
         assert!(account::is_active(status_ref), EAccountPaused);
         assert!(!account::is_closed(status_ref), EAccountClosed);
@@ -213,14 +205,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         assert!(account::sub_status(sub) == 0, ESubscriptionNotActive);
         account::sub_set_status(sub, 1);
@@ -250,14 +235,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         assert!(account::sub_status(sub) == 1, ESubscriptionNotPaused);
         account::sub_set_status(sub, 0);
@@ -288,14 +266,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         let was_active_or_paused = account::sub_status(sub) == 0
             || account::sub_status(sub) == 1;
@@ -322,14 +293,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         account::sub_set_max_attempts(sub, max_attempts);
         let now = clock.timestamp_ms();
@@ -353,14 +317,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         account::sub_set_tier(sub, tier_index, tier_amount, tier_frequency_ms);
         let now = clock.timestamp_ms();
@@ -382,14 +339,7 @@ module subscriptions::billing {
         clock: &Clock,
         _ctx: &mut TxContext,
     ) {
-        assert!(
-            account_id_from_cap(cap) == object::id(account),
-            EInvalidCap,
-        );
-        assert!(
-            ac::has_permission(cap, ac::permission_owner()),
-            EUnauthorized,
-        );
+        assert!(account::account_cap_id(cap) == object::id(account), EInvalidCap);
         let sub = account::get_subscription_mut(account, &platform_id);
         account::sub_set_schedule_frequency(sub, schedule_frequency_ms);
         let now = clock.timestamp_ms();
@@ -555,12 +505,4 @@ module subscriptions::billing {
         account::account_type(_account)
     }
 
-    // === Module-local helpers ===
-    //
-    // We route the `account_id` lookups through local helpers
-    // so the import block stays narrow and the call sites read cleanly.
-
-    fun account_id_from_cap(cap: &AccountCap): ID {
-        subscriptions::ac::account_id(cap)
-    }
 }

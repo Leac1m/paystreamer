@@ -1,7 +1,7 @@
 #[test_only]
 module subscriptions::scheduler_tests {
     use subscriptions::account;
-    use subscriptions::ac;
+    
     use subscriptions::billing;
     use subscriptions::payment;
     use subscriptions::platform;
@@ -99,9 +99,9 @@ module subscriptions::scheduler_tests {
 
         assert!(scheduler::last_processed_at(&scheduler) == 0, 1);
 
-        let cap = ts::take_from_address<ac::AccountCap>(&sc, owner);
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&cap, &mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, &clock, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         scheduler::process_due_payment<TEST_USDC>(

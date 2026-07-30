@@ -1,7 +1,7 @@
 #[test_only]
 module subscriptions::billing_tests {
     use subscriptions::account;
-    use subscriptions::ac;
+    
     use subscriptions::billing;
 
     use sui::object;
@@ -55,7 +55,7 @@ module subscriptions::billing_tests {
         assert!(billing::subscription_nonce(&account, platform_id) == 0, 6);
         assert!(account::subscription_count(&account) == 1, 7);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -97,7 +97,7 @@ module subscriptions::billing_tests {
             ts::ctx(&mut sc),
         );
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -137,7 +137,7 @@ module subscriptions::billing_tests {
         );
         assert!(!account::has_subscription(&account, &platform_id), 1);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -188,7 +188,7 @@ module subscriptions::billing_tests {
         );
         assert!(billing::subscription_status(&account, platform_id) == 0, 1);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -241,7 +241,7 @@ module subscriptions::billing_tests {
         );
         assert!(billing::subscription_status(&account, platform_id) == 0, 2);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -294,7 +294,7 @@ module subscriptions::billing_tests {
             7,
         );
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -333,7 +333,7 @@ module subscriptions::billing_tests {
         );
         billing::record_payment<TEST_USDC>(&mut account, platform_id, 1_000_000, &clock);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -388,7 +388,7 @@ module subscriptions::billing_tests {
         let other_platform = object::id_from_address(@0xDEADBEEF);
         assert!(!billing::can_bill(&account, other_platform, &clock), 4);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);
@@ -419,52 +419,7 @@ module subscriptions::billing_tests {
         );
         assert!(!billing::can_bill(&account, platform_id, &clock), 0);
 
-        ac::destroy_account_cap_for_testing(cap);
-        account::destroy_account_for_testing(account);
-
-        clock::destroy_for_testing(clock);
-        sc.end();
-    }
-
-    #[test]
-    #[expected_failure(abort_code = 0x06009)]
-    fun test_pause_subscription_depositor_cap_fails() {
-        let mut sc = ts::begin(@0xA);
-        let clock = fresh_clock(&mut sc);
-        let (mut account, cap) = account::create_account<TEST_USDC>(
-            account::empty_policy_set(),
-            &clock,
-            ts::ctx(&mut sc),
-        );
-        let account_id = object::id(&account);
-        let platform_id = object::id_from_address(@0xCAFEBABE);
-        billing::create_subscription<TEST_USDC>(
-            &cap,
-            &mut account,
-            platform_id,
-            0,
-            1_000_000,
-            86_400_000,
-            3,
-            &clock,
-            ts::ctx(&mut sc),
-        );
-
-        let dep_cap = ac::new_account_cap_for_testing(
-            account_id,
-            ac::permission_depositor(),
-            ts::ctx(&mut sc),
-        );
-        billing::pause_subscription<TEST_USDC>(
-            &dep_cap,
-            &mut account,
-            platform_id,
-            &clock,
-            ts::ctx(&mut sc),
-        );
-
-        ac::destroy_account_cap_for_testing(dep_cap);
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
 
         clock::destroy_for_testing(clock);

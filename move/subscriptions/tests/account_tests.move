@@ -1,7 +1,6 @@
 #[test_only]
 module subscriptions::account_tests {
-    use subscriptions::account::{Self, AccountStatus, PolicySet, Subscription};
-    use subscriptions::ac;
+    use subscriptions::account::{Self, AccountStatus, PolicySet, Subscription, AccountCap};
     use std::type_name;
     use sui::object;
     use sui::test_scenario as ts;
@@ -11,14 +10,6 @@ module subscriptions::account_tests {
     public struct TEST_USDC has drop {}
 
 
-
-    fun depositor_cap(account_id: object::ID, scenario: &mut ts::Scenario): ac::AccountCap {
-        ac::new_account_cap_for_testing(
-            account_id,
-            ac::permission_depositor(),
-            ts::ctx(scenario),
-        )
-    }
 
     #[allow(unused_function)]
     fun make_sub(
@@ -58,8 +49,7 @@ module subscriptions::account_tests {
             ts::ctx(&mut sc),
         );
 
-        assert!(ac::account_id(&cap) == object::id(&account), 0);
-        assert!(ac::permissions(&cap) == 1, 1);
+        assert!(account::account_cap_id(&cap) == object::id(&account), 0);
         assert!(account::version(&account) == 2, 2);
         assert!(account::nonce(&account) == 0, 3);
         assert!(account::subscription_count(&account) == 0, 4);
@@ -69,7 +59,7 @@ module subscriptions::account_tests {
         let expected = type_name::with_original_ids<TEST_USDC>();
         assert!(tn == expected, 6);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         clock::destroy_for_testing(clock);
         sc.end();
@@ -106,77 +96,13 @@ module subscriptions::account_tests {
         assert!(account::policy_min_balance(p) == 500, 6);
         assert!(account::policy_frequency_min_ms(p) == 60_000, 7);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         clock::destroy_for_testing(clock);
         sc.end();
     }
 
-    #[test]
-    fun test_mint_delegated_cap_requires_owner() {
-        let mut sc = ts::begin(@0xA);
-        let clock = clock::create_for_testing(ts::ctx(&mut sc));
 
-        let (account, cap) = account::create_account<TEST_USDC>(
-            account::empty_policy_set(),
-            &clock,
-            ts::ctx(&mut sc),
-        );
-        let account_id = object::id(&account);
-
-        let delegated = account::mint_delegated_cap<TEST_USDC>(
-            &cap,
-            &account,
-            ac::permission_depositor(),
-            &clock,
-            ts::ctx(&mut sc),
-        );
-        assert!(ac::account_id(&delegated) == account_id, 0);
-        assert!(
-            ac::permissions(&delegated) == ac::permission_depositor(),
-            1,
-        );
-        assert!(
-            !ac::has_permission(&delegated, ac::permission_owner()),
-            2,
-        );
-
-        ac::destroy_account_cap_for_testing(delegated);
-        ac::destroy_account_cap_for_testing(cap);
-        account::destroy_account_for_testing(account);
-        clock::destroy_for_testing(clock);
-        sc.end();
-    }
-
-    #[test]
-    #[expected_failure(abort_code = 0x01009)]
-    fun test_mint_delegated_cap_depositor_cap_fails() {
-        let mut sc = ts::begin(@0xA);
-        let clock = clock::create_for_testing(ts::ctx(&mut sc));
-
-        let (account, _cap) = account::create_account<TEST_USDC>(
-            account::empty_policy_set(),
-            &clock,
-            ts::ctx(&mut sc),
-        );
-        let account_id = object::id(&account);
-
-        let dep_cap = depositor_cap(account_id, &mut sc);
-        let _bad = account::mint_delegated_cap<TEST_USDC>(
-            &dep_cap,
-            &account,
-            ac::permission_depositor(),
-            &clock,
-            ts::ctx(&mut sc),
-        );
-
-        ac::destroy_account_cap_for_testing(_bad);
-        ac::destroy_account_cap_for_testing(dep_cap);
-        ac::destroy_account_cap_for_testing(_cap);
-        account::destroy_account_for_testing(account);
-        clock::destroy_for_testing(clock);
-        sc.end();
-    }
 
     #[test]
     fun test_close_account_flips_status() {
@@ -192,7 +118,7 @@ module subscriptions::account_tests {
         account::close_account<TEST_USDC>(&cap, &mut account, &clock);
         assert!(account::is_closed(account::status(&account)), 0);
 
-        ac::destroy_account_cap_for_testing(cap);
+        account::destroy_account_cap_for_testing(cap);
         account::destroy_account_for_testing(account);
         clock::destroy_for_testing(clock);
         sc.end();
@@ -216,11 +142,11 @@ module subscriptions::account_tests {
         let shared_account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
             &sc, account_id,
         );
-        let cap_in_inventory = ts::take_from_address<ac::AccountCap>(&sc, @0xA);
-        let cap_account_id = ac::account_id(&cap_in_inventory);
+        let cap_in_inventory = ts::take_from_address<AccountCap>(&sc, @0xA);
+        let cap_account_id = account::account_cap_id(&cap_in_inventory);
         assert!(cap_account_id == account_id, 0);
 
-        ac::destroy_account_cap_for_testing(cap_in_inventory);
+        account::destroy_account_cap_for_testing(cap_in_inventory);
         account::destroy_account_for_testing(shared_account);
         clock::destroy_for_testing(clock);
         sc.end();

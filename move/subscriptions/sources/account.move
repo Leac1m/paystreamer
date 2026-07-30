@@ -31,14 +31,6 @@ module subscriptions::account {
     use sui::transfer;
     use sui::tx_context::TxContext;
     use std::type_name::{Self, TypeName};
-    use subscriptions::ac::{
-        Self as ac,
-        AccountCap,
-        new_account_cap,
-        has_permission,
-        permission_owner,
-        permission_depositor,
-    };
 
     // === Subscription (declared here, augmented by billing.move) ===
 
@@ -225,9 +217,8 @@ module subscriptions::account {
     /// The user's subscription account. Shared object, phantom-typed by
     /// the denomination. The `AccountCap` minted alongside is the
     /// wallet-visible discovery handle; its `permissions` bitfield is
-        /// is not embedded here — per-account authority is the
-    /// `ac::account_id(cap) == object::id(account)` check plus the
-    /// `has_permission(cap, ...)` bitfield test.
+    /// wallet-visible discovery handle.
+    /// `cap.account_id == object::id(account)` check.
     public struct SubscriptionAccount<phantom T> has key, store {
         id: object::UID,
         /// Coin denomination of the account.
@@ -252,6 +243,26 @@ module subscriptions::account {
         version: u16,
     }
 
+    // === AccountCap ===
+
+    /// User-facing capability for a `SubscriptionAccount<T>`. Non-transferable
+    /// by default (`key` only, not `store`).
+    public struct AccountCap has key {
+        id: object::UID,
+        /// ID of the `SubscriptionAccount<T>` this cap authorizes.
+        account_id: object::ID,
+    }
+
+    /// ID of the `SubscriptionAccount<T>` this cap authorizes.
+    /// Role: any caller (read-only view).
+    public fun account_cap_id(cap: &AccountCap): object::ID { cap.account_id }
+
+    /// Transfer a freshly-minted `AccountCap` to a recipient. Since
+    /// it lacks `store`, this is the only way to relocate it on chain.
+    public fun transfer_account_cap(cap: AccountCap, recipient: address) {
+        transfer::transfer(cap, recipient);
+    }
+
     // === Errors ===
 
     /// The cap's `account_id` does not match the account it is being
@@ -266,11 +277,6 @@ module subscriptions::account {
     const EZeroAmount: u64 = 0x01004;
     /// `internal_withdraw` for an amount exceeding live headroom.
     const EInsufficientBalance: u64 = 0x01005;
-    /// The cap's `permissions` bitfield does not include the required
-    /// bit. Wrong role.
-    const EUnauthorized: u64 = 0x01008;
-    /// The cap is present but does not hold the `OWNER` permission;
-    const ENotOwnerCap: u64 = 0x01009;
     /// `resume_account` was called on an account that is not paused.
     /// (Reusing `EAccountClosed` would be misleading; this is a separate
     /// programmer-facing condition.)
@@ -364,7 +370,10 @@ module subscriptions::account {
             version: 2,
         };
 
-        let cap = new_account_cap(account_id, permission_owner(), now, ctx);
+        let cap = AccountCap {
+            id: object::new(ctx),
+            account_id,
+        };
         let cap_id = object::id(&cap);
 
         event::emit(AccountCreated {
@@ -393,35 +402,23 @@ module subscriptions::account {
         ctx: &mut TxContext,
     ) {
         transfer::share_object(account);
-        ac::transfer_account_cap(cap, ctx.sender());
+        transfer_account_cap(cap, ctx.sender());
     }
 
     // === deposit ===
 
-    /// Deposit a `Coin<T>` into the account. The cap's `account_id` must
-    /// match the account; the cap's `permissions` bitfield must include
-    /// `permission_owner()` OR `permission_depositor()`. The account
-    /// must not be closed.
+    /// Deposit a `Coin<T>` into the account. The account must not be closed.
     ///
     /// #### Aborts
-    /// - `EInvalidCap` if `cap.account_id != object::id(account)`.
     /// - `EAccountClosed` if the account is closed.
-    /// - `EUnauthorized` if the cap lacks OWNER or DEPOSITOR permission.
     /// - `EZeroAmount` if the coin has zero value.
     public fun deposit<T>(
-        cap: &AccountCap,
         account: &mut SubscriptionAccount<T>,
         coin: Coin<T>,
         _clock: &Clock,
         ctx: &mut TxContext,
     ) {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
-        assert!(
-            has_permission(cap, permission_owner()) ||
-                has_permission(cap, permission_depositor()),
-            EUnauthorized,
-        );
         let amt = coin::value(&coin);
         assert!(amt > 0, EZeroAmount);
         let value = coin::into_balance(coin);
@@ -437,14 +434,12 @@ module subscriptions::account {
 
     // === withdraw ===
 
-    /// Withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
-    /// match the account; the cap's `permissions` bitfield must include `permission_owner()`.
-    /// The account must not be closed.
+    /// withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
+    /// match the account. The account must not be closed.
     ///
     /// #### Aborts
     /// - `EInvalidCap` if `cap.account_id != object::id(account)`.
     /// - `EAccountClosed` if the account is closed.
-    /// - `EUnauthorized` if the cap lacks the OWNER permission.
     /// - `EZeroAmount` if the requested amount is zero.
     /// - `EInsufficientBalance` if the account balance is less than the requested amount.
     public fun withdraw<T>(
@@ -453,9 +448,8 @@ module subscriptions::account {
         amount: u64,
         ctx: &mut TxContext,
     ): Coin<T> {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
+        assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
-        assert!(has_permission(cap, permission_owner()), EUnauthorized);
         assert!(amount > 0, EZeroAmount);
         assert!(account.balance.value() >= amount, EInsufficientBalance);
 
@@ -477,9 +471,8 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         clock: &Clock,
     ) {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
+        assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(!is_closed(&account.status), EAccountClosed);
-        assert!(has_permission(cap, permission_owner()), EUnauthorized);
         account.status = account_status_paused();
         let now = clock.timestamp_ms();
         let sub_count = vec_map::length(&account.subscriptions);
@@ -512,9 +505,8 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         _clock: &Clock,
     ) {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
+        assert!(cap.account_id == object::id(account), EInvalidCap);
         assert!(is_paused(&account.status), EAccountNotPaused);
-        assert!(has_permission(cap, permission_owner()), EUnauthorized);
         account.status = account_status_active();
         event::emit(AccountResumed {
             account_id: object::id(account),
@@ -535,8 +527,7 @@ module subscriptions::account {
         account: &mut SubscriptionAccount<T>,
         _clock: &Clock,
     ) {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
-        assert!(has_permission(cap, permission_owner()), EUnauthorized);
+        assert!(cap.account_id == object::id(account), EInvalidCap);
         account.status = account_status_closed();
         event::emit(AccountClosed {
             account_id: object::id(account),
@@ -559,8 +550,7 @@ module subscriptions::account {
         new_policies: PolicySet,
         _clock: &Clock,
     ) {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
-        assert!(has_permission(cap, permission_owner()), EUnauthorized);
+        assert!(cap.account_id == object::id(account), EInvalidCap);
         let old_policies = account.policies;
         account.policies = new_policies;
         event::emit(PoliciesUpdated {
@@ -571,36 +561,7 @@ module subscriptions::account {
         });
     }
 
-    // === mint_delegated_cap (agentic-commerce seam) ===
 
-    /// Mint a fresh `AccountCap` for the same account with a caller-
-    /// chosen `permissions` bitfield. The presented cap must hold the
-    /// OWNER permission — delegated-cap minting is owner-only.
-    ///
-    /// The returned cap is `key`-only (not `store`), so it is
-    /// non-transferable by default; the caller (PTB) transfers it
-    /// to the agent address. The cap's `account_id` is pre-bound to
-    /// `object::id(account)`.
-    ///
-    /// The bitfield is validated by `new_account_cap` (zero and bits
-    /// beyond `OWNER|DEPOSITOR|AGENT` are rejected upstream).
-    ///
-    /// #### Aborts
-    /// - `EInvalidCap` if `cap.account_id != object::id(account)`.
-    /// - `ENotOwnerCap` if the cap lacks the OWNER bit.
-    public fun mint_delegated_cap<T>(
-        cap: &AccountCap,
-        account: &SubscriptionAccount<T>,
-        permissions: u32,
-        clock: &Clock,
-        ctx: &mut TxContext,
-    ): AccountCap {
-        assert!(ac::account_id(cap) == object::id(account), EInvalidCap);
-        assert!(has_permission(cap, permission_owner()), ENotOwnerCap);
-        new_account_cap(object::id(account), permissions, clock.timestamp_ms(), ctx)
-    }
-
-    // === public(package) withdraw — only callable by payment.move ===
 
     /// Split off `amount` from the account's balance container and
     /// return it as a `Balance<T>`. The caller (payment.move) is
@@ -836,6 +797,12 @@ module subscriptions::account {
             nonce: 0,
             version: 2,
         }
+    }
+
+    #[test_only]
+    public fun destroy_account_cap_for_testing(cap: AccountCap) {
+        let AccountCap { id, account_id: _ } = cap;
+        object::delete(id);
     }
 
     /// Test-only destructor. `SubscriptionAccount<T>` has `key + store`

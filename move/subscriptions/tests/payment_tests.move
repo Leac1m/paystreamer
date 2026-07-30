@@ -1,7 +1,7 @@
 #[test_only]
 module subscriptions::payment_tests {
     use subscriptions::account;
-    use subscriptions::ac;
+    
     use subscriptions::billing;
     use subscriptions::payment;
     use subscriptions::platform;
@@ -90,9 +90,9 @@ module subscriptions::payment_tests {
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
         let mut limiters = fresh_initialized_limiters(&account, &clock);
 
-        let cap = ts::take_from_address<ac::AccountCap>(&sc, owner);
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&cap, &mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, &clock, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         payment::process_due_payment<TEST_USDC>(
@@ -173,9 +173,9 @@ module subscriptions::payment_tests {
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
         let mut limiters = fresh_initialized_limiters(&account, &clock);
 
-        let cap = ts::take_from_address<ac::AccountCap>(&sc, owner);
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&cap, &mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, &clock, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         payment::process_due_payment<TEST_USDC>(
