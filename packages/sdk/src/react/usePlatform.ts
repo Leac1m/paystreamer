@@ -19,6 +19,8 @@ export interface PlatformWithTiers {
   is_paused: boolean;
   created_at: number;
   tiers: PlatformTier[];
+  packageId?: string;
+  coinType?: string;
 }
 
 export function usePlatform(platformId: string | undefined) {
@@ -60,6 +62,7 @@ export function usePlatform(platformId: string | undefined) {
           object(address: $id) {
             asMoveObject {
               contents {
+                type
                 json
               }
             }
@@ -86,8 +89,21 @@ export function usePlatform(platformId: string | undefined) {
         return null;
       }
 
+      const typeStr = data.object.asMoveObject.contents.type;
+      let packageId = "";
+      let coinType = "";
+      if (typeStr) {
+        packageId = typeStr.split("::")[0];
+        const match = typeStr.match(/<([^>]+)>/);
+        if (match) {
+          coinType = match[1];
+        }
+      }
+
       return {
         ...data.object.asMoveObject.contents.json,
+        packageId,
+        coinType,
         initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
       } as PlatformWithTiers & { initialSharedVersion: number };
     },

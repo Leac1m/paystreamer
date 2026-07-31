@@ -375,14 +375,9 @@ async function main() {
   // Step 1: register_coin_type<PUSD> (idempotent — skip if already registered)
   // ------------------------------------------------------------------
   {
-    const tx = newTx(keypair);
-    tx.moveCall({
-      target: `${PACKAGE_ID}::registry::register_coin_type`,
-      typeArguments: [PUSD_TYPE_ARG],
-      arguments: [sharedObjectMut(COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx)],
-    });
-    const r = await executeStep(graphqlClient, keypair, { name: "Step 1: register_coin_type<PUSD>", tx });
-    results.push(r);
+    console.log("\n=== Step 1: register_coin_type<PUSD> ===");
+    console.log("  status: SKIP (Coin types are no longer registered in v3)");
+    results.push({ name: "Step 1: register_coin_type<PUSD>", status: "success", digest: "SKIP" });
   }
 
   // ------------------------------------------------------------------
@@ -390,20 +385,40 @@ async function main() {
   // ------------------------------------------------------------------
   {
     const tx = newTx(keypair);
-    const [platformId, tierIndex] = tx.moveCall({
-      target: `${PACKAGE_ID}::platform::register_platform_with_tier`,
+
+    const typeNameArg = tx.moveCall({
+      target: "0x1::type_name::get",
       typeArguments: [PUSD_TYPE_ARG],
+      arguments: [],
+    });
+
+    const [platform, receipt] = tx.moveCall({
+      target: `${PACKAGE_ID}::platform::create_platform`,
       arguments: [
         tx.pure.string("PayStreamer E2E"),
         tx.pure.string("End-to-end payment cycle test platform"),
         tx.pure.string("Test"),
         tx.pure.option("string", null),
-        tx.pure.string(TIER_NAME),
-        tx.pure.u64(TIER_AMOUNT),
-        tx.pure.u64(TIER_FREQUENCY_MS),
         tx.object(CLOCK_OBJECT_ID),
       ],
     });
+
+    tx.moveCall({
+      target: `${PACKAGE_ID}::platform::create_tier`,
+      arguments: [
+        platform,
+        tx.pure.string(TIER_NAME),
+        tx.pure.u64(TIER_AMOUNT),
+        tx.pure.u64(TIER_FREQUENCY_MS),
+        typeNameArg,
+      ],
+    });
+
+    tx.moveCall({
+      target: `${PACKAGE_ID}::platform::register_platform`,
+      arguments: [platform, receipt],
+    });
+
     const r = await executeStep(graphqlClient, keypair, { name: "Step 2: register_platform_with_tier", tx });
     results.push(r);
     if (r.status === "success") {
@@ -470,7 +485,6 @@ async function main() {
         target: `${PACKAGE_ID}::account::create_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
-          tx.object(COIN_TYPE_REGISTRY_ID),
           policies,
           tx.object(CLOCK_OBJECT_ID),
         ],
@@ -493,7 +507,6 @@ async function main() {
         target: `${PACKAGE_ID}::account::create_account`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
-          tx.object(COIN_TYPE_REGISTRY_ID),
           policies,
           tx.object(CLOCK_OBJECT_ID),
         ],
@@ -585,10 +598,8 @@ async function main() {
             target: `${PACKAGE_ID}::account::deposit`,
             typeArguments: [PUSD_TYPE_ARG],
             arguments: [
-              tx.object(summary.ids.capId),
               sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
               tx.object(mintedCoinId),
-              tx.object(CLOCK_OBJECT_ID),
             ],
           });
           return tx;
@@ -605,7 +616,7 @@ async function main() {
     let r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::create_subscription`,
+        target: `${PACKAGE_ID}::account::create_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -625,7 +636,7 @@ async function main() {
       r = await executeStep(graphqlClient, keypair, { name: "Step 5: create_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${PACKAGE_ID}::billing::create_subscription`,
+          target: `${PACKAGE_ID}::account::create_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),
@@ -666,6 +677,7 @@ async function main() {
       target: `${PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
+        sharedObjectMut(COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx),
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
@@ -706,6 +718,7 @@ async function main() {
       target: `${PACKAGE_ID}::scheduler::process_due_payment`,
       typeArguments: [PUSD_TYPE_ARG],
       arguments: [
+        sharedObjectMut(COIN_TYPE_REGISTRY_ID, SHARED_INIT_VERSION_REGISTRY)(tx),
         sharedObjectMut(PAYMENT_SCHEDULER_ID, SHARED_INIT_VERSION_SCHEDULER)(tx),
         sharedObjectMut(summary.ids.platformId!, PLATFORM_INITIAL_VERSION)(tx),
         sharedObjectMut(summary.ids.accountId!, ACCOUNT_INITIAL_VERSION)(tx),
@@ -729,7 +742,7 @@ async function main() {
     let r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription", tx: (() => {
       const tx = newTx(keypair);
       tx.moveCall({
-        target: `${PACKAGE_ID}::billing::cancel_subscription`,
+        target: `${PACKAGE_ID}::account::cancel_subscription`,
         typeArguments: [PUSD_TYPE_ARG],
         arguments: [
           tx.object(summary.ids.capId),
@@ -745,7 +758,7 @@ async function main() {
       r = await executeStep(graphqlClient, keypair, { name: "Step 8: cancel_subscription (retry)", tx: (() => {
         const tx = newTx(keypair);
         tx.moveCall({
-          target: `${PACKAGE_ID}::billing::cancel_subscription`,
+          target: `${PACKAGE_ID}::account::cancel_subscription`,
           typeArguments: [PUSD_TYPE_ARG],
           arguments: [
             tx.object(summary.ids.capId),

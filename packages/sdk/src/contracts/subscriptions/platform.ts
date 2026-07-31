@@ -4,36 +4,28 @@
 
 
 /**
- * definitions, treasury timelock, per-platform rate limiters, and
- * `subscriber_count` bookkeeping.
+ * `subscriptions::platform` — Core platform and tier management.
  * 
- * caller can read it; mutating functions (`update_platform`, tier the owner is the
- * address captured at `register_platform` time and **bootstrap `admin_address`
- * style check** — mirroring `subscriptions::registry` — with a doc comment noting
- * the future the bootstrap admin pattern.
+ * This module manages the `Platform` shared object which tracks tier definitions,
+ * treasury configuration, and `subscriber_count` bookkeeping.
+ * 
+ * ## Authority model
  * 
  * The platform is identified by `Platform.owner: address` (set at
  * `register_platform` to `ctx.sender()`). Mutating functions assert
- * `ctx.sender() == platform.owner`. A future hardening pass will
+ * `ctx.sender() == platform.owner`.
  * 
- * 1.  `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total withdrawal volume
- *     per 30-day window.
- * 2.  `frequency_limiter` (`Bucket`, 1000/hr, refill 100/hr) — bounds total
- *     payment frequency per platform per hour.
- * 3.  `account_billing_limiter` (`Bucket`, 10000/hr, refill 1000/hr) — bounds
- *     distinct accounts billed per hour (DoS bound).
+ * ## Treasury Timelock
  * 
- * All three are OZ `RateLimiter` values; `payment.move` calls `try_consume_*` and
- * observes `try_consume`'s all-or-nothing semantics (failure leaves persisted
- * state untouched).
+ * Treasury address changes use a two-step `propose_treasury_change(new_addr)` →
+ * `accept_treasury_change(platform, clock)` with a 48h timelock to protect against
+ * immediate treasury hijacking.
  * 
- * Two-step `propose_treasury_change(new_addr)` →
- * `accept_treasury_change(platform, clock)` (48h timelock) pattern,
- * treasury-hijack gap.
+ * ## Subscriber Bookkeeping
  * 
- * Maintained by `increment_subscriber_count` / `decrement_subscriber_count` (both
- * `public(package)`). The only expected caller is `billing.move` on
- * `create_subscription` / `cancel_subscription`. Discovery is finally not broken.
+ * Maintained by `increment_subscriber_count` and `decrement_subscriber_count`
+ * (both `public(package)`), called by `account.move` on subscription creation and
+ * cancellation.
  * 
  * ## Build-order note
  * 
@@ -49,7 +41,6 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as type_name from './deps/std/type_name.js';
 import * as vec_map from './deps/sui/vec_map.js';
-import * as rate_limiter from './deps/openzeppelin_utils/rate_limiter.js';
 const $moduleName = '@local-pkg/subscriptions::platform';
 export const SubscriptionTier = new MoveStruct({ name: `${$moduleName}::SubscriptionTier`, fields: {
         name: bcs.string(),
@@ -61,6 +52,9 @@ export const SubscriptionTier = new MoveStruct({ name: `${$moduleName}::Subscrip
 export const PendingTreasuryChange = new MoveStruct({ name: `${$moduleName}::PendingTreasuryChange`, fields: {
         new_treasury: bcs.Address,
         execute_after_ms: bcs.u64()
+    } });
+export const PlatformRegistrationReceipt = new MoveStruct({ name: `${$moduleName}::PlatformRegistrationReceipt`, fields: {
+        platform_id: bcs.Address
     } });
 export const Platform = new MoveStruct({ name: `${$moduleName}::Platform`, fields: {
         id: bcs.Address,
@@ -96,21 +90,6 @@ export const Platform = new MoveStruct({ name: `${$moduleName}::Platform`, field
          * subscriptions keep pointing at the right `tier_index`.
          */
         tiers: vec_map.VecMap(bcs.u64(), SubscriptionTier),
-        /**
-         * Volume limiter: `FixedWindow`, 30d, $1M default. Bounds the total withdrawal
-         * volume per 30-day window.
-         */
-        volume_limiter: rate_limiter.RateLimiter,
-        /**
-         * Frequency limiter: `Bucket`, 1000/hr, refill 100/hr. Bounds the total number of
-         * payments per hour.
-         */
-        frequency_limiter: rate_limiter.RateLimiter,
-        /**
-         * Account-billing limiter: `Bucket`, 10000/hr, refill 1000/hr. Bounds the distinct
-         * accounts billed per hour (DoS bound).
-         */
-        account_billing_limiter: rate_limiter.RateLimiter,
         /** Schema version. Currently `2`. */
         version: bcs.u16()
     } });
@@ -387,15 +366,15 @@ export function pendingTreasuryExecuteAfterMs(options: PendingTreasuryExecuteAft
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
-export interface RegisterPlatformArguments {
+export interface CreatePlatformArguments {
     name: RawTransactionArgument<string>;
     description: RawTransactionArgument<string>;
     category: RawTransactionArgument<string>;
     webhookUrl: RawTransactionArgument<string | null>;
 }
-export interface RegisterPlatformOptions {
+export interface CreatePlatformOptions {
     package?: string;
-    arguments: RegisterPlatformArguments | [
+    arguments: CreatePlatformArguments | [
         name: RawTransactionArgument<string>,
         description: RawTransactionArgument<string>,
         category: RawTransactionArgument<string>,
@@ -403,17 +382,15 @@ export interface RegisterPlatformOptions {
     ];
 }
 /**
- * Register a new platform. The caller becomes the platform owner and the initial
- * treasury. The platform is shared so any caller can read it; mutating functions
- * require the owner.
+ * Create a new platform object. The caller becomes the platform owner and the
+ * initial treasury.
  *
- * The three rate limiters (`volume_limiter`, `frequency_limiter`, limiter state
- * via `volume_limiter(p)` / `frequency_limiter(p)` / `account_billing_limiter(p)`.
- *
- * Returns the new `Platform`'s `ID` for caller convenience. The `Platform` itself
- * is shared in this function (no separate transfer call needed).
+ * Returns the new `Platform` and a `PlatformRegistrationReceipt` which must be
+ * consumed in the same transaction by calling `register_platform`. This separation
+ * allows calling mutating functions (like `create_tier`) on the platform in a PTB
+ * before it is finally shared.
  */
-export function registerPlatform(options: RegisterPlatformOptions) {
+export function createPlatform(options: CreatePlatformOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         '0x1::string::String',
@@ -426,64 +403,38 @@ export function registerPlatform(options: RegisterPlatformOptions) {
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'platform',
-        function: 'register_platform',
+        function: 'create_platform',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
-export interface RegisterPlatformWithTierArguments {
-    name: RawTransactionArgument<string>;
-    description: RawTransactionArgument<string>;
-    category: RawTransactionArgument<string>;
-    webhookUrl: RawTransactionArgument<string | null>;
-    tierName: RawTransactionArgument<string>;
-    tierAmount: RawTransactionArgument<number | bigint>;
-    tierFrequencyMs: RawTransactionArgument<number | bigint>;
+export interface RegisterPlatformArguments {
+    platform: RawTransactionArgument<string>;
+    receipt: TransactionArgument;
 }
-export interface RegisterPlatformWithTierOptions {
+export interface RegisterPlatformOptions {
     package?: string;
-    arguments: RegisterPlatformWithTierArguments | [
-        name: RawTransactionArgument<string>,
-        description: RawTransactionArgument<string>,
-        category: RawTransactionArgument<string>,
-        webhookUrl: RawTransactionArgument<string | null>,
-        tierName: RawTransactionArgument<string>,
-        tierAmount: RawTransactionArgument<number | bigint>,
-        tierFrequencyMs: RawTransactionArgument<number | bigint>
-    ];
-    typeArguments: [
-        string
+    arguments: RegisterPlatformArguments | [
+        platform: RawTransactionArgument<string>,
+        receipt: TransactionArgument
     ];
 }
 /**
- * Register a new platform and create its first tier atomically. Both operations
- * succeed or both abort — the tier is only appended if the platform registration
- * succeeds.
- *
- * Returns `(platform_id, tier_index = 0)`. Emits both `PlatformRegistered` and
- * `TierCreated`.
- *
- * The tier's `denomination` is derived from the generic type `T` via
- * `type_name::with_original_ids<T>()`.
+ * Register the platform by consuming the `PlatformRegistrationReceipt`, emitting
+ * `PlatformRegistered`, and sharing the `Platform` object. This must be called in
+ * the same transaction as `create_platform`.
  */
-export function registerPlatformWithTier(options: RegisterPlatformWithTierOptions) {
+export function registerPlatform(options: RegisterPlatformOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
-        '0x1::string::String',
-        '0x1::string::String',
-        '0x1::string::String',
-        '0x1::option::Option<0x1::string::String>',
-        '0x1::string::String',
-        'u64',
-        'u64',
-        '0x2::clock::Clock'
+        null,
+        null
     ] satisfies (string | null)[];
-    const parameterNames = ["name", "description", "category", "webhookUrl", "tierName", "tierAmount", "tierFrequencyMs"];
+    const parameterNames = ["platform", "receipt"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'platform',
-        function: 'register_platform_with_tier',
+        function: 'register_platform',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
     });
 }
 export interface UpdatePlatformArguments {
@@ -550,12 +501,11 @@ export interface CreateTierOptions {
 }
 /**
  * Create a new tier and append it to the platform's tier map at
- * `tier_index = vec_map::length(&tiers)` (sequential). The `is_active` field
- * defaults to `true`.
+ * `tier_index = tiers.length()` (sequential). The `is_active` field defaults to
+ * `true`.
  *
  * Rejects duplicate names (compared structurally on the `String`). Rejects zero
- * `amount` and zero `frequency_ms`. Enforces `vec_map::length(&tiers) < MAX_TIERS`
- * (20).
+ * `amount` and zero `frequency_ms`. Enforces `tiers.length() < MAX_TIERS` (20).
  *
  * Caller must be the platform owner. Emits `TierCreated`.
  *
@@ -605,7 +555,7 @@ export interface DeactivateTierByIndexOptions {
  * #### Aborts
  *
  * - `EInvalidOwner` if `ctx.sender() != platform.owner`.
- * - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+ * - `ETierNotFound` if `tier_index >= tiers.length()`.
  */
 export function deactivateTierByIndex(options: DeactivateTierByIndexOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -637,7 +587,7 @@ export interface GetTierOptions {
  *
  * #### Aborts
  *
- * - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+ * - `ETierNotFound` if `tier_index >= tiers.length()`.
  */
 export function getTier(options: GetTierOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
@@ -758,78 +708,6 @@ export function cancelTreasuryChange(options: CancelTreasuryChangeOptions) {
         package: packageAddress,
         module: 'platform',
         function: 'cancel_treasury_change',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface VolumeLimiterArguments {
-    platform: RawTransactionArgument<string>;
-}
-export interface VolumeLimiterOptions {
-    package?: string;
-    arguments: VolumeLimiterArguments | [
-        platform: RawTransactionArgument<string>
-    ];
-}
-/** Read-only handle to the volume limiter. Role: any caller (read-only view). */
-export function volumeLimiter(options: VolumeLimiterOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["platform"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'platform',
-        function: 'volume_limiter',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface FrequencyLimiterArguments {
-    platform: RawTransactionArgument<string>;
-}
-export interface FrequencyLimiterOptions {
-    package?: string;
-    arguments: FrequencyLimiterArguments | [
-        platform: RawTransactionArgument<string>
-    ];
-}
-/** Read-only handle to the frequency limiter. Role: any caller (read-only view). */
-export function frequencyLimiter(options: FrequencyLimiterOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["platform"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'platform',
-        function: 'frequency_limiter',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface AccountBillingLimiterArguments {
-    platform: RawTransactionArgument<string>;
-}
-export interface AccountBillingLimiterOptions {
-    package?: string;
-    arguments: AccountBillingLimiterArguments | [
-        platform: RawTransactionArgument<string>
-    ];
-}
-/**
- * Read-only handle to the account-billing limiter. Role: any caller (read-only
- * view).
- */
-export function accountBillingLimiter(options: AccountBillingLimiterOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["platform"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'platform',
-        function: 'account_billing_limiter',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }

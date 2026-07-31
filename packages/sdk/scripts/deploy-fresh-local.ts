@@ -41,7 +41,7 @@ for (const change of subRes.objectChanges) {
   if (change.type === "published") {
     subPackageId = change.packageId;
   } else if (change.type === "created") {
-    if (change.objectType.endsWith("::registry::CoinTypeRegistry")) {
+    if (change.objectType.endsWith("::registry::Registry")) {
       registryId = change.objectId;
       registryVersion = Number(change.version);
     } else if (change.objectType.endsWith("::scheduler::PaymentScheduler")) {

@@ -239,8 +239,8 @@ importers:
         specifier: ^2.19.0
         version: 2.22.0(typescript@5.9.3)
       '@paystreamer/sdk':
-        specifier: ^0.2.0
-        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.101.2(react@19.2.7)
@@ -327,8 +327,8 @@ importers:
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.4.0)(react@19.2.7)
       '@paystreamer/sdk':
-        specifier: ^0.2.0
-        version: 0.2.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@protobuf-ts/grpc-transport':
         specifier: ^2.9.4
         version: 2.11.1(@grpc/grpc-js@1.14.4)

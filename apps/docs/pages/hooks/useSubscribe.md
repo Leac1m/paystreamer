@@ -14,8 +14,6 @@ function CustomSubscribeButton() {
   const { subscribe, isLoading, error, recommendedDeposit, hasAccount } = useSubscribe({
     platformId: "0xYOUR_PLATFORM",
     tierIndex: 1,
-    tierAmount: 50000000000n,
-    tierFrequencyMs: 2592000000n, // 30 days
     maxAttempts: 3,
   });
 
@@ -46,8 +44,8 @@ You must pass an object with the following properties:
 |----------|------|-------------|
 | `platformId` | `string` | The target platform object ID. |
 | `tierIndex` | `number \| bigint` | The tier index on the platform to subscribe to. |
-| `tierAmount` | `bigint` | The cost of the tier per cycle (in MIST). |
-| `tierFrequencyMs` | `bigint` | The duration of the billing cycle (in MS). |
+| `tierAmount` | `bigint` | **Optional**. The cost of the tier per cycle (in MIST). Auto-resolved via GraphQL if omitted. |
+| `tierFrequencyMs` | `bigint` | **Optional**. The duration of the billing cycle (in MS). Auto-resolved via GraphQL if omitted. |
 | `maxAttempts` | `number` | Optional. The maximum number of retry attempts the scheduler should make for a failed payment. Defaults to 3. |
 | `accountId?` | `string` | Optional. The ID of the user's existing PayStreamer Account. |
 | `accountCapId?` | `string` | Optional. The ID of the user's existing Account Capability. |

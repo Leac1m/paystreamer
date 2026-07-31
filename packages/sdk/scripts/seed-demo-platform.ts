@@ -205,51 +205,6 @@ async function fetchSuiDiscriminant(
   return fetchDiscriminant(client, V3_PACKAGE_ID, "::sui::SUI");
 }
 
-async function registerCoinType<T extends string>(
-  client: SuiGraphQLClient,
-  keypair: ReturnType<typeof loadKeypair>,
-  typeArg: T,
-  displayName: string,
-  registryId: string,
-  registryInitVersion: number,
-  packageId: string,
-): Promise<number> {
-  const existing = await fetchDiscriminant(client, packageId, typeArg.split("::").slice(-2).join("::"));
-  if (existing !== undefined) {
-    console.log(`\n=== register_coin_type<${displayName}> ===`);
-    console.log(`  status: SKIP (${displayName} already registered, discriminant=${existing})`);
-    return existing;
-  }
-
-  const tx = newTx(keypair);
-  tx.moveCall({
-    target: `${packageId}::registry::register_coin_type`,
-    typeArguments: [typeArg],
-    arguments: [
-      tx.object(
-        Inputs.SharedObjectRef({
-          objectId: registryId,
-          mutable: true,
-          initialSharedVersion: registryInitVersion,
-        }),
-      ),
-    ],
-  });
-  const r = await executeOrSkip(client, keypair, `register_coin_type<${displayName}>`, tx, []);
-  if (r.status === "failure") {
-    throw new Error(`register_coin_type<${displayName}> failed: ${r.error ?? "unknown"}`);
-  }
-  let d: number | undefined;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    d = await fetchDiscriminant(client, packageId, typeArg.split("::").slice(-2).join("::"));
-    if (d !== undefined) break;
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  if (d === undefined) {
-    throw new Error(`register_coin_type<${displayName}> succeeded but no discriminant was discovered`);
-  }
-  return d;
-}
 
 async function mintPusdToDemoUser(
   client: SuiGraphQLClient,
@@ -386,20 +341,39 @@ async function registerPlatformWithTier(
   denominationType: string,
 ): Promise<DiscoveredPlatform> {
   const tx = newTx(keypair);
-  tx.moveCall({
-    target: `${V3_PACKAGE_ID}::platform::register_platform_with_tier`,
+  const typeNameArg = tx.moveCall({
+    target: "0x1::type_name::get",
     typeArguments: [denominationType],
+    arguments: [],
+  });
+
+  const [platform, receipt] = tx.moveCall({
+    target: `${V3_PACKAGE_ID}::platform::create_platform`,
     arguments: [
       tx.pure.string(DEMO_PLATFORM_NAME),
       tx.pure.string(DEMO_PLATFORM_DESCRIPTION),
       tx.pure.string(DEMO_PLATFORM_CATEGORY),
       tx.pure.option("string", null),
-      tx.pure.string(DEMO_TIER_NAME),
-      tx.pure.u64(DEMO_TIER_AMOUNT_MIST),
-      tx.pure.u64(DEMO_TIER_FREQUENCY_MS),
       tx.object(CLOCK_OBJECT_ID),
     ],
   });
+
+  tx.moveCall({
+    target: `${V3_PACKAGE_ID}::platform::create_tier`,
+    arguments: [
+      platform,
+      tx.pure.string(DEMO_TIER_NAME),
+      tx.pure.u64(DEMO_TIER_AMOUNT_MIST),
+      tx.pure.u64(DEMO_TIER_FREQUENCY_MS),
+      typeNameArg,
+    ],
+  });
+
+  tx.moveCall({
+    target: `${V3_PACKAGE_ID}::platform::register_platform`,
+    arguments: [platform, receipt],
+  });
+
   const r = await executeOrSkip(
     client,
     keypair,
@@ -440,8 +414,8 @@ async function createDemoTier(
   const tx = newTx(keypair);
   const typeNameArg = tx.moveCall({
     target: "0x1::type_name::get",
-    typeArguments: [],
-    arguments: [tx.pure.string(denominationType)],
+    typeArguments: [denominationType],
+    arguments: [],
   });
   tx.moveCall({
     target: `${V3_PACKAGE_ID}::platform::create_tier`,
@@ -538,16 +512,8 @@ async function main() {
   console.log(`denomination: PUSD (${PUSD_TYPE_ARG})`);
 
   console.log("\n=== Step 0: register_coin_type<PUSD> ===");
-  const pusdDiscriminant = await registerCoinType(
-    client,
-    keypair,
-    PUSD_TYPE_ARG,
-    "PUSD",
-    V3_COIN_TYPE_REGISTRY_ID,
-    V3_COIN_TYPE_REGISTRY_INIT_VERSION,
-    V3_PACKAGE_ID,
-  );
-  console.log(`  PUSD discriminant: ${pusdDiscriminant}`);
+  console.log("  status: SKIP (Coin types are no longer registered in v3)");
+  const pusdDiscriminant = 1;
 
   let platform: DiscoveredPlatform;
   const existing = await discoverDemoPlatform(client);

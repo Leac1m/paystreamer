@@ -9,26 +9,25 @@
  * 
  * ## Why two passes
  * 
- * A naive evaluator that called `rate_limiter::consume_or_abort` (or
- * `try_consume`) at every check would burn tokens from a `Bucket`-shaped limiter
- * on the first failing check, even though no payment actually
+ * A naive evaluator that mutates rate limiters at every check would burn limit
+ * capacity on the first passing check, even if a subsequent check fails, resulting
+ * in broken accounting and burned tokens.
  * 
- * 1.  **Project, do not mutate.** For each policy dimension, call the read-only
- *     `rate_limiter::available(clock)` projection. Compare against the requested
- *     amount. Build `vector<PolicyFailure>` with
- * 2.  **Consume on success.** Only when `failures.is_empty()`, call
- *     `rate_limiter::consume_or_abort` in a sweep. The persisted limiter state is
- *     unchanged on failure.
+ * 1.  **Project, do not mutate.** For each policy dimension, call read-only
+ *     projections and build a `vector<PolicyFailure>` with any violations.
+ * 2.  **Consume on success.** Only when `failures.is_empty()` does the module
+ *     actually consume capacity and mutate the limiters in a single sweep. The
+ *     persisted limiter state is unchanged on failure.
  * 
- * `evaluate` must NOT burn tokens. The `test_evaluate_failed_does_not_burn_tokens`
- * test pins this behavior.
+ * `evaluate` must NOT burn tokens on failure.
  * 
  * ## Architecture mapping
  * 
  * The `PolicySet` value type (per_tx_max, monthly_max, min_balance,
- * frequency_min_ms) is declared in `account.move`; this module adds the behavior.
- * The per-account rate-limiter state is held in a `PolicyLimiters` struct that
- * callers (payment.move, billing.move) store alongside the account —
+ * frequency_min_ms) is declared in `account.move`; this module adds the evaluation
+ * behavior. The per-account rate-limiter state is held in a `PolicyLimiters`
+ * struct that callers (`payment.move`) initialize on demand to decouple the
+ * `SubscriptionAccount` from the clock. store alongside the account —
  * `has store, drop`, no `key`, embedded wherever the integrator wants.
  * 
  * `PolicyLimiters` carries three OZ `RateLimiter`s:

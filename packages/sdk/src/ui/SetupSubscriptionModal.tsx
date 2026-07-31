@@ -47,8 +47,6 @@ export function SetupSubscriptionModal({
   const { subscribe, isLoading: isSubscribeLoading, error: subscribeError, recommendedDeposit, hasAccount } = useSubscribe({
     platformId,
     tierIndex,
-    tierAmount: resolvedTierAmount,
-    tierFrequencyMs: resolvedTierFrequencyMs,
     accountId: userAccount?.accountId,
     accountCapId: userAccount?.accountCapId,
   });

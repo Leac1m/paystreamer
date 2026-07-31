@@ -4,49 +4,34 @@
 
 
 /**
- * This module owns: declared here with the full field set; `billing.move` augments
- * with mutators and event emissions without redefining the type). 2. The
- * `PolicySet` value type (same pattern; `policies.move` augments with evaluation,
- * two-pass consume, and event emissions). 3. The `AccountStatus` lifecycle enum
- * (active / paused / closed). 4. The shared `SubscriptionAccount<T>` object plus
- * its discovery handle `AccountCap`.
+ * `subscriptions::account` — Core subscription account management.
  * 
- * (bitfield authority). `init`, so per-account ACs are infeasible (and unnecessary
- * — see Role checks in this module therefore consult `has_permission(cap, perm)`
- * against the bitfield on the cap, not an embedded AC.
+ * This module owns:
  * 
- * - emits `v: u16 = 2` on every event for indexer discrimination.
+ * 1.  The `SubscriptionAccount<T>` shared object, holding the user's funds
+ *     (`Balance<T>`).
+ * 2.  The `AccountCap` object, which grants ownership and management rights over
+ *     the account.
+ * 3.  The `AccountStatus` lifecycle enum (active / paused / closed).
+ * 4.  `PolicySet` definitions which restrict maximum spending over specific
+ *     periods.
  * 
- * ## Build-order note
+ * ## Architecture
  * 
- * design notes. Downstream `billing.move` and `policies.move` add behavior
- * (mutators, event emissions, evaluation) without redefining
+ * Users fund a `SubscriptionAccount<T>` with a specific coin type `T`.
+ * Subscriptions are registered within this account. Schedulers then use the
+ * `payment` module (which calls `internal_withdraw` here) to process payments
+ * against the user's balance.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import * as type_name from './deps/std/type_name.js';
 import * as balance_1 from './deps/sui/balance.js';
 import * as vec_map from './deps/sui/vec_map.js';
+import * as subscription from './subscription.js';
 const $moduleName = '@local-pkg/subscriptions::account';
-export const Subscription = new MoveStruct({ name: `${$moduleName}::Subscription`, fields: {
-        platform_id: bcs.Address,
-        tier_index: bcs.u64(),
-        tier_amount: bcs.u64(),
-        tier_frequency_ms: bcs.u64(),
-        status: bcs.u8(),
-        schedule_frequency_ms: bcs.u64(),
-        next_billing_time: bcs.u64(),
-        last_billing_time: bcs.u64(),
-        total_paid: bcs.u64(),
-        payment_count: bcs.u64(),
-        last_attempt_time: bcs.u64(),
-        attempt_count: bcs.u8(),
-        max_attempts: bcs.u8(),
-        nonce: bcs.u64(),
-        created_at: bcs.u64(),
-        updated_at: bcs.u64()
-    } });
 export const PolicySet = new MoveStruct({ name: `${$moduleName}::PolicySet`, fields: {
         /** Per-transaction maximum amount. `0` = no cap. */
         per_tx_max: bcs.u64(),
@@ -62,13 +47,15 @@ export const AccountStatus = new MoveStruct({ name: `${$moduleName}::AccountStat
     } });
 export const SubscriptionAccount = new MoveStruct({ name: `${$moduleName}::SubscriptionAccount<phantom T>`, fields: {
         id: bcs.Address,
+        /** Coin denomination of the account. */
+        coin_type: type_name.TypeName,
         /**
          * Stored balance for the account. Subscriber deposits funds via `deposit` before
          * payments are processed.
          */
         balance: balance_1.Balance,
         /** Per-platform subscriptions, keyed by `platform_id`. The */
-        subscriptions: vec_map.VecMap(bcs.Address, Subscription),
+        subscriptions: vec_map.VecMap(bcs.Address, subscription.Subscription),
         /** Policy set. Replaced wholesale via `update_policies`. */
         policies: PolicySet,
         /** Lifecycle status. Pause cascades to subscriptions; close is terminal. */
@@ -82,6 +69,11 @@ export const SubscriptionAccount = new MoveStruct({ name: `${$moduleName}::Subsc
         nonce: bcs.u64(),
         /** Schema version (currently `2`). Bumped on account-creating migration. */
         version: bcs.u16()
+    } });
+export const AccountCap = new MoveStruct({ name: `${$moduleName}::AccountCap`, fields: {
+        id: bcs.Address,
+        /** ID of the `SubscriptionAccount<T>` this cap authorizes. */
+        account_id: bcs.Address
     } });
 export const AccountCreated = new MoveStruct({ name: `${$moduleName}::AccountCreated`, fields: {
         account_id: bcs.Address,
@@ -115,516 +107,6 @@ export const PoliciesUpdated = new MoveStruct({ name: `${$moduleName}::PoliciesU
         new_policies: PolicySet,
         v: bcs.u16()
     } });
-export interface NewSubscriptionArguments {
-    platformId: RawTransactionArgument<string>;
-    tierIndex: RawTransactionArgument<number | bigint>;
-    tierAmount: RawTransactionArgument<number | bigint>;
-    tierFrequencyMs: RawTransactionArgument<number | bigint>;
-    status: RawTransactionArgument<number>;
-    scheduleFrequencyMs: RawTransactionArgument<number | bigint>;
-    nextBillingTime: RawTransactionArgument<number | bigint>;
-    lastBillingTime: RawTransactionArgument<number | bigint>;
-    totalPaid: RawTransactionArgument<number | bigint>;
-    paymentCount: RawTransactionArgument<number | bigint>;
-    lastAttemptTime: RawTransactionArgument<number | bigint>;
-    attemptCount: RawTransactionArgument<number>;
-    maxAttempts: RawTransactionArgument<number>;
-    nonce: RawTransactionArgument<number | bigint>;
-    createdAt: RawTransactionArgument<number | bigint>;
-    updatedAt: RawTransactionArgument<number | bigint>;
-}
-export interface NewSubscriptionOptions {
-    package?: string;
-    arguments: NewSubscriptionArguments | [
-        platformId: RawTransactionArgument<string>,
-        tierIndex: RawTransactionArgument<number | bigint>,
-        tierAmount: RawTransactionArgument<number | bigint>,
-        tierFrequencyMs: RawTransactionArgument<number | bigint>,
-        status: RawTransactionArgument<number>,
-        scheduleFrequencyMs: RawTransactionArgument<number | bigint>,
-        nextBillingTime: RawTransactionArgument<number | bigint>,
-        lastBillingTime: RawTransactionArgument<number | bigint>,
-        totalPaid: RawTransactionArgument<number | bigint>,
-        paymentCount: RawTransactionArgument<number | bigint>,
-        lastAttemptTime: RawTransactionArgument<number | bigint>,
-        attemptCount: RawTransactionArgument<number>,
-        maxAttempts: RawTransactionArgument<number>,
-        nonce: RawTransactionArgument<number | bigint>,
-        createdAt: RawTransactionArgument<number | bigint>,
-        updatedAt: RawTransactionArgument<number | bigint>
-    ];
-}
-/**
- * canonical constructor; `billing.move` will expose higher-level
- * `create_subscription(account, ...)` that calls this. Time fields are
- * caller-supplied (use `clock.timestamp_ms()`) so the constructor remains pure and
- * testable.
- */
-export function newSubscription(options: NewSubscriptionOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        '0x2::object::ID',
-        'u64',
-        'u64',
-        'u64',
-        'u8',
-        'u64',
-        'u64',
-        'u64',
-        'u64',
-        'u64',
-        'u64',
-        'u8',
-        'u8',
-        'u64',
-        'u64',
-        'u64'
-    ] satisfies (string | null)[];
-    const parameterNames = ["platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "status", "scheduleFrequencyMs", "nextBillingTime", "lastBillingTime", "totalPaid", "paymentCount", "lastAttemptTime", "attemptCount", "maxAttempts", "nonce", "createdAt", "updatedAt"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'new_subscription',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubPlatformIdArguments {
-    s: TransactionArgument;
-}
-export interface SubPlatformIdOptions {
-    package?: string;
-    arguments: SubPlatformIdArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `platform_id` (map key). Role: any caller (read-only view). */
-export function subPlatformId(options: SubPlatformIdOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_platform_id',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubTierIndexArguments {
-    s: TransactionArgument;
-}
-export interface SubTierIndexOptions {
-    package?: string;
-    arguments: SubTierIndexArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `tier_index`. */
-export function subTierIndex(options: SubTierIndexOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_tier_index',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubTierAmountArguments {
-    s: TransactionArgument;
-}
-export interface SubTierAmountOptions {
-    package?: string;
-    arguments: SubTierAmountArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `tier_amount` (smallest unit of `T`). */
-export function subTierAmount(options: SubTierAmountOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_tier_amount',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubTierFrequencyMsArguments {
-    s: TransactionArgument;
-}
-export interface SubTierFrequencyMsOptions {
-    package?: string;
-    arguments: SubTierFrequencyMsArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `tier_frequency_ms` between successful payments. */
-export function subTierFrequencyMs(options: SubTierFrequencyMsOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_tier_frequency_ms',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubStatusArguments {
-    s: TransactionArgument;
-}
-export interface SubStatusOptions {
-    package?: string;
-    arguments: SubStatusArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `status` (0 active, 1 paused, 2 cancelled). */
-export function subStatus(options: SubStatusOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_status',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubIsActiveArguments {
-    s: TransactionArgument;
-}
-export interface SubIsActiveOptions {
-    package?: string;
-    arguments: SubIsActiveArguments | [
-        s: TransactionArgument
-    ];
-}
-/** True iff `status == 0`. */
-export function subIsActive(options: SubIsActiveOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_is_active',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubIsPausedArguments {
-    s: TransactionArgument;
-}
-export interface SubIsPausedOptions {
-    package?: string;
-    arguments: SubIsPausedArguments | [
-        s: TransactionArgument
-    ];
-}
-/** True iff `status == 1`. */
-export function subIsPaused(options: SubIsPausedOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_is_paused',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubIsCancelledArguments {
-    s: TransactionArgument;
-}
-export interface SubIsCancelledOptions {
-    package?: string;
-    arguments: SubIsCancelledArguments | [
-        s: TransactionArgument
-    ];
-}
-/** True iff `status == 2`. */
-export function subIsCancelled(options: SubIsCancelledOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_is_cancelled',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubScheduleFrequencyMsArguments {
-    s: TransactionArgument;
-}
-export interface SubScheduleFrequencyMsOptions {
-    package?: string;
-    arguments: SubScheduleFrequencyMsArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `schedule_frequency_ms` (may differ from `tier_frequency_ms` after edits). */
-export function subScheduleFrequencyMs(options: SubScheduleFrequencyMsOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_schedule_frequency_ms',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubNextBillingTimeArguments {
-    s: TransactionArgument;
-}
-export interface SubNextBillingTimeOptions {
-    package?: string;
-    arguments: SubNextBillingTimeArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `next_billing_time` (ms). */
-export function subNextBillingTime(options: SubNextBillingTimeOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_next_billing_time',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubLastBillingTimeArguments {
-    s: TransactionArgument;
-}
-export interface SubLastBillingTimeOptions {
-    package?: string;
-    arguments: SubLastBillingTimeArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `last_billing_time` (ms; 0 if never billed). */
-export function subLastBillingTime(options: SubLastBillingTimeOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_last_billing_time',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubTotalPaidArguments {
-    s: TransactionArgument;
-}
-export interface SubTotalPaidOptions {
-    package?: string;
-    arguments: SubTotalPaidArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `total_paid` lifetime. */
-export function subTotalPaid(options: SubTotalPaidOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_total_paid',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubPaymentCountArguments {
-    s: TransactionArgument;
-}
-export interface SubPaymentCountOptions {
-    package?: string;
-    arguments: SubPaymentCountArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `payment_count` lifetime. */
-export function subPaymentCount(options: SubPaymentCountOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_payment_count',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubLastAttemptTimeArguments {
-    s: TransactionArgument;
-}
-export interface SubLastAttemptTimeOptions {
-    package?: string;
-    arguments: SubLastAttemptTimeArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `last_attempt_time` ms (for failed-attempt retry). */
-export function subLastAttemptTime(options: SubLastAttemptTimeOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_last_attempt_time',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubAttemptCountArguments {
-    s: TransactionArgument;
-}
-export interface SubAttemptCountOptions {
-    package?: string;
-    arguments: SubAttemptCountArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `attempt_count` (lifetime failed attempts; reset on success). */
-export function subAttemptCount(options: SubAttemptCountOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_attempt_count',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubMaxAttemptsArguments {
-    s: TransactionArgument;
-}
-export interface SubMaxAttemptsOptions {
-    package?: string;
-    arguments: SubMaxAttemptsArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `max_attempts` (per cycle; 0 = no cap). */
-export function subMaxAttempts(options: SubMaxAttemptsOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_max_attempts',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubNonceArguments {
-    s: TransactionArgument;
-}
-export interface SubNonceOptions {
-    package?: string;
-    arguments: SubNonceArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `nonce` (per-subscription replay nonce; bumped on successful payment). */
-export function subNonce(options: SubNonceOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_nonce',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubCreatedAtArguments {
-    s: TransactionArgument;
-}
-export interface SubCreatedAtOptions {
-    package?: string;
-    arguments: SubCreatedAtArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `created_at` ms. */
-export function subCreatedAt(options: SubCreatedAtOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_created_at',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
-export interface SubUpdatedAtArguments {
-    s: TransactionArgument;
-}
-export interface SubUpdatedAtOptions {
-    package?: string;
-    arguments: SubUpdatedAtArguments | [
-        s: TransactionArgument
-    ];
-}
-/** `updated_at` ms. */
-export function subUpdatedAt(options: SubUpdatedAtOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["s"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'sub_updated_at',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
-}
 export interface EmptyPolicySetOptions {
     package?: string;
     arguments?: [
@@ -903,14 +385,67 @@ export function isClosed(options: IsClosedOptions) {
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
     });
 }
+export interface AccountCapIdArguments {
+    cap: RawTransactionArgument<string>;
+}
+export interface AccountCapIdOptions {
+    package?: string;
+    arguments: AccountCapIdArguments | [
+        cap: RawTransactionArgument<string>
+    ];
+}
+/**
+ * ID of the `SubscriptionAccount<T>` this cap authorizes. Role: any caller
+ * (read-only view).
+ */
+export function accountCapId(options: AccountCapIdOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'account_cap_id',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
+export interface TransferAccountCapArguments {
+    cap: RawTransactionArgument<string>;
+    recipient: RawTransactionArgument<string>;
+}
+export interface TransferAccountCapOptions {
+    package?: string;
+    arguments: TransferAccountCapArguments | [
+        cap: RawTransactionArgument<string>,
+        recipient: RawTransactionArgument<string>
+    ];
+}
+/**
+ * Transfer a freshly-minted `AccountCap` to a recipient. Since it lacks `store`,
+ * this is the only way to relocate it on chain.
+ */
+export function transferAccountCap(options: TransferAccountCapOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        'address'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "recipient"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'transfer_account_cap',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
+}
 export interface CreateAccountArguments {
-    Registry: RawTransactionArgument<string>;
     policies: TransactionArgument;
 }
 export interface CreateAccountOptions {
     package?: string;
     arguments: CreateAccountArguments | [
-        Registry: RawTransactionArgument<string>,
         policies: TransactionArgument
     ];
     typeArguments: [
@@ -919,28 +454,20 @@ export interface CreateAccountOptions {
 }
 /**
  * Create a new `SubscriptionAccount<T>` and mint a fresh `AccountCap` with the
- * OWNER permission bit set. The coin `T` must be registered in the
- * `CoinTypeRegistry`; the `AccountType` is resolved at
+ * OWNER permission bit set.
  *
  * Returns the account and cap by value. The caller (PTB) is responsible for
  * `share_account` to share the account and transfer the cap to the appropriate
  * address. The cap's `account_id` field is pre-bound to the freshly-minted
  * account.
- *
- * #### Aborts
- *
- * - `ECoinTypeNotRegistered` if `T` is not in the registry.
- * - `EInvalidDiscriminant` if the registry's `u8` does not map to a built-in
- *   `AccountType` variant.
  */
 export function createAccount(options: CreateAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
         '0x2::clock::Clock'
     ] satisfies (string | null)[];
-    const parameterNames = ["Registry", "policies"];
+    const parameterNames = ["policies"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
@@ -991,14 +518,12 @@ export function shareAccount(options: ShareAccountOptions) {
     });
 }
 export interface DepositArguments {
-    cap: RawTransactionArgument<string>;
     account: RawTransactionArgument<string>;
     coin: RawTransactionArgument<string>;
 }
 export interface DepositOptions {
     package?: string;
     arguments: DepositArguments | [
-        cap: RawTransactionArgument<string>,
         account: RawTransactionArgument<string>,
         coin: RawTransactionArgument<string>
     ];
@@ -1007,26 +532,20 @@ export interface DepositOptions {
     ];
 }
 /**
- * Deposit a `Coin<T>` into the account. The cap's `account_id` must match the
- * account; the cap's `permissions` bitfield must include `permission_owner()` OR
- * `permission_depositor()`. The account must not be closed.
+ * Deposit a `Coin<T>` into the account. The account must not be closed.
  *
  * #### Aborts
  *
- * - `EInvalidCap` if `cap.account_id != object::id(account)`.
  * - `EAccountClosed` if the account is closed.
- * - `EUnauthorized` if the cap lacks OWNER or DEPOSITOR permission.
  * - `EZeroAmount` if the coin has zero value.
  */
 export function deposit(options: DepositOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
-    const parameterNames = ["cap", "account", "coin"];
+    const parameterNames = ["account", "coin"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
@@ -1052,15 +571,13 @@ export interface WithdrawOptions {
     ];
 }
 /**
- * Withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
- * match the account; the cap's `permissions` bitfield must include
- * `permission_owner()`. The account must not be closed.
+ * withdraw `amount` of a `Coin<T>` from the account. The cap's `account_id` must
+ * match the account. The account must not be closed.
  *
  * #### Aborts
  *
  * - `EInvalidCap` if `cap.account_id != object::id(account)`.
  * - `EAccountClosed` if the account is closed.
- * - `EUnauthorized` if the cap lacks the OWNER permission.
  * - `EZeroAmount` if the requested amount is zero.
  * - `EInsufficientBalance` if the account balance is less than the requested
  *   amount.
@@ -1109,8 +626,7 @@ export function pauseAccount(options: PauseAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
     const parameterNames = ["cap", "account"];
     return (tx: Transaction) => tx.moveCall({
@@ -1149,8 +665,7 @@ export function resumeAccount(options: ResumeAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
     const parameterNames = ["cap", "account"];
     return (tx: Transaction) => tx.moveCall({
@@ -1190,8 +705,7 @@ export function closeAccount(options: CloseAccountOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
         null,
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
     const parameterNames = ["cap", "account"];
     return (tx: Transaction) => tx.moveCall({
@@ -1233,64 +747,13 @@ export function updatePolicies(options: UpdatePoliciesOptions) {
     const argumentsTypes = [
         null,
         null,
-        null,
-        '0x2::clock::Clock'
+        null
     ] satisfies (string | null)[];
     const parameterNames = ["cap", "account", "newPolicies"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
         function: 'update_policies',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
-}
-export interface MintDelegatedCapArguments {
-    cap: RawTransactionArgument<string>;
-    account: RawTransactionArgument<string>;
-    permissions: RawTransactionArgument<number>;
-}
-export interface MintDelegatedCapOptions {
-    package?: string;
-    arguments: MintDelegatedCapArguments | [
-        cap: RawTransactionArgument<string>,
-        account: RawTransactionArgument<string>,
-        permissions: RawTransactionArgument<number>
-    ];
-    typeArguments: [
-        string
-    ];
-}
-/**
- * Mint a fresh `AccountCap` for the same account with a caller- chosen
- * `permissions` bitfield. The presented cap must hold the OWNER permission —
- * delegated-cap minting is owner-only.
- *
- * The returned cap is `key`-only (not `store`), so it is non-transferable by
- * default; the caller (PTB) transfers it to the agent address. The cap's
- * `account_id` is pre-bound to `object::id(account)`.
- *
- * The bitfield is validated by `new_account_cap` (zero and bits beyond
- * `OWNER|DEPOSITOR|AGENT` are rejected upstream).
- *
- * #### Aborts
- *
- * - `EInvalidCap` if `cap.account_id != object::id(account)`.
- * - `ENotOwnerCap` if the cap lacks the OWNER bit.
- */
-export function mintDelegatedCap(options: MintDelegatedCapOptions) {
-    const packageAddress = options.package ?? '@local-pkg/subscriptions';
-    const argumentsTypes = [
-        null,
-        null,
-        'u32',
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["cap", "account", "permissions"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'account',
-        function: 'mint_delegated_cap',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
@@ -1307,7 +770,7 @@ export interface IdOptions {
         string
     ];
 }
-/** `object::id` of the account. Role: any caller (read-only view). */
+/** object::id of the account. Role: any caller (read-only view). */
 export function id(options: IdOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
     const argumentsTypes = [
@@ -1322,24 +785,30 @@ export function id(options: IdOptions) {
         typeArguments: options.typeArguments
     });
 }
+export interface AccountTypeArguments {
+    account: RawTransactionArgument<string>;
+}
 export interface AccountTypeOptions {
     package?: string;
-    arguments?: [
+    arguments: AccountTypeArguments | [
+        account: RawTransactionArgument<string>
     ];
     typeArguments: [
         string
     ];
 }
-/**
- * Coin denomination (immutable after creation). Derived from `T`'s TypeName. Role:
- * any caller (read-only view).
- */
+/** Coin denomination (immutable after creation). Role: any caller (read-only view). */
 export function accountType(options: AccountTypeOptions) {
     const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["account"];
     return (tx: Transaction) => tx.moveCall({
         package: packageAddress,
         module: 'account',
         function: 'account_type',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
 }
@@ -1366,6 +835,39 @@ export function balance(options: BalanceOptions) {
         package: packageAddress,
         module: 'account',
         function: 'balance',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface HasActiveSubscriptionArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface HasActiveSubscriptionOptions {
+    package?: string;
+    arguments: HasActiveSubscriptionArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+/**
+ * Read-only helper for Seal/Access-Control integrations. Returns true if the
+ * account has an active, unpaused subscription to the platform.
+ */
+export function hasActiveSubscription(options: HasActiveSubscriptionOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'has_active_subscription',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
@@ -1624,6 +1126,523 @@ export function subscriptionCount(options: SubscriptionCountOptions) {
         package: packageAddress,
         module: 'account',
         function: 'subscription_count',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface CreateSubscriptionArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    tierIndex: RawTransactionArgument<number | bigint>;
+    tierAmount: RawTransactionArgument<number | bigint>;
+    tierFrequencyMs: RawTransactionArgument<number | bigint>;
+    maxAttempts: RawTransactionArgument<number>;
+}
+export interface CreateSubscriptionOptions {
+    package?: string;
+    arguments: CreateSubscriptionArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        tierIndex: RawTransactionArgument<number | bigint>,
+        tierAmount: RawTransactionArgument<number | bigint>,
+        tierFrequencyMs: RawTransactionArgument<number | bigint>,
+        maxAttempts: RawTransactionArgument<number>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function createSubscription(options: CreateSubscriptionOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u64',
+        'u64',
+        'u64',
+        'u8',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs", "maxAttempts"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'create_subscription',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface PauseSubscriptionArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface PauseSubscriptionOptions {
+    package?: string;
+    arguments: PauseSubscriptionArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function pauseSubscription(options: PauseSubscriptionOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'pause_subscription',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface ResumeSubscriptionArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface ResumeSubscriptionOptions {
+    package?: string;
+    arguments: ResumeSubscriptionArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function resumeSubscription(options: ResumeSubscriptionOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'resume_subscription',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface CancelSubscriptionArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface CancelSubscriptionOptions {
+    package?: string;
+    arguments: CancelSubscriptionArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function cancelSubscription(options: CancelSubscriptionOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'cancel_subscription',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionMaxAttemptsArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    maxAttempts: RawTransactionArgument<number>;
+}
+export interface UpdateSubscriptionMaxAttemptsOptions {
+    package?: string;
+    arguments: UpdateSubscriptionMaxAttemptsArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        maxAttempts: RawTransactionArgument<number>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function updateSubscriptionMaxAttempts(options: UpdateSubscriptionMaxAttemptsOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u8',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "maxAttempts"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'update_subscription_max_attempts',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionTierArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    tierIndex: RawTransactionArgument<number | bigint>;
+    tierAmount: RawTransactionArgument<number | bigint>;
+    tierFrequencyMs: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateSubscriptionTierOptions {
+    package?: string;
+    arguments: UpdateSubscriptionTierArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        tierIndex: RawTransactionArgument<number | bigint>,
+        tierAmount: RawTransactionArgument<number | bigint>,
+        tierFrequencyMs: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function updateSubscriptionTier(options: UpdateSubscriptionTierOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u64',
+        'u64',
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "tierIndex", "tierAmount", "tierFrequencyMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'update_subscription_tier',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface UpdateSubscriptionScheduleFrequencyArguments {
+    cap: RawTransactionArgument<string>;
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+    scheduleFrequencyMs: RawTransactionArgument<number | bigint>;
+}
+export interface UpdateSubscriptionScheduleFrequencyOptions {
+    package?: string;
+    arguments: UpdateSubscriptionScheduleFrequencyArguments | [
+        cap: RawTransactionArgument<string>,
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>,
+        scheduleFrequencyMs: RawTransactionArgument<number | bigint>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function updateSubscriptionScheduleFrequency(options: UpdateSubscriptionScheduleFrequencyOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::object::ID',
+        'u64',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["cap", "account", "platformId", "scheduleFrequencyMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'update_subscription_schedule_frequency',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface CanBillArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface CanBillOptions {
+    package?: string;
+    arguments: CanBillArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function canBill(options: CanBillOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'can_bill',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionStatusArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionStatusOptions {
+    package?: string;
+    arguments: SubscriptionStatusArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionStatus(options: SubscriptionStatusOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_status',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionTotalPaidArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionTotalPaidOptions {
+    package?: string;
+    arguments: SubscriptionTotalPaidArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionTotalPaid(options: SubscriptionTotalPaidOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_total_paid',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionPaymentCountArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionPaymentCountOptions {
+    package?: string;
+    arguments: SubscriptionPaymentCountArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionPaymentCount(options: SubscriptionPaymentCountOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_payment_count',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionNonceArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionNonceOptions {
+    package?: string;
+    arguments: SubscriptionNonceArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionNonce(options: SubscriptionNonceOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_nonce',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionTierAmountArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionTierAmountOptions {
+    package?: string;
+    arguments: SubscriptionTierAmountArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionTierAmount(options: SubscriptionTierAmountOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_tier_amount',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionTierFrequencyMsArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionTierFrequencyMsOptions {
+    package?: string;
+    arguments: SubscriptionTierFrequencyMsArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionTierFrequencyMs(options: SubscriptionTierFrequencyMsOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_tier_frequency_ms',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionNextBillingTimeArguments {
+    account: RawTransactionArgument<string>;
+    platformId: RawTransactionArgument<string>;
+}
+export interface SubscriptionNextBillingTimeOptions {
+    package?: string;
+    arguments: SubscriptionNextBillingTimeArguments | [
+        account: RawTransactionArgument<string>,
+        platformId: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionNextBillingTime(options: SubscriptionNextBillingTimeOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null,
+        '0x2::object::ID'
+    ] satisfies (string | null)[];
+    const parameterNames = ["account", "platformId"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_next_billing_time',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
+}
+export interface SubscriptionDenominationArguments {
+    account: RawTransactionArgument<string>;
+}
+export interface SubscriptionDenominationOptions {
+    package?: string;
+    arguments: SubscriptionDenominationArguments | [
+        account: RawTransactionArgument<string>
+    ];
+    typeArguments: [
+        string
+    ];
+}
+export function subscriptionDenomination(options: SubscriptionDenominationOptions) {
+    const packageAddress = options.package ?? '@local-pkg/subscriptions';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["account"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'account',
+        function: 'subscription_denomination',
         arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
