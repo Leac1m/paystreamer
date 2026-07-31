@@ -2,7 +2,7 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { NETWORK, SUI_RPC_URL, GRAPHQL_URL, SPONSOR_PRIVATE_KEY } from './config.js';
+import { NETWORK, SUI_RPC_URL, GRAPHQL_URL, SCHEDULER_PRIVATE_KEY } from './config.js';
 
 export const grpcClient = new SuiGrpcClient({
   network: NETWORK as any,
@@ -14,24 +14,24 @@ export const gqlClient = new SuiGraphQLClient({
   url: GRAPHQL_URL || `https://graphql.${NETWORK}.sui.io/graphql`,
 });
 
-export function getSponsorKeypair() {
-  if (!SPONSOR_PRIVATE_KEY) throw new Error("SPONSOR_PRIVATE_KEY is missing");
+export function getSchedulerKeypair() {
+  if (!SCHEDULER_PRIVATE_KEY) throw new Error("SCHEDULER_PRIVATE_KEY is missing");
   // Check if it's a bech32 string starts with 'suiprivkey'
-  if (SPONSOR_PRIVATE_KEY.startsWith('suiprivkey')) {
-    const decoded = decodeSuiPrivateKey(SPONSOR_PRIVATE_KEY);
+  if (SCHEDULER_PRIVATE_KEY.startsWith('suiprivkey')) {
+    const decoded = decodeSuiPrivateKey(SCHEDULER_PRIVATE_KEY);
     return Ed25519Keypair.fromSecretKey(decoded.secretKey);
   }
   
   // Otherwise try hex
-  const decodedStr = Buffer.from(SPONSOR_PRIVATE_KEY, 'hex').toString('utf8');
+  const decodedStr = Buffer.from(SCHEDULER_PRIVATE_KEY, 'hex').toString('utf8');
   if (decodedStr.startsWith('suiprivkey')) {
     const decoded = decodeSuiPrivateKey(decodedStr);
     return Ed25519Keypair.fromSecretKey(decoded.secretKey);
   }
   
-  throw new Error("Invalid SPONSOR_PRIVATE_KEY format");
+  throw new Error("Invalid SCHEDULER_PRIVATE_KEY format");
 }
 
-export function getSponsorAddress() {
-  return getSponsorKeypair().toSuiAddress();
+export function getSchedulerAddress() {
+  return getSchedulerKeypair().toSuiAddress();
 }
