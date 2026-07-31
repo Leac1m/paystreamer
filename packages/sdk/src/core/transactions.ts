@@ -3,7 +3,6 @@ import { Transaction } from "@mysten/sui/transactions";
 export interface BuildCreateAccountTxParams {
   tx: Transaction;
   packageId: string;
-  registryId: string;
   clockId: string;
   denomination: string; // e.g. "0x...::pusd::PUSD"
   depositAmount?: bigint; // in mist
@@ -13,7 +12,7 @@ export interface BuildCreateAccountTxParams {
 
 export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
   const {
-    tx, packageId, registryId, clockId, denomination, depositAmount = 0n, coinsToUse = [], isSuiDenomination = false
+    tx, packageId, clockId, denomination, depositAmount = 0n, coinsToUse = [], isSuiDenomination = false
   } = params;
 
   const policies = tx.moveCall({
@@ -23,7 +22,7 @@ export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
   const [accountObj, cap] = tx.moveCall({
     target: `${packageId}::account::create_account`,
     typeArguments: [denomination],
-    arguments: [tx.object(registryId), policies, tx.object(clockId)],
+    arguments: [policies, tx.object(clockId)],
   });
 
   if (depositAmount > 0n) {
@@ -46,7 +45,7 @@ export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
     tx.moveCall({
       target: `${packageId}::account::deposit`,
       typeArguments: [denomination],
-      arguments: [cap, accountObj, primaryCoin, tx.object(clockId)],
+      arguments: [accountObj, primaryCoin],
     });
   }
 
@@ -62,16 +61,14 @@ export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
 export interface BuildDepositTxParams {
   tx: Transaction;
   packageId: string;
-  clockId: string;
   denomination: string;
   accountId: string;
-  capId: string;
   depositAmount: bigint;
   coinsToUse: string[];
 }
 
 export function buildDepositTx(params: BuildDepositTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, depositAmount, coinsToUse } = params;
+  const { tx, packageId, denomination, accountId, depositAmount, coinsToUse } = params;
 
   if (coinsToUse.length === 0) {
     throw new Error("coinsToUse must be provided for deposit");
@@ -87,10 +84,8 @@ export function buildDepositTx(params: BuildDepositTxParams) {
     target: `${packageId}::account::deposit`,
     typeArguments: [denomination],
     arguments: [
-      tx.object(capId),
       tx.object(accountId),
       splitCoin,
-      tx.object(clockId)
     ],
   });
 }
@@ -124,7 +119,6 @@ export function buildWithdrawTx(params: BuildWithdrawTxParams) {
 export interface BuildSubscribeTxParams {
   tx: Transaction;
   packageId: string;
-  registryId: string;
   clockId: string;
   denomination: string;
   platformId: string;
@@ -144,7 +138,7 @@ export interface BuildSubscribeTxParams {
 
 export function buildSubscribeTx(params: BuildSubscribeTxParams) {
   const {
-    tx, packageId, registryId, clockId, denomination, platformId, tierIndex, tierAmount, tierFrequencyMs,
+    tx, packageId, clockId, denomination, platformId, tierIndex, tierAmount, tierFrequencyMs,
     maxAttempts = 3, accountId, accountCapId, depositAmount = 0n, coinsToUse = []
   } = params;
 
@@ -161,7 +155,6 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
       target: `${packageId}::account::create_account`,
       typeArguments: [denomination],
       arguments: [
-        tx.object(registryId),
         policies,
         tx.object(clockId),
       ],
@@ -183,12 +176,12 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
     tx.moveCall({
       target: `${packageId}::account::deposit`,
       typeArguments: [denomination],
-      arguments: [workingCap, workingAccountObj, splitCoin, tx.object(clockId)],
+      arguments: [workingAccountObj, splitCoin],
     });
   }
 
   tx.moveCall({
-    target: `${packageId}::billing::create_subscription`,
+    target: `${packageId}::account::create_subscription`,
     typeArguments: [denomination],
     arguments: [
       workingCap,
@@ -224,7 +217,7 @@ export interface BuildManageSubscriptionTxParams {
 export function buildPauseSubscriptionTx(params: BuildManageSubscriptionTxParams) {
   const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
   tx.moveCall({
-    target: `${packageId}::billing::pause_subscription`,
+    target: `${packageId}::account::pause_subscription`,
     typeArguments: [denomination],
     arguments: [
       tx.object(capId),
@@ -238,7 +231,7 @@ export function buildPauseSubscriptionTx(params: BuildManageSubscriptionTxParams
 export function buildResumeSubscriptionTx(params: BuildManageSubscriptionTxParams) {
   const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
   tx.moveCall({
-    target: `${packageId}::billing::resume_subscription`,
+    target: `${packageId}::account::resume_subscription`,
     typeArguments: [denomination],
     arguments: [
       tx.object(capId),
@@ -252,7 +245,7 @@ export function buildResumeSubscriptionTx(params: BuildManageSubscriptionTxParam
 export function buildCancelSubscriptionTx(params: BuildManageSubscriptionTxParams) {
   const { tx, packageId, clockId, denomination, accountId, capId, platformId } = params;
   tx.moveCall({
-    target: `${packageId}::billing::cancel_subscription`,
+    target: `${packageId}::account::cancel_subscription`,
     typeArguments: [denomination],
     arguments: [
       tx.object(capId),
@@ -266,6 +259,7 @@ export function buildCancelSubscriptionTx(params: BuildManageSubscriptionTxParam
 export interface BuildProcessPaymentTxParams {
   tx: Transaction;
   packageId: string;
+  registryId: string;
   clockId: string;
   denomination: string;
   accountId: string;
@@ -277,7 +271,7 @@ export interface BuildProcessPaymentTxParams {
 
 export function buildProcessPaymentTx(params: BuildProcessPaymentTxParams) {
   const {
-    tx, packageId, clockId, denomination, accountId, platformId, platformInitVersion, schedulerId, schedulerInitVersion
+    tx, packageId, registryId, clockId, denomination, accountId, platformId, platformInitVersion, schedulerId, schedulerInitVersion
   } = params;
 
   const limiters = tx.moveCall({
@@ -295,6 +289,7 @@ export function buildProcessPaymentTx(params: BuildProcessPaymentTxParams) {
     target: `${packageId}::scheduler::process_due_payment`,
     typeArguments: [denomination],
     arguments: [
+      tx.object(registryId),
       tx.sharedObjectRef({
         objectId: schedulerId,
         initialSharedVersion: schedulerInitVersion,

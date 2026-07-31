@@ -1,0 +1,39 @@
+import { Callout } from 'nextra/components';
+
+# Smart Contract Edge Cases
+
+When building a decentralized application, it's important to understand how the smart contracts handle edge cases, particularly regarding user funds and subscription states.
+
+## Insufficient Funds
+
+One of the most common edge cases in a subscription protocol is when a user's account does not have enough balance to cover their next billing cycle. 
+
+PayStreamer handles this automatically during the `process_due_payment` execution:
+
+1. **The Scheduler Triggers**: The scheduler attempts to call `process_due_payment` because the timestamp indicates the payment is due.
+2. **Balance Check**: The smart contract inspects the `SubscriptionAccount` balance.
+3. **Graceful Deactivation**: If the balance is less than the required tier amount, the contract **does not abort**. Instead, it gracefully deactivates the subscription by updating the internal state (setting `is_active = false`) and emits a `SubscriptionCancelledEvent`.
+4. **No Reverts**: This is crucial. If the transaction aborted, the scheduler would waste gas and might repeatedly try to process the payment in a loop. By gracefully handling it, the scheduler still receives a tiny success fee (if configured) for doing the work of cleaning up the inactive subscription, and the protocol remains healthy.
+
+### Handling on the Frontend
+
+Because the subscription is cancelled automatically on-chain, your frontend should listen to the state of the user's subscriptions.
+
+If a user deposits more funds later, they will need to create a **new** subscription to the platform. 
+
+```typescript
+// Example: Checking if a subscription was cancelled due to insufficient funds
+if (!subscription.isActive && subscription.balance < subscription.tierAmount) {
+  console.log("Subscription paused due to insufficient funds.");
+}
+```
+
+## Over-depositing
+
+When a user deposits more than is strictly necessary for the current billing cycle, the funds remain safely inside their `SubscriptionAccount`. 
+
+These funds belong entirely to the user. The platform **cannot** withdraw more than the agreed-upon tier amount per billing cycle. The user can withdraw their excess funds at any time using the `withdraw` function.
+
+<Callout type="info">
+  **Security Note**: PayStreamer uses Sui's Object capability model. The `DepositCap` and `AccountCap` ensure that only authorized entities can interact with the funds, strictly bound by the rules defined in the Move smart contracts.
+</Callout>

@@ -4,12 +4,13 @@ import { Transaction } from "@mysten/sui/transactions";
 import { usePayStreamerConfig } from "./provider";
 import { buildSubscribeTx } from "../core/transactions";
 import { useSponsoredTransaction } from "./useSponsoredTransaction";
+import { usePlatform } from "./usePlatform";
 
 export interface UseSubscribeParams {
   platformId: string;
   tierIndex: number | bigint;
-  tierAmount: bigint;
-  tierFrequencyMs: bigint;
+  tierAmount?: bigint;
+  tierFrequencyMs?: bigint;
   accountId?: string;
   accountCapId?: string;
   maxAttempts?: number;
@@ -20,30 +21,40 @@ export function useSubscribe(params: UseSubscribeParams) {
   const account = useCurrentAccount();
   const client = useCurrentClient();
   const { executeSponsored } = useSponsoredTransaction();
+  const { data: platform, isLoading: isPlatformLoading } = usePlatform(params.platformId);
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  const isLoading = isPlatformLoading || isSubscribing;
   const hasAccount = !!params.accountId && !!params.accountCapId;
+
+  const resolvedTierAmount = params.tierAmount ?? (platform?.tiers?.[Number(params.tierIndex)]?.amount ? BigInt(platform.tiers[Number(params.tierIndex)].amount) : 0n);
+  const resolvedTierFrequencyMs = params.tierFrequencyMs ?? (platform?.tiers?.[Number(params.tierIndex)]?.frequency ? BigInt(platform.tiers[Number(params.tierIndex)].frequency) : 0n);
 
   // Calculate recommended deposit (e.g. 3 months worth)
   const THREE_MONTHS_MS = 90n * 24n * 60n * 60n * 1000n;
   let cyclesBuffer = 3n;
-  if (params.tierFrequencyMs > 0n) {
-    cyclesBuffer = THREE_MONTHS_MS / params.tierFrequencyMs;
+  if (resolvedTierFrequencyMs > 0n) {
+    cyclesBuffer = THREE_MONTHS_MS / resolvedTierFrequencyMs;
     if (cyclesBuffer < 3n) cyclesBuffer = 3n;
     if (cyclesBuffer > 10n) cyclesBuffer = 10n;
   }
-  const recommendedDeposit = params.tierAmount * cyclesBuffer;
+  const recommendedDeposit = resolvedTierAmount * cyclesBuffer;
 
   const subscribe = useCallback(
     async (depositAmount: bigint = 0n) => {
+      if (!resolvedTierAmount || !resolvedTierFrequencyMs) {
+        setError("Tier configuration not found or is still loading.");
+        return null;
+      }
+
       if (config.isMockMode) {
-        setIsLoading(true);
+        setIsSubscribing(true);
         setError(null);
         return new Promise<string>((resolve) => {
           setTimeout(() => {
-            setIsLoading(false);
+            setIsSubscribing(false);
             resolve("mock_digest_1234567890abcdef");
           }, 1500);
         });
@@ -54,10 +65,20 @@ export function useSubscribe(params: UseSubscribeParams) {
         return null;
       }
 
-      setIsLoading(true);
+      setIsSubscribing(true);
       setError(null);
 
       try {
+        const resolvedPackageId = platform?.packageId || config.packageId;
+        const resolvedCoinType = platform?.coinType || config.pusdType;
+
+        if (!resolvedPackageId) {
+          throw new Error("Could not resolve packageId for this platform.");
+        }
+        if (!resolvedCoinType) {
+          throw new Error("Could not resolve denomination type for this platform.");
+        }
+
         let coinsToUse: string[] = [];
 
         // Fetch coins if deposit is requested
@@ -81,7 +102,7 @@ export function useSubscribe(params: UseSubscribeParams) {
 
           const res = await config.graphqlClient.query({
             query: coinsQuery,
-            variables: { owner: account.address, type: config.pusdType }
+            variables: { owner: account.address, type: resolvedCoinType }
           });
 
           const nodes = (res.data as any)?.address?.objects?.nodes || [];
@@ -103,14 +124,13 @@ export function useSubscribe(params: UseSubscribeParams) {
 
         buildSubscribeTx({
           tx,
-          packageId: config.packageId,
-          registryId: config.registryId,
+          packageId: resolvedPackageId,
           clockId: config.clockId,
-          denomination: config.pusdType,
+          denomination: resolvedCoinType,
           platformId: params.platformId,
           tierIndex: params.tierIndex,
-          tierAmount: params.tierAmount,
-          tierFrequencyMs: params.tierFrequencyMs,
+          tierAmount: resolvedTierAmount,
+          tierFrequencyMs: resolvedTierFrequencyMs,
           maxAttempts: params.maxAttempts,
           accountId: params.accountId,
           accountCapId: params.accountCapId,
@@ -130,10 +150,10 @@ export function useSubscribe(params: UseSubscribeParams) {
         setError(err.message || String(err));
         return null;
       } finally {
-        setIsLoading(false);
+        setIsSubscribing(false);
       }
     },
-    [account, client, config, params, executeSponsored]
+    [account, client, config, params, executeSponsored, resolvedTierAmount, resolvedTierFrequencyMs, platform]
   );
 
   return {

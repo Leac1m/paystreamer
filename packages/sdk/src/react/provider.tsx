@@ -2,10 +2,10 @@ import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 export interface PayStreamerConfig {
-  packageId: string;
-  registryId: string;
+  packageId?: string;
+  registryId?: string;
   clockId: string;
-  pusdType: string;
+  pusdType?: string;
   pusdPackageId?: string;
   pusdTreasuryCapId?: string;
   sponsorApiUrl?: string;

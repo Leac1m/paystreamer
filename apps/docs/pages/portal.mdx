@@ -1,0 +1,36 @@
+import { Callout } from 'nextra/components';
+
+# The User Portal
+
+Building a Web3 application often requires balancing a great user experience with complex on-chain interactions. If your dApp requires users to manage recurring subscriptions, top up balances, and review transaction histories, building those management dashboards from scratch can take weeks.
+
+To solve this, PayStreamer provides the **PayStreamer Portal**.
+
+## What is the Portal?
+
+The PayStreamer Portal (typically hosted at [usePaystreamer.xyz](https://usepaystreamer.xyz)) is a unified, consumer-facing dashboard designed for end-users. 
+
+Because PayStreamer subscriptions are tied to a user's wallet via on-chain `SubscriptionAccount` objects, a user's subscription data is completely decoupled from any single dApp. The Portal reads the blockchain to aggregate all of a user's active subscriptions across *every* integrated platform in one place.
+
+## Features for End-Users
+
+When you direct your users to the Portal, they can easily:
+
+- **Top-Up Balances**: Deposit `PUSD` (or use Advanced Routing to deposit via `USDC`/`SUI`) into their Subscription Account to ensure their streams don't get paused.
+- **Manage Subscriptions**: View a list of all active streams. Users can pause, resume, or cancel subscriptions to different platforms with a single click.
+- **Transaction History**: View a chronological history of every payment processed by the scheduler network.
+- **Scheduler Registration**: Advanced users can register their own Schedulers and withdraw their earned 1% execution fees.
+
+<Callout type="tip">
+  **Developer Tip**: You do not need to build a "Billing Settings" page in your dApp! Simply link out to `usePaystreamer.xyz/dashboard` and let the Portal handle the heavy lifting of account management.
+</Callout>
+
+## Platform Management
+
+The Portal isn't just for consumers. If you are a developer building a content platform, you can use the Portal to:
+
+1. **Register Your Platform**: Execute the PTB to register your platform on-chain and receive your `Platform ID`.
+2. **Configure Tiers**: Set up your pricing tiers (e.g., $5/month for Basic, $10/month for Premium).
+3. **Withdraw Revenue**: Claim the accumulated `PUSD` from your platform's balance directly to your wallet.
+
+By leveraging the Portal, you can focus entirely on building your core application logic and let PayStreamer handle the entire billing lifecycle.

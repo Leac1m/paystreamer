@@ -1,0 +1,61 @@
+import { Callout } from 'nextra/components';
+
+# Advanced Routing with DeepBook
+
+PayStreamer is built to support a unified subscription experience. The core smart contract uses a **Hot Potato** pattern (via `DepositCap`), which allows developers to natively execute a swap *and* a deposit within the same atomic transaction. 
+
+This means that a user does NOT need to hold `PUSD` to pay for a subscription. They can hold `USDC`, `SUI`, or any other supported token, and the transaction will seamlessly convert it to `PUSD` before depositing it into their PayStreamer `SubscriptionAccount`.
+
+## DeepBook Integration
+
+[DeepBook V3](https://sui.io/deepbook) is Sui's premier central limit order book (CLOB) and serves as the wholesale liquidity layer for the network. Because DeepBook allows for swaps without requiring complex balance managers for simple trades, it's the perfect AMM to chain with PayStreamer using Programmable Transaction Blocks (PTBs).
+
+### How it Works (PTB Composition)
+
+To build a swapping router on the frontend, you do not need to write custom Move code. You can use the `@mysten/deepbook-v3` SDK alongside the PayStreamer SDK.
+
+Here is the conceptual flow for routing `USDC` to `PUSD`:
+
+1. **Input**: The user selects a `Coin<USDC>` they wish to deposit.
+2. **Swap**: Call `swapExactBaseForQuote` (or `swapExactQuoteForBase` depending on pool configuration) in DeepBook to swap the `USDC` for `PUSD`. This returns a `Coin<PUSD>` command inside the PTB.
+3. **Deposit**: Pipe the resulting `Coin<PUSD>` command directly into PayStreamer's `account::deposit` Move call.
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+import { DeepBookClient } from '@mysten/deepbook-v3';
+// ... PayStreamer imports
+
+const tx = new Transaction();
+const deepbook = new DeepBookClient({ client: suiClient });
+
+// 1. Define the input USDC coin
+const usdcCoin = tx.object('0xUSDC_COIN_ID');
+
+// 2. Perform the swap on DeepBook
+// (Note: Consult the DeepBook V3 documentation for exact pool IDs and parameters)
+const [pusdCoin, remainingUsdc] = deepbook.swapExactBaseForQuote({
+  poolId: '0xUSDC_PUSD_POOL_ID',
+  amount: 100000000n, // The amount of USDC to swap
+  coinIn: usdcCoin,
+  tx,
+});
+
+// 3. Deposit the newly acquired PUSD directly into PayStreamer
+tx.moveCall({
+  target: `0xPAYSTREAMER_PACKAGE_ID::account::deposit`,
+  typeArguments: ['0x...::pusd::PUSD'],
+  arguments: [
+    tx.object('0xSUBSCRIPTION_ACCOUNT_ID'),
+    pusdCoin // The output from DeepBook!
+  ],
+});
+
+// Clean up any remaining USDC dust
+tx.transferObjects([remainingUsdc], tx.pure.address(userAddress));
+```
+
+<Callout type="info">
+  **Atomic Execution**: Because this entire flow occurs within a single Programmable Transaction Block (PTB), it is completely atomic. If the swap fails due to slippage, or if the deposit fails for any reason, the entire transaction aborts. The user's `USDC` is never stranded!
+</Callout>
+
+By leveraging DeepBook and PTBs, you can offer your users a "pay with any token" experience without modifying the PayStreamer smart contracts!

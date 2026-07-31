@@ -23,12 +23,9 @@ import { PayStreamerProvider } from "@paystreamer/sdk/react";
 const queryClient = new QueryClient();
 
 const payStreamerConfig = {
-  packageId: "0x...",
-  registryId: "0x...",
+  // `packageId` and `pusdType` are automatically discovered on-chain if you omit them!
   clockId: "0x6",
-  pusdType: "0x...::pusd::PUSD",
-  network: "devnet",
-  graphqlClient: /* your SuiGraphQLClient instance */
+  network: "mainnet", // or "testnet" / "local"
 };
 
 export default function App({ children }) {
@@ -66,11 +63,14 @@ export function SubscribeSection() {
         onClose={() => setIsOpen(false)}
         platformId="0xYOUR_PLATFORM_ID"
         tierIndex={0}
-        tierAmount={10000000000n} // 10 PUSD
-        tierFrequencyMs={2592000000n} // Monthly
+        // tierAmount and tierFrequencyMs are automatically fetched from the contract!
         onSuccess={(digest) => console.log("Subscribed!", digest)}
       />
     </div>
   );
 }
 ```
+
+<Callout type="info">
+  **Not a Developer?** If you are an end-user simply looking to manage your PayStreamer subscriptions, you do not need to build a custom dApp! Head over to the [PayStreamer Portal](/portal) to manage your account natively.
+</Callout>

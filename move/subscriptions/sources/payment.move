@@ -1,23 +1,22 @@
+/// `subscriptions::payment` — Core payment processing module.
 ///
-/// `process_due_payment`
-/// funds. It is called by `scheduler.move` (the permissionless on-chain
-/// entry point) after the global circuit breaker, the global pause flag,
-/// and the platform's `PLATFORM_SCHEDULER_ROLE` grant have been checked
-/// upstream. The function then verifies the per-subscription schedule,
-/// runs the per-platform rate limiters, performs the two-pass policy
-/// evaluation, and uses the address-balance model to transfer funds
-/// directly from the subscriber's address to the platform treasury.
+/// Handles both standard and cross-currency routed payments.
+/// These functions are `public(package)` and must be called through
+/// the `scheduler.move` entry points to ensure circuit breakers
+/// and platform permissions are enforced.
 ///
 /// ## Address-balance payment flow
 ///
-/// The payment uses Sui's address balance model:
-/// 1. Create a withdrawal from the subscriber's address balance
-/// 2. Redeem the withdrawal to get `Balance<T>`
-/// 3. Send the balance to the platform treasury
+/// Payments use Sui's address balance model via the `SubscriptionAccount`:
+/// 1. Withdraw from the subscriber's account balance
+/// 2. Split fees for scheduler (1%) and protocol (2%)
+/// 3. Send the remainder to the platform treasury
 ///
-/// ## Error code range
+/// ## Routed Payments
 ///
-/// `billing.move` for sibling ranges.
+/// Schedulers can execute cross-currency payments via atomic PTB swaps
+/// using the `RoutingPotato` pattern, allowing users to fund subscriptions
+/// with a single coin type while paying platforms in their requested token.
 #[allow(lint(share_owned))]
 module subscriptions::payment {
     use sui::object;
@@ -25,8 +24,9 @@ module subscriptions::payment {
     use sui::event;
     use sui::tx_context::TxContext;
     use sui::clock::Clock;
-    use subscriptions::account::{Self, SubscriptionAccount};
-    use subscriptions::billing::{Self, can_bill, record_payment, record_failed_payment};
+    use sui::coin::{Self, Coin};
+    use subscriptions::account::{Self, SubscriptionAccount, can_bill, record_payment, record_failed_payment};
+    
     use subscriptions::policies::{Self, PolicyLimiters, PolicyFailure};
     use subscriptions::platform::{Self, Platform};
 
@@ -41,33 +41,24 @@ module subscriptions::payment {
     const EInvalidAmount: u64 = 0x09002;
 
     /// The account's live headroom is below the requested `amount`.
-    /// Surfaces `account::internal_withdraw`'s `EInsufficientBalance`
-    /// at the payment-flow level so off-chain indexers can distinguish
-    /// a billing failure (insufficient balance) from a schedule failure
-    /// (`ENotDue`). Currently a forward-reserved code; the actual
-    /// abort path is `account::internal_withdraw`'s native abort, so
-    /// the constant is intentionally not referenced (and not asserted
-    /// against) inside the function body. Kept for stable cross-module
-    /// error-code references.
-    #[allow(unused_const)]
+    /// Caught early to ensure `record_failed_payment` is called and
+    /// the subscription's retry state advances, preventing users from
+    /// avoiding suspension by emptying their wallets.
     const EInsufficientBalance: u64 = 0x09003;
 
-    /// One of the platform's three rate limiters
-    /// (`volume_limiter`, `frequency_limiter`, `account_billing_limiter`)
-    /// refused the consume. The persisted limiter state is untouched
-    /// (OZ `try_consume` is all-or-nothing), so a downstream caller can
-    /// retry the same `process_due_payment` after the limiters refill.
-    const EPlatformRateLimited: u64 = 0x09004;
 
     /// The two-pass policy evaluation rejected the request. The full
     /// `vector<PolicyFailure>` is emitted in the `PaymentFailed` event
     /// so off-chain indexers can see *which* dimension failed and
-    /// *why`. Persisted limiter state is untouched (a failed pass-1
+    /// *why*. Persisted limiter state is untouched.
     const EPolicyViolation: u64 = 0x09005;
 
     /// The subscription's `tier_amount` resolved to `0`. Treated as a
     /// programmer / configuration error; aborts before money moves.
     const EZeroAmount: u64 = 0x09006;
+
+    /// The provided `RoutingPotato` is invalid for this payment settlement.
+    const EInvalidPotato: u64 = 0x09007;
 
     // === Events ===
 
@@ -81,13 +72,16 @@ module subscriptions::payment {
         account_id: ID,
         platform_id: ID,
         amount: u64,
+        platform_amount: u64,
+        protocol_fee: u64,
+        scheduler_fee: u64,
         policy_failures_count: u64,
         nonce: u64,
         v: u16,
     }
 
     /// Emitted on a failed `process_due_payment`. The `reason` field
-    /// is one of `ENotDue`, `EPlatformRateLimited`, `EPolicyViolation`,
+    /// is one of `ENotDue`, `EPolicyViolation`,
     /// `EInsufficientBalance`, or `EZeroAmount`. The `amount` is the
     /// `tier_amount` at the time of the attempt (0 for `ENotDue` since
     /// the schedule is consulted first).
@@ -99,38 +93,38 @@ module subscriptions::payment {
         v: u16,
     }
 
+    // === Routing Potato ===
+
+    /// A Hot Potato ensuring a withdrawn routed payment is settled in the same transaction.
+    public struct RoutingPotato<phantom FundingCoin, phantom PlatformCoin> {
+        account_id: ID,
+        platform_id: ID,
+        amount_needed: u64,
+    }
+
     // === process_due_payment ===
 
     /// THE single money-moving path. Called by `scheduler.move` (which
-    /// has already checked the global circuit breaker, the global pause
-    /// flag, and the platform's `PLATFORM_SCHEDULER_ROLE` grant).
+    /// has already checked the global circuit breaker and platform permissions).
     ///
     /// Note: Due to Sui framework limitations, this function requires the
     /// subscriber to have deposited a Coin<T> into the account first.
-    /// The scheduler withdraws from the account's balance and sends to treasury.
-    /// This is a transitional model until address-balance APIs become public.
+    /// The scheduler withdraws from the account's balance and routes it to the treasury.
     ///
-    /// owns; the scheduler owns steps 1, 2, 4, 6):
+    /// Payment execution steps:
     ///  1. Verify `can_bill` (subscription is active and due)
-    ///     billed amount, not a caller-supplied value)
-    ///  3. Check the platform's three rate limiters
-    ///     (`volume`, `frequency`, `account_billing`)
-    ///  4. Two-pass policy evaluation against the account's
-    ///     `PolicySet` and live `PolicyLimiters`
-    ///  5. Withdraw from account's stored balance
-    ///  6. Send to treasury via `sui::coin::send_funds`
-    ///  7. `record_payment` on the subscription (advances schedule,
-    ///     bumps the per-subscription nonce) and `bump_nonce` on the
-    ///     step 10)
-    ///  8. Emit `PaymentProcessed` with the policy results
+    ///  2. Fetch the required payment amount from the platform's tier
+    ///  3. Perform a two-pass policy evaluation against the account's limiters
+    ///  4. Withdraw the required amount from the account's balance
+    ///  5. Distribute fees (1% scheduler, 2% protocol, 97% platform)
+    ///  6. Record the payment on the subscription and advance the schedule
+    ///  7. Emit a `PaymentProcessed` event detailing the fee breakdown
     ///
     /// On a policy violation, `record_failed_payment` is called so the
-    /// subscription's retry state (attempt_count, last_attempt_time) is
-    /// correctly stamped for the next call. On other failures
-    /// (`ENotDue`, `EPlatformRateLimited`, `EZeroAmount`) the call
-    /// aborts before any state change; the `PaymentFailed` event
-    /// records the reason.
-    public fun process_due_payment<T>(
+    /// subscription's retry state is correctly updated. On other failures
+    /// (`ENotDue`, `EZeroAmount`) the transaction aborts safely.
+    public(package) fun process_due_payment<T>(
+        registry: &subscriptions::registry::Registry,
         platform: &mut Platform,
         account: &mut SubscriptionAccount<T>,
         policy_limiters: &mut PolicyLimiters,
@@ -155,10 +149,19 @@ module subscriptions::payment {
         let amount = account::tier_amount_via_sub(account, platform_id);
         assert!(amount > 0, EZeroAmount);
 
-        // 3. platform rate limiters.
-        assert!(platform::try_consume_volume(platform, amount, clock), EPlatformRateLimited);
-        assert!(platform::try_consume_frequency(platform, clock), EPlatformRateLimited);
-        assert!(platform::try_consume_account_billing(platform, clock), EPlatformRateLimited);
+        // 3a. Check for sufficient balance gracefully to prevent users from
+        // dodging payments by keeping their balance at 0.
+        if (account::balance(account) < amount) {
+            record_failed_payment(account, platform_id, amount, EInsufficientBalance, clock);
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount,
+                reason: EInsufficientBalance,
+                v: 2,
+            });
+            return
+        };
 
         // 4. two-pass policy evaluation.
         let (allowed, failures) = policies::evaluate(
@@ -178,14 +181,25 @@ module subscriptions::payment {
             });
             abort EPolicyViolation
         };
-        let failure_count = vector::length(&failures);
+        let failure_count = failures.length();
 
-        // 5. Withdraw from account's balance and send to treasury.
-        // The subscriber must have deposited funds into the account first.
-        // This is a transitional implementation until address-balance APIs
-        // (create_withdrawal, redeem) become publicly accessible.
-        let treasury_addr = platform::treasury(platform);
-        account::withdraw_and_send<T>(account, amount, treasury_addr, ctx);
+        // 5. Withdraw from account's balance and distribute to platform, protocol, and scheduler.
+        let platform_treasury = platform::treasury(platform);
+        let protocol_treasury = subscriptions::registry::protocol_treasury(registry);
+        let scheduler_addr = ctx.sender();
+        
+        let scheduler_fee = (amount * 100) / 10000;
+        let protocol_fee = (amount * 200) / 10000;
+        let platform_amount = amount - scheduler_fee - protocol_fee;
+
+        account::withdraw_and_distribute<T>(
+            account, 
+            amount, 
+            platform_treasury, 
+            protocol_treasury, 
+            scheduler_addr, 
+            ctx
+        );
 
         // 6. record_payment (advances schedule, bumps sub nonce) and
         // bump the per-account replay nonce.
@@ -198,7 +212,153 @@ module subscriptions::payment {
             account_id,
             platform_id,
             amount,
+            platform_amount,
+            protocol_fee,
+            scheduler_fee,
             policy_failures_count: failure_count,
+            nonce: new_nonce,
+            v: 2,
+        });
+    }
+
+    // === Routed Payments ===
+
+    /// Withdraws a `max_spend` of `FundingCoin` from the user's account to swap it
+    /// into `PlatformCoin` off-chain or via a DEX. The user's policies are evaluated
+    /// against `max_spend` to protect them from bad exchange rates (slippage limits).
+    /// Returns a Hot Potato that must be settled via `process_routed_payment`.
+    public(package) fun withdraw_for_route<FundingCoin, PlatformCoin>(
+        platform: &Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        policy_limiters: &mut PolicyLimiters,
+        clock: &Clock,
+        max_spend: u64,
+        ctx: &mut TxContext,
+    ): (Coin<FundingCoin>, RoutingPotato<FundingCoin, PlatformCoin>) {
+        let platform_id = object::id(platform);
+        let account_id = object::id(account);
+
+        // 1. can_bill check.
+        if (!can_bill(account, platform_id, clock)) {
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount: 0,
+                reason: ENotDue,
+                v: 2,
+            });
+            abort ENotDue
+        };
+
+        let amount_needed = account::tier_amount_via_sub(account, platform_id);
+        assert!(amount_needed > 0, EZeroAmount);
+
+        // 2. two-pass policy evaluation against `max_spend`.
+        let (allowed, _failures) = policies::evaluate(
+            account,
+            policy_limiters,
+            max_spend,
+            clock,
+        );
+        if (!allowed) {
+            record_failed_payment(account, platform_id, amount_needed, EPolicyViolation, clock);
+            event::emit(PaymentFailed {
+                account_id,
+                platform_id,
+                amount: amount_needed,
+                reason: EPolicyViolation,
+                v: 2,
+            });
+            abort EPolicyViolation
+        };
+
+        // 3. Withdraw the max_spend to allow the scheduler to perform the swap
+        let withdrawn_coin = account::internal_withdraw<FundingCoin>(account, max_spend, ctx);
+
+        let potato = RoutingPotato<FundingCoin, PlatformCoin> {
+            account_id,
+            platform_id,
+            amount_needed,
+        };
+
+        (withdrawn_coin, potato)
+    }
+
+    /// Settles the routed payment by consuming the Hot Potato. Verifies the exact
+    /// `amount_needed` in `PlatformCoin` was provided, processes the fee distribution,
+    /// and refunds any unspent `FundingCoin` change back to the user's account.
+    public(package) fun process_routed_payment<FundingCoin, PlatformCoin>(
+        potato: RoutingPotato<FundingCoin, PlatformCoin>,
+        registry: &subscriptions::registry::Registry,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        coin: Coin<PlatformCoin>,
+        mut change: Coin<FundingCoin>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let RoutingPotato { account_id, platform_id, amount_needed } = potato;
+        
+        assert!(account_id == object::id(account), EInvalidPotato);
+        assert!(platform_id == object::id(platform), EInvalidPotato);
+        
+        let amount_provided = coin.value();
+        assert!(amount_provided == amount_needed, EZeroAmount); // Require exact payment
+
+        // 1. Refund the change
+        if (change.value() > 0) {
+            account::deposit(account, change, ctx);
+        } else {
+            change.destroy_zero();
+        };
+
+        // 2. Distribute fees
+        let platform_treasury = platform::treasury(platform);
+        let protocol_treasury = subscriptions::registry::protocol_treasury(registry);
+        let scheduler_addr = ctx.sender();
+        
+        let scheduler_fee = (amount_needed * 100) / 10000;
+        let protocol_fee = (amount_needed * 200) / 10000;
+        let platform_amount = amount_needed - scheduler_fee - protocol_fee;
+
+        let mut b = coin.into_balance();
+        
+        if (scheduler_fee > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(scheduler_fee), ctx), 
+                scheduler_addr
+            );
+        };
+        
+        if (protocol_fee > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(protocol_fee), ctx), 
+                protocol_treasury
+            );
+        };
+
+        if (platform_amount > 0) {
+            sui::transfer::public_transfer(
+                coin::from_balance(b.split(platform_amount), ctx), 
+                platform_treasury
+            );
+        };
+        b.destroy_zero();
+
+        // 3. record_payment (advances schedule, bumps sub nonce) and bump account replay nonce.
+        record_payment(account, platform_id, amount_needed, clock);
+        account::bump_nonce(account);
+
+        // 4. emit event.
+        let new_nonce = account::nonce(account);
+        event::emit(PaymentProcessed {
+            account_id,
+            platform_id,
+            amount: amount_needed,
+            platform_amount,
+            protocol_fee,
+            scheduler_fee,
+            policy_failures_count: 0,
             nonce: new_nonce,
             v: 2,
         });

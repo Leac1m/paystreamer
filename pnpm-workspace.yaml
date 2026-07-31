@@ -10,5 +10,6 @@ minimumReleaseAgeExclude:
   - '@paystreamer/sdk@0.1.0'
   - '@paystreamer/sdk@0.1.1'
   - '@paystreamer/sdk@0.2.0'
+  - vite@8.2.0
 overrides:
   '@headlessui/react': '^2.2.0'

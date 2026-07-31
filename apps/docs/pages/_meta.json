@@ -2,5 +2,10 @@
   "index": "Overview",
   "quickstart": "Quickstart",
   "hooks": "React Hooks",
-  "components": "UI Components"
+  "components": "UI Components",
+  "routing": "Advanced Routing",
+  "scheduler": "Run a Scheduler",
+  "portal": "User Portal",
+  "integration": "Seal & Walrus",
+  "edge-cases": "Edge Cases"
 }

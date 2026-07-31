@@ -1,0 +1,77 @@
+import { Callout } from 'nextra/components';
+
+# Run a Scheduler
+
+PayStreamer is built on a decentralized execution model. Smart contracts cannot execute themselves at a specific time; they require an external crank. 
+
+Instead of relying on a centralized, trusted backend to process subscription payments when they are due, PayStreamer incentivizes an open network of **Schedulers** to process payments on behalf of users.
+
+## The 1% Incentive
+
+Whenever a payment is successfully processed, the protocol collects a **3% flat transaction fee**. 
+
+- **2%** goes to the Protocol Treasury (funding long-term development).
+- **1%** goes directly to the **Scheduler** who executed the transaction!
+
+This means anyone can run a scheduler and earn passive income in `PUSD` simply by keeping the protocol's payments flowing on time.
+
+## How Schedulers Work
+
+A scheduler is fundamentally an off-chain worker. It can be built using any technology—a robust Node.js + BullMQ server, a lightweight edge function, or even a browser extension!
+
+The core loop of a scheduler is simple:
+
+### 1. Listen for Events
+When a user subscribes to a platform, the smart contract emits a `DuePaymentEvent`. Schedulers monitor the Sui blockchain (via GraphQL or RPC WebSockets) for these events. 
+
+The event contains critical information:
+- The `SubscriptionAccount` ID
+- The `Platform` ID
+- The exact Unix timestamp when the payment is due.
+
+### 2. Wait
+The scheduler stores this event in memory or a database and waits until the blockchain clock reaches the due timestamp.
+
+### 3. Execute the PTB
+Once the payment is due, the scheduler constructs and signs a Programmable Transaction Block (PTB) calling `process_due_payment`.
+
+Using the PayStreamer SDK, this looks like:
+
+```typescript
+import { buildProcessPaymentTx } from "@paystreamer/sdk/core";
+import { Transaction } from "@mysten/sui/transactions";
+
+const tx = new Transaction();
+
+buildProcessPaymentTx({
+  tx,
+  packageId: "0xPAYSTREAMER",
+  registryId: "0xREGISTRY",
+  clockId: "0x6",
+  denomination: "0x...::pusd::PUSD",
+  accountId: "0xUSER_ACCOUNT",
+  platformId: "0xPLATFORM",
+  platformInitVersion: 1, // obtained from RPC
+  schedulerId: "0xYOUR_SCHEDULER_ID", // Your registered scheduler object
+  schedulerInitVersion: 1,
+});
+
+// Sign and execute with your scheduler's private key
+const result = await client.signAndExecuteTransaction({
+  transaction: tx,
+  signer: yourKeypair,
+});
+```
+
+<Callout type="info">
+  **Browser Extensions**: Because the execution logic is just querying events and signing PTBs, schedulers can easily be packaged as lightweight web extensions. Users could install the PayStreamer Scheduler extension, leave their browser open, and automatically earn 1% fees in the background!
+</Callout>
+
+### 4. Earn
+When the transaction succeeds, the `process_due_payment` Move function automatically deducts the subscription amount from the user, routes the platform's cut, and sends your 1% fee directly to your scheduler's `Coin<PUSD>` balance.
+
+## Getting Started
+
+To officially become a scheduler, you must register a `Scheduler` object on-chain. This object acts as the recipient for your earned fees. 
+
+*(Note: In a production environment, you will use the `PayStreamer Portal` to register your scheduler and retrieve your `schedulerId`.)*

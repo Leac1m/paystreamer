@@ -1,12 +1,12 @@
 #[test_only]
 module subscriptions::scheduler_tests {
     use subscriptions::account;
-    use subscriptions::ac;
-    use subscriptions::billing;
+    use subscriptions::registry;
+    
+    
     use subscriptions::payment;
     use subscriptions::platform;
     use subscriptions::policies;
-    use subscriptions::registry;
     use subscriptions::scheduler;
     use std::string;
     use sui::object;
@@ -16,12 +16,6 @@ module subscriptions::scheduler_tests {
     use sui::clock;
 
     public struct TEST_USDC has drop {}
-
-    fun registry_with_test_usdc(scenario: &mut ts::Scenario): registry::CoinTypeRegistry {
-        let mut r = registry::new_registry_for_testing(ts::ctx(scenario));
-        registry::register_coin_type<TEST_USDC>(&mut r, ts::ctx(scenario));
-        r
-    }
 
     fun fresh_clock(scenario: &mut ts::Scenario): clock::Clock {
         let mut c = clock::create_for_testing(ts::ctx(scenario));
@@ -39,13 +33,12 @@ module subscriptions::scheduler_tests {
     }
 
     fun setup_account_with_subscription(
-        r: &registry::CoinTypeRegistry,
         clock: &clock::Clock,
         scenario: &mut ts::Scenario,
         tier_amount: u64,
         frequency_ms: u64,
     ): (object::ID, object::ID) {
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"TestPlatform"),
             string::utf8(b"d"),
             string::utf8(b"Test"),
@@ -53,15 +46,16 @@ module subscriptions::scheduler_tests {
             clock,
             ts::ctx(scenario),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
 
         let (mut account, cap) = account::create_account<TEST_USDC>(
-            r,
             account::empty_policy_set(),
             clock,
             ts::ctx(scenario),
         );
 
-        billing::create_subscription<TEST_USDC>(
+        account::create_subscription<TEST_USDC>(
             &cap,
             &mut account,
             platform_id,
@@ -69,9 +63,7 @@ module subscriptions::scheduler_tests {
             tier_amount,
             frequency_ms,
             3,
-            clock,
-            ts::ctx(scenario),
-        );
+            clock);
 
         let account_id = object::id(&account);
         account::share_account<TEST_USDC>(account, cap, ts::ctx(scenario));
@@ -82,11 +74,10 @@ module subscriptions::scheduler_tests {
     fun test_process_due_payment_succeeds() {
         let owner = @0xA;
         let mut sc = ts::begin(owner);
+        registry::init_for_testing(ts::ctx(&mut sc));
         let clock = fresh_clock(&mut sc);
-        let r = registry_with_test_usdc(&mut sc);
 
         let (account_id, platform_id) = setup_account_with_subscription(
-            &r,
             &clock,
             &mut sc,
             100,
@@ -99,6 +90,8 @@ module subscriptions::scheduler_tests {
 
         ts::next_tx(&mut sc, owner);
 
+        let mut registry = ts::take_shared<registry::Registry>(&sc);
+
         let mut account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
             &sc, account_id,
         );
@@ -110,12 +103,13 @@ module subscriptions::scheduler_tests {
 
         assert!(scheduler::last_processed_at(&scheduler) == 0, 1);
 
-        let cap = ts::take_from_address<ac::AccountCap>(&sc, owner);
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
         let coin = coin::mint_for_testing<TEST_USDC>(100, ts::ctx(&mut sc));
-        account::deposit(&cap, &mut account, coin, &clock, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin, ts::ctx(&mut sc));
         ts::return_to_address(owner, cap);
 
         scheduler::process_due_payment<TEST_USDC>(
+            &registry,
             &mut scheduler,
             &mut p,
             &mut account,
@@ -125,8 +119,8 @@ module subscriptions::scheduler_tests {
         );
 
         assert!(account::nonce(&account) == 1, 3);
-        assert!(billing::subscription_total_paid(&account, platform_id) == 100, 4);
-        assert!(billing::subscription_payment_count(&account, platform_id) == 1, 5);
+        assert!(account::subscription_total_paid(&account, platform_id) == 100, 4);
+        assert!(account::subscription_payment_count(&account, platform_id) == 1, 5);
         assert!(scheduler::last_processed_at(&scheduler) == 1_000, 6);
 
         policies::destroy_limiters_for_testing(limiters);
@@ -135,15 +129,20 @@ module subscriptions::scheduler_tests {
         account::destroy_account_for_testing(account);
 
         ts::next_tx(&mut sc, owner);
-        let received_coin = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
-        assert!(coin::value(&received_coin) == 100, 8);
-        std::unit_test::destroy(received_coin);
+        let c1 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let c2 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let c3 = ts::take_from_address<coin::Coin<TEST_USDC>>(&sc, owner);
+        let total = c1.value() + c2.value() + c3.value();
+        assert!(total == 100, 8);
+        std::unit_test::destroy(c1);
+        std::unit_test::destroy(c2);
+        std::unit_test::destroy(c3);
 
         let _effects = test_scenario::next_tx(&mut sc, owner);
         let _ = _effects;
 
-        registry::destroy_for_testing(r);
         clock::destroy_for_testing(clock);
+        ts::return_shared(registry);
         sc.end();
     }
 }

@@ -102,10 +102,8 @@ export function DepositModal({
       buildDepositTx({
         tx,
         packageId: config.PACKAGE_ID,
-        clockId: CLOCK_OBJECT_ID,
         denomination,
         accountId,
-        capId,
         depositAmount: depositMist,
         coinsToUse,
       });

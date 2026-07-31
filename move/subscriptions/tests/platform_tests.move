@@ -1,12 +1,12 @@
 #[test_only]
 module subscriptions::platform_tests {
     use subscriptions::platform;
-    use subscriptions::registry;
+
     use std::string;
     use std::type_name;
     use sui::test_scenario as ts;
     use sui::clock;
-    use openzeppelin_utils::rate_limiter;
+
 
     public struct TEST_USDC has drop {}
     public struct TEST_USDSUI has drop {}
@@ -18,7 +18,7 @@ module subscriptions::platform_tests {
         let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
         clock::set_for_testing(&mut clock, 1_000_000);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"MyPlatform"),
             string::utf8(b"a test platform"),
             string::utf8(b"AI"),
@@ -26,6 +26,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
 
         ts::next_tx(&mut sc, owner);
         let p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
@@ -53,7 +55,7 @@ module subscriptions::platform_tests {
         let mut sc = ts::begin(owner);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -61,6 +63,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -115,7 +119,7 @@ module subscriptions::platform_tests {
         let mut sc = ts::begin(owner);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -123,6 +127,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -155,7 +161,7 @@ module subscriptions::platform_tests {
         let mut sc = ts::begin(owner);
         let clock = clock::create_for_testing(ts::ctx(&mut sc));
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -163,6 +169,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -207,7 +215,7 @@ module subscriptions::platform_tests {
         let t0: u64 = 1_000_000;
         clock::set_for_testing(&mut clock, t0);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -215,6 +223,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -238,7 +248,7 @@ module subscriptions::platform_tests {
             &mut clock,
             t0 + platform::treasury_change_delay_ms(),
         );
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
         assert!(platform::treasury(&p) == new_treasury, 4);
         assert!(platform::pending_treasury(&p).is_none(), 5);
 
@@ -257,7 +267,7 @@ module subscriptions::platform_tests {
         let t0: u64 = 1_000_000;
         clock::set_for_testing(&mut clock, t0);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -265,6 +275,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -278,7 +290,7 @@ module subscriptions::platform_tests {
             &mut clock,
             t0 + platform::treasury_change_delay_ms() - 1,
         );
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
 
         ts::return_shared(p);
         clock::destroy_for_testing(clock);
@@ -294,7 +306,7 @@ module subscriptions::platform_tests {
         let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
         clock::set_for_testing(&mut clock, 1_000_000);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -302,6 +314,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -317,7 +331,7 @@ module subscriptions::platform_tests {
         assert!(platform::pending_treasury(&p).is_none(), 1);
         assert!(platform::treasury(&p) == owner, 2);
 
-        platform::accept_treasury_change(&mut p, &clock, ts::ctx(&mut sc));
+        platform::accept_treasury_change(&mut p, &clock);
 
         ts::return_shared(p);
         clock::destroy_for_testing(clock);
@@ -331,7 +345,7 @@ module subscriptions::platform_tests {
         let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
         clock::set_for_testing(&mut clock, 0);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -339,6 +353,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -365,7 +381,7 @@ module subscriptions::platform_tests {
         let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
         clock::set_for_testing(&mut clock, 0);
 
-        let platform_id = platform::register_platform(
+        let (platform, receipt) = platform::create_platform(
             string::utf8(b"P"),
             string::utf8(b"d"),
             string::utf8(b"cat"),
@@ -373,6 +389,8 @@ module subscriptions::platform_tests {
             &clock,
             ts::ctx(&mut sc),
         );
+        let platform_id = sui::object::id(&platform);
+        platform::register_platform(platform, receipt);
         ts::next_tx(&mut sc, owner);
         let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
 
@@ -382,53 +400,6 @@ module subscriptions::platform_tests {
         assert!(platform::subscriber_count(&p) == 0, 0);
 
         ts::return_shared(p);
-        clock::destroy_for_testing(clock);
-        sc.end();
-    }
-
-    #[test]
-    fun test_rate_limiters_can_consume() {
-        let owner = @0xA;
-        let mut sc = ts::begin(owner);
-        let mut clock = clock::create_for_testing(ts::ctx(&mut sc));
-        clock::set_for_testing(&mut clock, 1_000_000);
-
-        let mut p = platform::new_platform_for_testing(&clock, ts::ctx(&mut sc));
-        assert!(
-            rate_limiter::available(platform::volume_limiter(&p), &clock)
-                == 1_000_000_000_000,
-            0,
-        );
-        assert!(
-            rate_limiter::available(platform::frequency_limiter(&p), &clock) == 1000,
-            1,
-        );
-        assert!(
-            rate_limiter::available(platform::account_billing_limiter(&p), &clock)
-                == 10_000,
-            2,
-        );
-
-        assert!(platform::try_consume_volume(&mut p, 100, &clock) == true, 3);
-        assert!(platform::try_consume_frequency(&mut p, &clock) == true, 4);
-        assert!(platform::try_consume_account_billing(&mut p, &clock) == true, 5);
-
-        assert!(
-            rate_limiter::available(platform::volume_limiter(&p), &clock)
-                == 1_000_000_000_000 - 100,
-            6,
-        );
-        assert!(
-            rate_limiter::available(platform::frequency_limiter(&p), &clock) == 999,
-            7,
-        );
-        assert!(
-            rate_limiter::available(platform::account_billing_limiter(&p), &clock)
-                == 9_999,
-            8,
-        );
-
-        platform::destroy_for_testing(p);
         clock::destroy_for_testing(clock);
         sc.end();
     }

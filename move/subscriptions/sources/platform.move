@@ -1,35 +1,25 @@
-/// definitions, treasury timelock, per-platform rate limiters, and
-/// `subscriber_count` bookkeeping.
+/// `subscriptions::platform` — Core platform and tier management.
 ///
-/// caller can read it; mutating functions (`update_platform`, tier
-/// the owner is the address captured at `register_platform` time and
-/// **bootstrap `admin_address` style check** — mirroring
-/// `subscriptions::registry` — with a doc comment noting the future
-/// the bootstrap admin pattern.
+/// This module manages the `Platform` shared object which tracks tier 
+/// definitions, treasury configuration, and `subscriber_count` bookkeeping.
+///
+/// ## Authority model
 ///
 /// The platform is identified by `Platform.owner: address` (set at
 /// `register_platform` to `ctx.sender()`). Mutating functions assert
-/// `ctx.sender() == platform.owner`. A future hardening pass will
+/// `ctx.sender() == platform.owner`.
 ///
-/// 1. `volume_limiter` (`FixedWindow`, 30d, $1M) — bounds total
-///    withdrawal volume per 30-day window.
-/// 2. `frequency_limiter` (`Bucket`, 1000/hr, refill 100/hr) — bounds
-///    total payment frequency per platform per hour.
-/// 3. `account_billing_limiter` (`Bucket`, 10000/hr, refill 1000/hr) —
-///    bounds distinct accounts billed per hour (DoS bound).
+/// ## Treasury Timelock
 ///
-/// All three are OZ `RateLimiter` values; `payment.move` calls
-/// `try_consume_*` and observes `try_consume`'s all-or-nothing
-/// semantics (failure leaves persisted state untouched).
+/// Treasury address changes use a two-step `propose_treasury_change(new_addr)` →
+/// `accept_treasury_change(platform, clock)` with a 48h timelock to protect
+/// against immediate treasury hijacking.
 ///
-/// Two-step `propose_treasury_change(new_addr)` →
-/// `accept_treasury_change(platform, clock)` (48h timelock) pattern,
-/// treasury-hijack gap.
+/// ## Subscriber Bookkeeping
 ///
-/// Maintained by `increment_subscriber_count` /
-/// `decrement_subscriber_count` (both `public(package)`). The only
-/// expected caller is `billing.move` on `create_subscription` /
-/// `cancel_subscription`. Discovery is finally not broken.
+/// Maintained by `increment_subscriber_count` and `decrement_subscriber_count` 
+/// (both `public(package)`), called by `account.move` on subscription creation
+/// and cancellation.
 ///
 /// ## Build-order note
 ///
@@ -47,7 +37,6 @@ module subscriptions::platform {
     use sui::transfer;
     use sui::tx_context::TxContext;
     use std::string::String;
-    use openzeppelin_utils::rate_limiter::{Self, RateLimiter};
     use std::type_name::{Self, TypeName};
 
     // === Errors ===
@@ -63,7 +52,7 @@ module subscriptions::platform {
     /// footprint of a single platform.
     const ETooManyTiers: u64 = 0x08003;
 
-    /// The `tier_index` is out of range. `tier_index >= vec_map::length(&tiers)`.
+    /// The `tier_index` is out of range. `tier_index >= tiers.length()`.
     const ETierNotFound: u64 = 0x08004;
 
     /// A zero address was supplied where a real address is required
@@ -89,10 +78,13 @@ module subscriptions::platform {
     /// 48h between `propose` and `accept`.
     const ETreasuryChangeNotYetDue: u64 = 0x0800A;
 
+    /// The provided `PlatformRegistrationReceipt` does not match the `Platform` being registered.
+    const EInvalidReceipt: u64 = 0x0800B;
+
     // === SubscriptionTier ===
 
-    /// A platform-defined billing tier. `copy + drop + store` so it can
-    /// off-chain indexers without lifetime gymnastics. `name` is the
+    /// A platform-defined billing tier. Has `copy + drop + store` so it can
+    /// be emitted in events and read easily by off-chain indexers. `name` is the
     /// human-readable label (e.g. `"Basic"`, `"Pro"`); uniqueness is
     /// enforced at `create_tier` time.
     public struct SubscriptionTier has copy, drop, store {
@@ -161,19 +153,24 @@ module subscriptions::platform {
         p.execute_after_ms
     }
 
+    // === PlatformRegistrationReceipt ===
+
+    /// Hot potato to ensure `Platform` is shared via `register_platform`.
+    public struct PlatformRegistrationReceipt {
+        platform_id: ID,
+    }
+
     // === Platform ===
 
     /// A platform that accepts subscription payments. Stored as a
     /// shared object so any caller can read it; mutating functions
     /// require the platform owner (`ctx.sender() == platform.owner`).
     ///
-    /// `owner` is the bootstrap admin address. A future hardening
-    /// pass will replace this with an embedded
-        /// (one role per module, OZ invariant). The same role is
-        ///
-    /// `tiers` is keyed by `tier_index` (sequential insertion order)
-    /// stores `tier_index`, not a tier id, and re-uses the slot on
-    /// `deactivate_tier_by_index` without renumbering.
+    /// `owner` is the bootstrap admin address.
+    ///
+    /// `tiers` is a `VecMap` keyed by `tier_index` (sequential insertion order).
+    /// Deactivating a tier simply marks it as inactive rather than renumbering
+    /// subsequent tiers, ensuring that active subscription records don't break.
     public struct Platform has key, store {
         id: object::UID,
         /// Bootstrap admin (captured from `ctx.sender()` at registration).
@@ -203,15 +200,6 @@ module subscriptions::platform {
         /// `is_active = false`) so historical subscriptions keep
         /// pointing at the right `tier_index`.
         tiers: VecMap<u64, SubscriptionTier>,
-        /// Volume limiter: `FixedWindow`, 30d, $1M default. Bounds the
-        /// total withdrawal volume per 30-day window.
-        volume_limiter: RateLimiter,
-        /// Frequency limiter: `Bucket`, 1000/hr, refill 100/hr. Bounds
-        /// the total number of payments per hour.
-        frequency_limiter: RateLimiter,
-        /// Account-billing limiter: `Bucket`, 10000/hr, refill 1000/hr.
-        /// Bounds the distinct accounts billed per hour (DoS bound).
-        account_billing_limiter: RateLimiter,
         /// Schema version. Currently `2`.
         version: u16,
     }
@@ -296,27 +284,23 @@ module subscriptions::platform {
         v: u16,
     }
 
-    // === register_platform ===
+    // === create_platform & register_platform ===
 
-    /// Register a new platform. The caller becomes the platform owner
-    /// and the initial treasury. The platform is shared so any caller
-    /// can read it; mutating functions require the owner.
+    /// Create a new platform object. The caller becomes the platform owner
+    /// and the initial treasury. 
     ///
-    /// The three rate limiters (`volume_limiter`, `frequency_limiter`,
-    /// limiter state via `volume_limiter(p)` / `frequency_limiter(p)` /
-    /// `account_billing_limiter(p)`.
-    ///
-    /// Returns the new `Platform`'s `ID` for caller convenience. The
-    /// `Platform` itself is shared in this function (no separate
-    /// transfer call needed).
-    public fun register_platform(
+    /// Returns the new `Platform` and a `PlatformRegistrationReceipt` which must
+    /// be consumed in the same transaction by calling `register_platform`.
+    /// This separation allows calling mutating functions (like `create_tier`)
+    /// on the platform in a PTB before it is finally shared.
+    public fun create_platform(
         name: String,
         description: String,
         category: String,
         webhook_url: std::option::Option<String>,
         clock: &Clock,
         ctx: &mut TxContext,
-    ): ID {
+    ): (Platform, PlatformRegistrationReceipt) {
         let now = clock.timestamp_ms();
         let platform_uid = object::new(ctx);
         let platform_id = object::uid_to_inner(&platform_uid);
@@ -334,135 +318,28 @@ module subscriptions::platform {
             subscriber_count: 0,
             created_at: now,
             tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
             version: 2,
         };
-        transfer::share_object(platform);
-        event::emit(PlatformRegistered {
-            platform_id,
-            owner: ctx.sender(),
-            name,
-            v: 2,
-        });
-        platform_id
+        let receipt = PlatformRegistrationReceipt { platform_id };
+        (platform, receipt)
     }
 
-    /// Register a new platform and create its first tier atomically.
-    /// Both operations succeed or both abort — the tier is only appended
-    /// if the platform registration succeeds.
-    ///
-    /// Returns `(platform_id, tier_index = 0)`. Emits both
-    /// `PlatformRegistered` and `TierCreated`.
-    ///
-    /// The tier's `denomination` is derived from the generic type `T` via
-    /// `type_name::with_original_ids<T>()`.
-    public fun register_platform_with_tier<T>(
-        name: String,
-        description: String,
-        category: String,
-        webhook_url: std::option::Option<String>,
-        tier_name: String,
-        tier_amount: u64,
-        tier_frequency_ms: u64,
-        clock: &Clock,
-        ctx: &mut TxContext,
-    ): (ID, u64) {
-        let now = clock.timestamp_ms();
-        let platform_uid = object::new(ctx);
-        let platform_id = object::uid_to_inner(&platform_uid);
-
-        assert!(tier_amount > 0, EInvalidAmount);
-        assert!(tier_frequency_ms > 0, EInvalidFrequency);
-
-        let mut platform = Platform {
-            id: platform_uid,
-            owner: ctx.sender(),
-            treasury: ctx.sender(),
-            pending_treasury: std::option::none(),
-            name,
-            description,
-            category,
-            webhook_url,
-            is_verified: false,
-            subscriber_count: 0,
-            created_at: now,
-            tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
-            version: 2,
-        };
-
-        let tier_index = 0u64;
-        let tier = new_tier(
-            tier_name,
-            tier_amount,
-            tier_frequency_ms,
-            type_name::with_original_ids<T>(),
-        );
-        vec_map::insert(&mut platform.tiers, tier_index, tier);
-
-        event::emit(TierCreated {
-            platform_id,
-            tier_index,
-            tier_name,
-            amount: tier_amount,
-            frequency_ms: tier_frequency_ms,
-            denomination: type_name::with_original_ids<T>(),
-            v: 2,
-        });
-
-        transfer::share_object(platform);
+    /// Register the platform by consuming the `PlatformRegistrationReceipt`,
+    /// emitting `PlatformRegistered`, and sharing the `Platform` object.
+    /// This must be called in the same transaction as `create_platform`.
+    public fun register_platform(
+        platform: Platform,
+        receipt: PlatformRegistrationReceipt,
+    ) {
+        let PlatformRegistrationReceipt { platform_id } = receipt;
+        assert!(object::id(&platform) == platform_id, EInvalidReceipt);
         event::emit(PlatformRegistered {
             platform_id,
-            owner: ctx.sender(),
-            name,
+            owner: platform.owner,
+            name: platform.name,
             v: 2,
         });
-
-        (platform_id, tier_index)
+        transfer::share_object(platform);
     }
 
     // === update_platform (owner only) ===
@@ -499,12 +376,12 @@ module subscriptions::platform {
     // === Tier management (owner only) ===
 
     /// Create a new tier and append it to the platform's tier map at
-    /// `tier_index = vec_map::length(&tiers)` (sequential). The
+    /// `tier_index = tiers.length()` (sequential). The
     /// `is_active` field defaults to `true`.
     ///
     /// Rejects duplicate names (compared structurally on the `String`).
     /// Rejects zero `amount` and zero `frequency_ms`. Enforces
-    /// `vec_map::length(&tiers) < MAX_TIERS` (20).
+    /// `tiers.length() < MAX_TIERS` (20).
     ///
     /// Caller must be the platform owner. Emits `TierCreated`.
     ///
@@ -525,17 +402,17 @@ module subscriptions::platform {
         assert!(ctx.sender() == platform.owner, EInvalidOwner);
         assert!(amount > 0, EInvalidAmount);
         assert!(frequency_ms > 0, EInvalidFrequency);
-        assert!(vec_map::length(&platform.tiers) < MAX_TIERS, ETooManyTiers);
+        assert!(platform.tiers.length() < MAX_TIERS, ETooManyTiers);
         let mut i: u64 = 0;
-        let n = vec_map::length(&platform.tiers);
+        let n = platform.tiers.length();
         while (i < n) {
             let (_, t) = vec_map::get_entry_by_idx(&platform.tiers, i);
             assert!(t.name != name, EInvalidTier);
             i = i + 1;
         };
-        let tier_index = vec_map::length(&platform.tiers);
+        let tier_index = platform.tiers.length();
         let tier = new_tier(name, amount, frequency_ms, denomination);
-        vec_map::insert(&mut platform.tiers, tier_index, tier);
+        platform.tiers.insert(tier_index, tier);
         event::emit(TierCreated {
             platform_id: object::id(platform),
             tier_index,
@@ -555,15 +432,15 @@ module subscriptions::platform {
     ///
     /// #### Aborts
     /// - `EInvalidOwner` if `ctx.sender() != platform.owner`.
-    /// - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+    /// - `ETierNotFound` if `tier_index >= tiers.length()`.
     public fun deactivate_tier_by_index(
         platform: &mut Platform,
         tier_index: u64,
         ctx: &mut TxContext,
     ) {
         assert!(ctx.sender() == platform.owner, EInvalidOwner);
-        assert!(tier_index < vec_map::length(&platform.tiers), ETierNotFound);
-        let tier = vec_map::get_mut(&mut platform.tiers, &tier_index);
+        assert!(tier_index < platform.tiers.length(), ETierNotFound);
+        let tier = platform.tiers.get_mut(&tier_index);
         tier.is_active = false;
         event::emit(TierDeactivated {
             platform_id: object::id(platform),
@@ -576,10 +453,10 @@ module subscriptions::platform {
     /// Role: any caller (read-only view).
     ///
     /// #### Aborts
-    /// - `ETierNotFound` if `tier_index >= vec_map::length(&tiers)`.
+    /// - `ETierNotFound` if `tier_index >= tiers.length()`.
     public fun get_tier(platform: &Platform, tier_index: &u64): &SubscriptionTier {
-        assert!(*tier_index < vec_map::length(&platform.tiers), ETierNotFound);
-        vec_map::get(&platform.tiers, tier_index)
+        assert!(*tier_index < platform.tiers.length(), ETierNotFound);
+        platform.tiers.get(tier_index)
     }
 
     // === Treasury timelock ===
@@ -631,7 +508,6 @@ module subscriptions::platform {
     public fun accept_treasury_change(
         platform: &mut Platform,
         clock: &Clock,
-        _ctx: &mut TxContext,
     ) {
         assert!(platform.pending_treasury.is_some(), ENoPendingTreasuryChange);
         let now = clock.timestamp_ms();
@@ -700,49 +576,6 @@ module subscriptions::platform {
         });
     }
 
-    // === Rate-limiter accessors (used by payment.move) ===
-
-    /// Read-only handle to the volume limiter.
-    /// Role: any caller (read-only view).
-    public fun volume_limiter(platform: &Platform): &RateLimiter { &platform.volume_limiter }
-    /// Read-only handle to the frequency limiter.
-    /// Role: any caller (read-only view).
-    public fun frequency_limiter(platform: &Platform): &RateLimiter { &platform.frequency_limiter }
-    /// Read-only handle to the account-billing limiter.
-    /// Role: any caller (read-only view).
-    public fun account_billing_limiter(platform: &Platform): &RateLimiter {
-        &platform.account_billing_limiter
-    }
-
-    /// Try to consume `amount` from the platform's volume limiter.
-    /// `public(package)` — only `payment.move` should call this. All-or-nothing:
-    /// on failure (`false`) persisted state is left untouched, so a
-    /// downstream step that aborts will not have burned limiter headroom.
-    public(package) fun try_consume_volume(
-        platform: &mut Platform,
-        amount: u64,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.volume_limiter, amount, clock)
-    }
-
-    /// Try to consume 1 unit from the platform's frequency limiter.
-    /// `public(package)`. See `try_consume_volume` for all-or-nothing semantics.
-    public(package) fun try_consume_frequency(
-        platform: &mut Platform,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.frequency_limiter, 1, clock)
-    }
-
-    /// Try to consume 1 unit from the platform's account-billing limiter.
-    /// `public(package)`. See `try_consume_volume` for all-or-nothing semantics.
-    public(package) fun try_consume_account_billing(
-        platform: &mut Platform,
-        clock: &Clock,
-    ): bool {
-        rate_limiter::try_consume(&mut platform.account_billing_limiter, 1, clock)
-    }
 
     // === Accessors (view) ===
 
@@ -792,7 +625,7 @@ module subscriptions::platform {
     /// Number of tiers. Includes deactivated tiers (slots stay
     /// populated, see `deactivate_tier_by_index`).
     /// Role: any caller (read-only view).
-    public fun tier_count(p: &Platform): u64 { vec_map::length(&p.tiers) }
+    public fun tier_count(p: &Platform): u64 { p.tiers.length() }
 
     /// Read-only handle to the full tier map. Lets off-chain tooling
     /// iterate without re-fetching.
@@ -833,29 +666,6 @@ module subscriptions::platform {
             subscriber_count: 0,
             created_at: now,
             tiers: vec_map::empty(),
-            volume_limiter: rate_limiter::new_fixed_window(
-                1_000_000_000_000,
-                30 * 24 * 60 * 60 * 1_000,
-                now,
-                1_000_000_000_000,
-                clock,
-            ),
-            frequency_limiter: rate_limiter::new_bucket(
-                1000,
-                100,
-                60 * 60 * 1_000,
-                now,
-                1000,
-                clock,
-            ),
-            account_billing_limiter: rate_limiter::new_bucket(
-                10_000,
-                1_000,
-                60 * 60 * 1_000,
-                now,
-                10_000,
-                clock,
-            ),
             version: 2,
         }
     }
@@ -864,9 +674,7 @@ module subscriptions::platform {
     /// `drop`, so unit tests need an explicit way to dispose of
     /// platforms they constructed. The tier `VecMap` is drained
     /// entry-by-entry (its values are `SubscriptionTier` with
-    /// `copy + drop + store`). The three `RateLimiter` fields are
-    /// OZ-owned and bound by the limiter's own `drop`, so destructuring
-    /// with `_` is sufficient.
+    /// `copy + drop + store`).
     #[test_only]
     public fun destroy_for_testing(p: Platform) {
         let Platform {
@@ -882,13 +690,10 @@ module subscriptions::platform {
             subscriber_count: _,
             created_at: _,
             mut tiers,
-            volume_limiter: _,
-            frequency_limiter: _,
-            account_billing_limiter: _,
             version: _,
         } = p;
         object::delete(id);
-        while (!vec_map::is_empty(&tiers)) {
+        while (!tiers.is_empty()) {
             let (_k, _t) = vec_map::pop(&mut tiers);
         };
         vec_map::destroy_empty(tiers);

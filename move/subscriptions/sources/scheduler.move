@@ -1,23 +1,16 @@
-/// `subscriptions::scheduler` — the on-chain, permissionless payment
-/// scheduler.
+/// `subscriptions::scheduler` — the permissionless payment scheduler.
 ///
-/// entry point that lets **anyone** trigger a due payment. The
-/// off-chain indexer that previously signed payments with
+/// This module provides the entry points for external callers (schedulers)
+/// to trigger due payments. 
 ///
 /// ## Authority model
 ///
-/// `process_due_payment` is **permissionless**: any caller can submit.
-/// The function is gated by the platform's `PLATFORM_SCHEDULER_ROLE`
-/// grant and the per-subscription schedule — both enforced downstream
-/// in `payment::process_due_payment`.
+/// Scheduling functions are **permissionless**: any caller can submit a PTB
+/// calling `process_due_payment` or the routed payment flow.
+/// The functions rely on the underlying `payment` module to enforce
+/// subscription schedules, policies, and circuit breakers.
 ///
-/// The platform's role check is **deferred to a future hardening
-/// see `account.move` and `platform.move` for the bootstrap admin
-/// pattern).
-///
-/// ## Error code range
-///
-/// `payment.move`, and `platform.move` for sibling ranges.
+/// Schedulers are incentivized with a 1% protocol fee for successful executions.
 #[allow(lint(share_owned))]
 module subscriptions::scheduler {
     use sui::object;
@@ -28,7 +21,8 @@ module subscriptions::scheduler {
     use subscriptions::account::{Self, SubscriptionAccount};
     use subscriptions::platform::{Self, Platform};
     use subscriptions::policies::{Self, PolicyLimiters};
-    use subscriptions::payment;
+    use subscriptions::payment::{Self, RoutingPotato};
+    use sui::coin::Coin;
 
     // === Events ===
     //
@@ -80,8 +74,7 @@ module subscriptions::scheduler {
     /// (E02003 forbids parameters other than the OTW + `&mut
     /// TxContext`).
     ///
-    /// The scheduler is shared so any PTB can take `&mut` on it
-            /// `registry.move`).
+    /// The scheduler is shared so any PTB can take `&mut` on it.
     fun init(_otw: SCHEDULER, ctx: &mut TxContext) {
         let scheduler = PaymentScheduler {
             id: object::new(ctx),
@@ -108,6 +101,7 @@ module subscriptions::scheduler {
     /// - Any abort from `payment::process_due_payment` (e.g.
     ///   `ENotDue`, `EPolicyViolation`, `EZeroAmount`).
     public fun process_due_payment<T>(
+        registry: &subscriptions::registry::Registry,
         scheduler: &mut PaymentScheduler,
         platform: &mut Platform,
         account: &mut SubscriptionAccount<T>,
@@ -121,9 +115,69 @@ module subscriptions::scheduler {
         // Delegate to payment.move. The actual payment transfer
         // happens inside that function using the address-balance model.
         payment::process_due_payment(
+            registry,
             platform,
             account,
             policy_limiters,
+            clock,
+            ctx,
+        );
+
+        scheduler.last_processed_at = clock.timestamp_ms();
+        event::emit(DuePaymentSubmitted {
+            account_id,
+            platform_id,
+            submitted_by: ctx.sender(),
+            v: 2,
+        });
+    }
+    // === Routed Payments ===
+
+    /// Step 1 of a routed payment. The scheduler withdraws `max_spend` of
+    /// `FundingCoin` to perform an off-chain or DEX swap into `PlatformCoin`.
+    public fun withdraw_for_route<FundingCoin, PlatformCoin>(
+        _scheduler: &mut PaymentScheduler,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        policy_limiters: &mut PolicyLimiters,
+        clock: &Clock,
+        max_spend: u64,
+        ctx: &mut TxContext,
+    ): (Coin<FundingCoin>, RoutingPotato<FundingCoin, PlatformCoin>) {
+        payment::withdraw_for_route(
+            platform,
+            account,
+            policy_limiters,
+            clock,
+            max_spend,
+            ctx,
+        )
+    }
+
+    /// Step 2 of a routed payment. The scheduler consumes the `RoutingPotato`
+    /// and settles the payment by providing the `Coin<PlatformCoin>` and returning
+    /// any unspent `FundingCoin` change.
+    public fun process_routed_payment<FundingCoin, PlatformCoin>(
+        registry: &subscriptions::registry::Registry,
+        scheduler: &mut PaymentScheduler,
+        potato: RoutingPotato<FundingCoin, PlatformCoin>,
+        platform: &mut Platform,
+        account: &mut SubscriptionAccount<FundingCoin>,
+        coin: Coin<PlatformCoin>,
+        change: Coin<FundingCoin>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let account_id = object::id(account);
+        let platform_id = object::id(platform);
+
+        payment::process_routed_payment(
+            potato,
+            registry,
+            platform,
+            account,
+            coin,
+            change,
             clock,
             ctx,
         );

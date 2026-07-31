@@ -5,5 +5,8 @@ const withNextra = require('nextra')({
 
 module.exports = withNextra({
   reactStrictMode: true,
-  transpilePackages: ['@paystreamer/sdk']
+  transpilePackages: ['@paystreamer/sdk', 'mermaid', '@theguild/remark-mermaid'],
+  experimental: {
+    esmExternals: 'loose'
+  }
 })
