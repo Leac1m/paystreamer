@@ -1,4 +1,13 @@
-# PayStreamer Move Smart Contracts
+[🏠 Root](../README.md) > ⛓️ Move Smart Contracts
+
+# PayStreamer Smart Contracts (`/move`)
+
+This directory contains the core on-chain logic for PayStreamer, written in Sui Move (2024 Edition).
+
+## Directory Map
+
+* 🔗 **[Subscriptions Protocol (`/move/subscriptions`)](./subscriptions/README.md)**: The core PayStreamer subscription protocol, implementing the OpenZeppelin rate limiter to enforce time-based billing policies safely.
+* 🔗 **[Stablecoin (`/move/stablecoin`)](./stablecoin/README.md)**: A mock `PUSD` fungible token package used strictly for end-to-end testing and the live demo environment.
 
 This directory contains the Move smart contracts for the PayStreamer decentralized subscription protocol on the Sui network.
 

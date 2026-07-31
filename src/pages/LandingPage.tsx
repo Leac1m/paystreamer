@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Users, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle, Database } from "lucide-react";
 import NavBar from "../components/NavBar";
 import HeroSection from "../components/HeroSection";
 import IntegrationFlow from "../components/IntegrationFlow";
@@ -16,13 +16,13 @@ interface PlatformInfo {
   category: string;
 }
 
-const mockPlatforms: PlatformInfo[] = [
-  { name: "Spotify On-Chain", category: "Music" },
-  { name: "Medium On-Chain", category: "Publishing" },
-  { name: "Netflix On-Chain", category: "Video" },
-  { name: "Substack On-Chain", category: "Newsletters" },
-  { name: "GitHub On-Chain", category: "Development" },
-  { name: "Discord On-Chain", category: "Social" },
+const ecosystemTargets: PlatformInfo[] = [
+  { name: "Walrus Storage Nodes", category: "Blob Retention" },
+  { name: "Seal Data Vaults", category: "Gated Access" },
+  { name: "DeepBook Routing", category: "Atomic Swaps" },
+  { name: "Decentralized RPCs", category: "Infrastructure" },
+  { name: "Custom Indexer APIs", category: "Real-time Data" },
+  { name: "AI Training Feeds", category: "On-Chain ML" },
 ];
 
 export default function LandingPage() {
@@ -32,7 +32,7 @@ export default function LandingPage() {
     setMounted(true);
   }, []);
 
-  const recentPlatforms = mockPlatforms;
+  const targets = ecosystemTargets;
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -43,7 +43,7 @@ export default function LandingPage() {
       <main>
         <HeroSection />
 
-        {recentPlatforms && recentPlatforms.length > 0 && (
+        {targets && targets.length > 0 && (
           <section className="relative py-16 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-bg-primary via-bg-secondary to-bg-primary" />
 
@@ -54,25 +54,25 @@ export default function LandingPage() {
                 transition={{ duration: 0.6 }}
                 className="text-center mb-8"
               >
-                <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4">
-                  <Users className="h-4 w-4 text-accent-success" />
-                  <span className="text-sm text-text-secondary">
-                    {recentPlatforms.length} data service{recentPlatforms.length !== 1 ? "s" : ""} accepting payments
+                <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4 border border-white/10">
+                  <Database className="h-4 w-4 text-accent-primary animate-pulse" />
+                  <span className="text-sm text-text-secondary font-medium">
+                    Powering recurring revenue across the decentralized data economy & Sui stack
                   </span>
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-3 mt-6">
-                  {recentPlatforms.slice(0, 6).map((platform, index) => (
+                  {targets.slice(0, 6).map((platform, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: mounted ? 1 : 0, scale: mounted ? 1 : 0.9 }}
                       transition={{ duration: 0.4, delay: 0.1 * index }}
-                      className="glass-card px-4 py-2 flex items-center gap-2"
+                      className="glass-card px-4 py-2 flex items-center gap-2 border border-white/5 hover:border-white/15 transition-colors"
                     >
                       <div className="w-2 h-2 rounded-full bg-accent-success" />
-                      <span className="text-sm text-white">{platform.name}</span>
-                      <span className="text-xs text-text-secondary">({platform.category})</span>
+                      <span className="text-sm font-medium text-white">{platform.name}</span>
+                      <span className="text-xs text-text-secondary font-mono">({platform.category})</span>
                     </motion.div>
                   ))}
                 </div>

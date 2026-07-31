@@ -63,4 +63,5 @@ echo " 🌐  Running Browser E2E Tests (Playwright)..."
 echo "======================================================"
 (cd apps/docs && pnpm run test:e2e)
 (cd apps/portal && pnpm run test:e2e)
+(cd apps/example && pnpm run test:e2e)
 
