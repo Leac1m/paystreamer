@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { grpcClient, getSchedulerKeypair, getSchedulerAddress } from '../lib/sui.js';
-import { PACKAGE_ID, PAYMENT_SCHEDULER_ID } from '../lib/config.js';
+import { PACKAGE_ID, PAYMENT_SCHEDULER_ID, REGISTRY_ID, CLOCK_OBJECT_ID } from '../lib/config.js';
 import { DiscoveredSubscription } from './discovery.js';
 
 export async function processDuePayments(subscriptions: DiscoveredSubscription[]): Promise<string[]> {
@@ -13,13 +13,27 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
       console.log(`[Payment] Processing for Account: ${sub.accountId}`);
       const tx = new Transaction();
 
+      const limiters = tx.moveCall({
+        target: `${PACKAGE_ID}::policies::empty_limiters`,
+        arguments: [tx.object(CLOCK_OBJECT_ID)],
+      });
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::policies::ensure_initialized`,
+        typeArguments: [sub.denomination],
+        arguments: [tx.object(sub.accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
+      });
+
       tx.moveCall({
         target: `${PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [sub.denomination],
         arguments: [
+          tx.object(REGISTRY_ID),
           tx.object(PAYMENT_SCHEDULER_ID),
           tx.object(sub.platformId),
           tx.object(sub.accountId),
+          limiters,
+          tx.object(CLOCK_OBJECT_ID),
         ],
       });
 
