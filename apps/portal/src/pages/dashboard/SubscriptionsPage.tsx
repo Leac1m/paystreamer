@@ -48,7 +48,7 @@ export function SubscriptionsPage() {
       
       const events = await queryAccountCreatedEvents(account.address, config.network);
       const capMap = new Map<string, string>();
-      events.forEach(e => capMap.set(e.account_id, e.cap_id));
+      events.forEach((e: any) => capMap.set(e.account_id, e.cap_id));
       const accountIds = Array.from(capMap.keys());
       
       if (accountIds.length === 0) return [];
@@ -109,7 +109,7 @@ export function SubscriptionsPage() {
       const ids = Array.from(new Set(subscriptionsRaw.map((s) => s.platformId).filter(Boolean)));
       if (ids.length === 0) return new Map<string, number>();
       const infos = await queryPlatformInitialVersions(ids);
-      return new Map(infos.map((i) => [i.objectId, i.initialSharedVersion]));
+      return new Map(infos.map((i: any) => [i.objectId, i.initialSharedVersion]));
     },
     enabled: subscriptionsRaw.length > 0,
   });
@@ -119,7 +119,10 @@ export function SubscriptionsPage() {
         ...sub,
         platformInitVersion: platformVersions.get(sub.platformId) ?? 0,
       }))
-    : subscriptionsRaw;
+    : subscriptionsRaw.map(sub => ({
+        ...sub,
+        platformInitVersion: 0,
+      }));
 
   const filteredSubscriptions = subscriptions.filter((sub) => {
     if (activeTab === "all") return true;

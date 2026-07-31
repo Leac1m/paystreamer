@@ -152,7 +152,6 @@ export function AccountCard({ accountId, capId, denomination, onManage }: Accoun
         isOpen={depositOpen}
         onClose={() => setDepositOpen(false)}
         accountId={accountId}
-        capId={capId}
         denomination={actualDenomination}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["subscription-account", accountId] });

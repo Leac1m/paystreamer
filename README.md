@@ -44,9 +44,14 @@ PayStreamer bridges the gap between Web3 infrastructure and Web2 business models
 
 ## 🏗️ Technical Architecture
 
-PayStreamer utilizes two main layers:
+PayStreamer utilizes a monorepo workspace structure:
 1. **Move Smart Contracts** (`move/subscriptions/`): Built on Sui, heavily utilizing **OpenZeppelin (OZ)** libraries—specifically `AccessControl` for role management and `rate_limiter` for enforcing subscription policies—alongside permissionless schedulers and BalanceContainers for secure fund management.
-2. **Frontend dApp**: Built with React, Vite, Tailwind CSS v4, and integrated with `@mysten/dapp-kit-react` for seamless wallet connections. A Node.js backend handles the gas-sponsored transactions.
+2. **PayStreamer SDK** (`packages/sdk/`): A fully typed TypeScript SDK offering React hooks (`usePlatform`, `useSubscribe`), zero-config auto-discovery of on-chain state, and drop-in UI components like `<SetupSubscriptionModal />` for frictionless integration.
+3. **Core Applications** (`apps/`):
+   - **`apps/docs`**: Next.js documentation site.
+   - **`apps/portal`**: The main user portal for managing subscriptions and platforms.
+   - **`apps/example`**: A basic Vite + React implementation demonstrating how third-party dApps can easily integrate PayStreamer.
+4. **Gas Sponsor Service** (`paystreamer-service/`): A Node.js backend handling gasless (sponsored) transactions for users.
 
 ---
 
@@ -59,14 +64,12 @@ PayStreamer utilizes two main layers:
 
 ### 1. Smart Contract Deployment
 
-To run the application, deploy the Move contracts to a Sui network (Testnet recommended):
+To run the application locally, we recommend using the provided localnet E2E setup, or deploying the Move contracts to a Sui network (Testnet/Devnet):
 
 ```bash
-# Setup a Testnet environment if you haven't already
+# Setup a Testnet environment
 sui client new-env --alias testnet --rpc https://fullnode.testnet.sui.io:443
 sui client switch --env testnet
-
-# Request test tokens
 sui client faucet
 
 # Publish the package
@@ -74,24 +77,24 @@ cd move/subscriptions
 sui client publish --gas-budget 100000000 --skip-dependency-verification
 ```
 
-Take note of the `"packageId"` in the output and update `src/constants.ts`:
+Take note of the `"packageId"` in the output and update `src/constants.ts` across the applications.
 
-```typescript
-export const NETWORK_CONFIGS = {
-  // ...
-  testnet: {
-    PACKAGE_ID: "<YOUR_NEW_PACKAGE_ID>",
-    // ... update other deployed object IDs accordingly
-  }
-}
-```
+### 2. Workspace Setup
 
-### 2. Frontend Setup
-
-Install dependencies and start the development server:
+Install dependencies across the monorepo workspace:
 
 ```bash
 pnpm install
+```
+
+Build the SDK:
+```bash
+pnpm build
+```
+
+Run the example application to see the SDK in action:
+```bash
+cd apps/example
 pnpm dev
 ```
 
