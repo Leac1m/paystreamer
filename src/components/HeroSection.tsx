@@ -67,7 +67,7 @@ export default function HeroSection() {
 
             <div className="mb-12">
               <a
-                href="https://checkout.usepaystreamer.xyz"
+                href="https://portal.usepaystreamer.xyz/subscribe/0x6db491b67eb3cae7e25699a4bd52aad263c06223e86117bdb8acca91bf4bedce"
                 className="group inline-flex items-center gap-2 text-text-secondary hover:text-white transition-colors text-sm font-medium"
               >
                 <Sparkles size={16} className="text-accent-primary group-hover:text-accent-secondary transition-colors" />

@@ -55,7 +55,7 @@ export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
 
 export async function discoverSubscriptions(platformId: string): Promise<DiscoveredSubscription[]> {
   try {
-    const subscriptionCreatedEventType = `${PACKAGE_ID}::billing::SubscriptionCreated`;
+    const subscriptionCreatedEventType = `${PACKAGE_ID}::subscription::SubscriptionCreated`;
     
     const query = `
       query getSubEvents($eventType: String!) {
@@ -96,30 +96,31 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
       try {
         const objects = await grpcClient.core.getObjects({
           objectIds: batchIds,
-          include: { json: true }
+          include: { json: true, type: true }
         });
-        
+
         for (const obj of objects.objects) {
           if (obj instanceof Error || !('json' in obj) || !obj.json) continue;
-          
+
           const accountId = obj.objectId;
           const typeStr = obj.type || '';
-          
+
           const match = typeStr.match(/<(.+)>/);
           const denomination = match ? match[1] : '';
           if (!denomination) continue;
-          
+
           const fields = obj.json as any;
-          const subscriptionsMap = fields.subscriptions?.fields?.contents || [];
-          
-          const platformSub = subscriptionsMap.find((entry: any) => entry.fields.key === platformId);
+          const subscriptionsMap = fields.subscriptions?.fields?.contents || fields.subscriptions?.contents || [];
+
+          const platformSub = subscriptionsMap.find((entry: any) => (entry.fields?.key || entry.key) === platformId);
           if (platformSub) {
-            const subData = platformSub.fields.value.fields;
-            if (subData.status === 0) { // Active
+            const subData = platformSub.fields?.value?.fields || platformSub.value?.fields || platformSub.value;
+            const statusVal = typeof subData.status === 'object' ? subData.status?.variant : subData.status;
+            if (statusVal === 0) { // Active
               subscriptions.push({
                 accountId,
                 platformId,
-                nextBillingTime: BigInt(subData.next_billing_time),
+                nextBillingTime: BigInt(subData.next_billing_time || 0),
                 denomination
               });
             }
