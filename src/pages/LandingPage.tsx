@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle, Database } from "lucide-react";
+import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import NavBar from "../components/NavBar";
 import HeroSection from "../components/HeroSection";
 import IntegrationFlow from "../components/IntegrationFlow";
@@ -16,13 +16,13 @@ interface PlatformInfo {
   category: string;
 }
 
-const ecosystemTargets: PlatformInfo[] = [
-  { name: "Walrus Storage Nodes", category: "Blob Retention" },
-  { name: "Seal Data Vaults", category: "Gated Access" },
-  { name: "DeepBook Routing", category: "Atomic Swaps" },
-  { name: "Decentralized RPCs", category: "Infrastructure" },
-  { name: "Custom Indexer APIs", category: "Real-time Data" },
-  { name: "AI Training Feeds", category: "On-Chain ML" },
+const consumerTargets: PlatformInfo[] = [
+  { name: "Decentralized Video Streaming", category: "Entertainment" },
+  { name: "Seasonal Battle Passes", category: "GameFi" },
+  { name: "Creator Content Vaults", category: "Media & Music" },
+  { name: "VIP Guild Memberships", category: "Community" },
+  { name: "Gated Editorial Access", category: "Publishing" },
+  { name: "Token-Gated Paywalls", category: "Creator Economy" },
 ];
 
 export default function LandingPage() {
@@ -32,7 +32,7 @@ export default function LandingPage() {
     setMounted(true);
   }, []);
 
-  const targets = ecosystemTargets;
+  const targets = consumerTargets;
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -55,9 +55,9 @@ export default function LandingPage() {
                 className="text-center mb-8"
               >
                 <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4 border border-white/10">
-                  <Database className="h-4 w-4 text-accent-primary animate-pulse" />
+                  <Sparkles className="h-4 w-4 text-accent-primary animate-pulse" />
                   <span className="text-sm text-text-secondary font-medium">
-                    Powering recurring revenue across the decentralized data economy & Sui stack
+                    Powering recurring monetization for next-generation Web3 consumer apps
                   </span>
                 </div>
 
