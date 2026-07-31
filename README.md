@@ -42,16 +42,24 @@ PayStreamer bridges the gap between Web3 infrastructure and Web2 business models
 *   **Decentralized Content Platforms:** Substack or Patreon competitors (like our previous project, Fundsui) looking for native crypto monetization.
 *   **DAOs:** Automating recurring grants, continuous contributor funding, or software subscriptions.
 
-## 🏗️ Technical Architecture
+## 🏗️ Technical Architecture & Repository Map
 
-PayStreamer utilizes a monorepo workspace structure:
-1. **Move Smart Contracts** (`move/subscriptions/`): Built on Sui, heavily utilizing **OpenZeppelin (OZ)** libraries—specifically `AccessControl` for role management and `rate_limiter` for enforcing subscription policies—alongside permissionless schedulers and BalanceContainers for secure fund management.
-2. **PayStreamer SDK** (`packages/sdk/`): A fully typed TypeScript SDK offering React hooks (`usePlatform`, `useSubscribe`), zero-config auto-discovery of on-chain state, and drop-in UI components like `<SetupSubscriptionModal />` for frictionless integration.
-3. **Core Applications** (`apps/`):
-   - **`apps/docs`**: Next.js documentation site.
-   - **`apps/portal`**: The main user portal for managing subscriptions and platforms.
-   - **`apps/example`**: A basic Vite + React implementation demonstrating how third-party dApps can easily integrate PayStreamer.
-4. **Gas Sponsor Service** (`paystreamer-service/`): A Node.js backend handling gasless (sponsored) transactions for users.
+PayStreamer utilizes a monorepo workspace structure. Evaluators should use the links below to navigate the different layers of the application:
+
+1. 🔗 **[Move Smart Contracts (`/move`)](./move/README.md)**
+   - [`/move/subscriptions`](./move/subscriptions/README.md): The core PayStreamer protocol. Uses OpenZeppelin (`AccessControl`, `rate_limiter`) alongside permissionless schedulers to enforce recurring logic safely on-chain.
+   - [`/move/stablecoin`](./move/stablecoin/README.md): The `PUSD` testnet stablecoin package used for the live demo.
+
+2. 🔗 **[Shared Packages (`/packages`)](./packages/README.md)**
+   - [`/packages/sdk`](./packages/sdk/README.md): The unified TypeScript SDK. Provides React hooks, UI modals, and single-source-of-truth network configs for the entire ecosystem.
+
+3. 🔗 **[Core Applications & Services (`/apps`)](./apps/README.md)**
+   - [`/apps/portal`](./apps/portal/README.md): The main DApp where users manage their subscriptions and creators register their platforms.
+   - [`/apps/checkout`](./apps/checkout/README.md): An embedded checkout flow for third-party websites.
+   - [`/apps/docs`](./apps/docs/README.md): The Nextra-based documentation site for protocol integrators.
+   - [`/apps/example`](./apps/example/README.md): A scaffolded Vite + React integration example showing how easy it is to use the SDK.
+   - [`/apps/scheduler`](./apps/scheduler/README.md): The decentralized, permissionless Node.js worker that automatically executes due payments.
+   - [`/apps/sponsor`](./apps/sponsor/README.md): Gasless transaction backend service for seamless Web2-style onboarding.
 
 ---
 
@@ -103,7 +111,7 @@ pnpm dev
 To enable gasless transactions for users, start the backend sponsor service:
 
 ```bash
-cd paystreamer-service
+cd apps/sponsor
 npm install
 npm run build
 npm start

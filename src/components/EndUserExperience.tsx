@@ -16,7 +16,7 @@ export default function EndUserExperience() {
     {
       icon: <CreditCard size={24} className="text-accent-secondary" />,
       title: 'High Payment Fees',
-      description: 'Stop losing 2.9% + 30¢ to credit card processors. Crypto payments cost a fraction of that.',
+      description: 'Eliminate chargeback losses and hidden localized gateway fees.',
     }
   ];
 

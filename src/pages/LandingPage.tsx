@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Users, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import NavBar from "../components/NavBar";
 import HeroSection from "../components/HeroSection";
 import IntegrationFlow from "../components/IntegrationFlow";
@@ -16,13 +16,13 @@ interface PlatformInfo {
   category: string;
 }
 
-const mockPlatforms: PlatformInfo[] = [
-  { name: "Sui Foundation", category: "Ecosystem" },
-  { name: "DeFi Pulse", category: "Analytics" },
-  { name: "Yield Aggregator", category: "DeFi" },
-  { name: "NFT Marketplace", category: "NFTs" },
-  { name: "GameFi Hub", category: "Gaming" },
-  { name: "DAO Treasury", category: "DAO" },
+const consumerTargets: PlatformInfo[] = [
+  { name: "Decentralized Video Streaming", category: "Entertainment" },
+  { name: "Seasonal Battle Passes", category: "GameFi" },
+  { name: "Creator Content Vaults", category: "Media & Music" },
+  { name: "VIP Guild Memberships", category: "Community" },
+  { name: "Gated Editorial Access", category: "Publishing" },
+  { name: "Token-Gated Paywalls", category: "Creator Economy" },
 ];
 
 export default function LandingPage() {
@@ -32,7 +32,7 @@ export default function LandingPage() {
     setMounted(true);
   }, []);
 
-  const recentPlatforms = mockPlatforms;
+  const targets = consumerTargets;
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -43,7 +43,7 @@ export default function LandingPage() {
       <main>
         <HeroSection />
 
-        {recentPlatforms && recentPlatforms.length > 0 && (
+        {targets && targets.length > 0 && (
           <section className="relative py-16 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-bg-primary via-bg-secondary to-bg-primary" />
 
@@ -54,25 +54,25 @@ export default function LandingPage() {
                 transition={{ duration: 0.6 }}
                 className="text-center mb-8"
               >
-                <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4">
-                  <Users className="h-4 w-4 text-accent-success" />
-                  <span className="text-sm text-text-secondary">
-                    {recentPlatforms.length} platform{recentPlatforms.length !== 1 ? "s" : ""} accepting payments
+                <div className="inline-flex items-center gap-2 glass-card px-4 py-2 mb-4 border border-white/10">
+                  <Sparkles className="h-4 w-4 text-accent-primary animate-pulse" />
+                  <span className="text-sm text-text-secondary font-medium">
+                    Powering recurring monetization for next-generation Web3 consumer apps
                   </span>
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-3 mt-6">
-                  {recentPlatforms.slice(0, 6).map((platform, index) => (
+                  {targets.slice(0, 6).map((platform, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: mounted ? 1 : 0, scale: mounted ? 1 : 0.9 }}
                       transition={{ duration: 0.4, delay: 0.1 * index }}
-                      className="glass-card px-4 py-2 flex items-center gap-2"
+                      className="glass-card px-4 py-2 flex items-center gap-2 border border-white/5 hover:border-white/15 transition-colors"
                     >
                       <div className="w-2 h-2 rounded-full bg-accent-success" />
-                      <span className="text-sm text-white">{platform.name}</span>
-                      <span className="text-xs text-text-secondary">({platform.category})</span>
+                      <span className="text-sm font-medium text-white">{platform.name}</span>
+                      <span className="text-xs text-text-secondary font-mono">({platform.category})</span>
                     </motion.div>
                   ))}
                 </div>
@@ -108,7 +108,7 @@ export default function LandingPage() {
                 PayStreamer takes <span className="gradient-text">{PLATFORM_FEE_PERCENT}%</span> per successful payment
               </h2>
               <p className="text-lg text-text-secondary mb-8 max-w-2xl mx-auto">
-                No setup fees. No monthly fees. No hidden costs.
+                2% to the Protocol Treasury, 1% to the decentralized Scheduler network. No hidden costs.
               </p>
 
               <div className="flex flex-wrap justify-center gap-6">
@@ -123,6 +123,36 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="relative py-24 overflow-hidden border-t border-white/5">
+          <div className="absolute inset-0 bg-bg-secondary/30" />
+          <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <span className="inline-block px-4 py-2 rounded-full bg-accent-primary/10 text-accent-primary text-sm font-medium mb-4">
+                Earn Yield
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+                Run a <span className="text-accent-primary">Scheduler</span>
+              </h2>
+              <p className="text-lg text-text-secondary mb-8 max-w-2xl mx-auto">
+                Our decentralized execution layer allows anyone to execute due payments. Run a scheduler node and earn a 1% fee on every successful transaction you process.
+              </p>
+              <Button
+                href="https://docs.usepaystreamer.xyz/scheduler"
+                variant="outline"
+                className="inline-flex items-center justify-center gap-2 text-md px-6 py-3 border-accent-primary/50 text-accent-primary hover:bg-accent-primary/10 transition-colors"
+              >
+                <span>Learn how to earn</span>
+                <ArrowRight size={16} />
+              </Button>
             </motion.div>
           </div>
         </section>
@@ -157,11 +187,11 @@ export default function LandingPage() {
                     <ArrowRight size={20} />
                   </Button>
                   <Button
-                    href="https://app.usepaystreamer.xyz"
+                    href="https://docs.usepaystreamer.xyz"
                     variant="outline"
                     className="flex items-center justify-center gap-2 text-lg px-8 py-4 bg-transparent border-white/20 hover:bg-white/10 w-full"
                   >
-                    <span>Subscriber Dashboard</span>
+                    <span>Documentation</span>
                   </Button>
                 </div>
               </div>

@@ -2,16 +2,22 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  timeout: 60000,
+  expect: {
+    timeout: 15000,
+  },
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: [
     ['list'],
     ['html', { open: 'never' }]
   ],
   use: {
+    actionTimeout: 10000,
     trace: 'on-first-retry',
+    baseURL: 'http://localhost:3000', // Matches next.js default
   },
   projects: [
     {
@@ -20,8 +26,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm run dev',
-    url: 'http://localhost:5178',
+    command: 'pnpm dev',
+    port: 3000,
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });

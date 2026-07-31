@@ -1,3 +1,5 @@
+[🏠 Root](../../README.md) > [⛓️ Move Smart Contracts](../README.md) > 📜 Subscriptions
+
 # PayStreamer Subscriptions Package
 
 This package (`subscriptions`) contains the core smart contracts for the PayStreamer decentralized subscription protocol on the Sui network. 

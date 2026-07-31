@@ -122,9 +122,9 @@ export default function SecuritySection() {
               </div>
 
               <div className="glass-card p-5 bg-black/20">
-                <h4 className="text-white font-medium mb-2">Eliminated Chargebacks</h4>
+                <h4 className="text-white font-medium mb-2">Regulatory Compliance</h4>
                 <p className="text-sm text-text-secondary">
-                  Blockchain finality means zero chargeback fraud. Once a withdrawal is executed, it's cryptographically guaranteed.
+                  By utilizing a decentralized execution layer and non-custodial smart contracts, you drastically reduce regulatory liability and counterparty risk.
                 </p>
               </div>
 
@@ -160,9 +160,9 @@ export default function SecuritySection() {
               <div className="w-16 h-16 rounded-2xl bg-accent-primary/20 flex items-center justify-center mx-auto mb-4">
                 <RefreshCw size={24} className="text-accent-primary" />
               </div>
-              <h4 className="text-white font-medium mb-2">Scheduler Bot</h4>
+              <h4 className="text-white font-medium mb-2">Decentralized Execution</h4>
               <p className="text-sm text-text-secondary">
-                Your server automatically detects due subscriptions and executes a batch withdrawal.
+                An open network of incentivized Schedulers automatically detects due subscriptions and executes transactions on your behalf.
               </p>
             </div>
 
@@ -180,9 +180,9 @@ export default function SecuritySection() {
               <div className="w-16 h-16 rounded-2xl bg-accent-success/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 size={24} className="text-accent-success" />
               </div>
-              <h4 className="text-white font-medium mb-2">Direct Settlement</h4>
+              <h4 className="text-white font-medium mb-2">Cross-Currency Routing</h4>
               <p className="text-sm text-text-secondary">
-                Funds are routed directly into your platform's treasury. Your bot never touches the money.
+                Funds are atomically swapped via DeepBook and routed directly into your platform's treasury in your preferred token.
               </p>
             </div>
           </div>
