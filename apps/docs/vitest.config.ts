@@ -12,6 +12,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './'),
+      '@paystreamer/sdk/react': path.resolve(__dirname, '../../packages/sdk/src/react/index.ts'),
+      '@paystreamer/sdk/ui': path.resolve(__dirname, '../../packages/sdk/src/ui/index.ts'),
+      '@paystreamer/sdk/core': path.resolve(__dirname, '../../packages/sdk/src/core/index.ts'),
+      '@paystreamer/sdk': path.resolve(__dirname, '../../packages/sdk/src/index.ts'),
     },
   },
 });
