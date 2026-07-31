@@ -12,7 +12,6 @@ import { useMintTestPusd } from "@paystreamer/sdk/react";
 import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
-  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
   PUSD_TYPE_ARG,
 } from "@paystreamer/sdk";
@@ -134,7 +133,6 @@ export function SetupSubscriptionModal({
       buildSubscribeTx({
         tx,
         packageId: config.PACKAGE_ID,
-        registryId: COIN_TYPE_REGISTRY_ID,
         clockId: CLOCK_OBJECT_ID,
         denomination: PUSD_TYPE_ARG,
         platformId,

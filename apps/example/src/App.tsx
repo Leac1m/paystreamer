@@ -1,122 +1,69 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useRef } from "react";
+import { ConnectModal } from "@mysten/dapp-kit-react/ui";
+import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
+
+// The demo platform id seeded on localnet or testnet
+const PLATFORM_ID = "0xc4a19391ab1a1bd3307da2dc3ce0130dbd5c36fa3c2858eb5b62e49c7163c4c9";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [modalOpen, setModalOpen] = useState(false);
+  const account = useCurrentAccount();
+  const modalRef = useRef<any>(null);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-container">
+      <header className="header">
+        <div className="header-logo">
+          <span>Acme</span>Corp
         </div>
         <div>
-          <h1>Get started</h1>
+          <button className="dapp-kit-connect-btn" onClick={() => modalRef.current?.open()}>
+            {account ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}` : "Connect Wallet"}
+          </button>
+          <ConnectModal ref={modalRef} />
+        </div>
+      </header>
+
+      <main className="main-content">
+        <div className="showcase-card">
+          <div className="showcase-icon">✨</div>
+          <h2>Premium Plan</h2>
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Unlock all advanced features, dedicated support, and unlimited usage with our premium subscription plan.
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+          <button 
+            className="dapp-kit-connect-btn ps-button-primary" 
+            style={{ width: '100%', fontSize: '1.1rem', padding: '0.75rem 1.5rem' }} 
+            onClick={() => {
+              if (!account) {
+                alert("Please connect your wallet first!");
+                return;
+              }
+              setModalOpen(true);
+            }}
+          >
+            Subscribe with Sui
+          </button>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <div className="integration-wrapper">
+            {/* PayStreamer Drop-in Modal */}
+            <SetupSubscriptionModal
+              isOpen={modalOpen}
+              onClose={() => setModalOpen(false)}
+              platformId={PLATFORM_ID}
+              tierIndex={0}
+              onSuccess={() => {
+                alert("Successfully subscribed to AcmeCorp Premium!");
+                setModalOpen(false);
+              }}
+            />
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;

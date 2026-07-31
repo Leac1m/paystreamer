@@ -17,7 +17,6 @@ import { TxStatus } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
 import { 
-  COIN_TYPE_REGISTRY_ID,
   CLOCK_OBJECT_ID,
 } from "@paystreamer/sdk";
 import { queryCoins, buildCreateAccountTx } from "@paystreamer/sdk/core";
@@ -101,7 +100,6 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       buildCreateAccountTx({
         tx,
         packageId: config.PACKAGE_ID,
-        registryId: COIN_TYPE_REGISTRY_ID,
         clockId: CLOCK_OBJECT_ID,
         denomination: selectedDenomination,
         depositAmount: depositMist,

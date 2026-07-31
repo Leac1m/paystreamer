@@ -8,9 +8,6 @@ import { TxStatusToast, TxStatus } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist, APP_COIN_DECIMALS } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  CLOCK_OBJECT_ID,
-} from "@paystreamer/sdk";
 import { queryCoins, buildDepositTx } from "@paystreamer/sdk/core";
 import { useSponsoredTransaction } from "@paystreamer/sdk/react";
 import { useMintTestPusd } from "@paystreamer/sdk/react";
@@ -20,7 +17,6 @@ interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountId: string;
-  capId: string;
   denomination: string;
   onSuccess?: () => void;
 }
@@ -29,7 +25,6 @@ export function DepositModal({
   isOpen,
   onClose,
   accountId,
-  capId,
   denomination,
   onSuccess,
 }: DepositModalProps) {

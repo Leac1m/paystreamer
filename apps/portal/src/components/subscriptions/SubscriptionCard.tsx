@@ -21,6 +21,7 @@ import {
   PAYMENT_SCHEDULER_ID,
   PAYMENT_SCHEDULER_INIT_VERSION,
   CLOCK_OBJECT_ID,
+  COIN_TYPE_REGISTRY_ID,
 } from "@paystreamer/sdk";
 import { buildPauseSubscriptionTx, buildResumeSubscriptionTx, buildCancelSubscriptionTx, buildProcessPaymentTx } from "@paystreamer/sdk/core";
 import { useSponsoredTransaction } from "@paystreamer/sdk/react";
@@ -240,6 +241,7 @@ export function SubscriptionCard({
       buildProcessPaymentTx({
         tx,
         packageId: config.PACKAGE_ID,
+        registryId: COIN_TYPE_REGISTRY_ID,
         clockId: CLOCK_OBJECT_ID,
         denomination,
         accountId,
