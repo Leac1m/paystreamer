@@ -74,8 +74,8 @@ export default function IntegrationFlow() {
     {
       icon: <Zap size={28} className="text-accent-success" />,
       title: 'Step 3: Collect',
-      description: 'Your backend or cron bot executes automated batch withdrawals every billing cycle.',
-      code: "tx.moveCall({ target: '0xPKG::registry::batch_withdraw' })"
+      description: 'A decentralized network of Schedulers monitors on-chain events and executes automated batch withdrawals when due. No cron jobs required.',
+      code: "tx.moveCall({ target: '0xPKG::scheduler::process_due_payment' })"
     }
   ];
 

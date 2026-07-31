@@ -10,8 +10,8 @@ export default function CoreFeatures() {
     },
     {
       icon: <DollarSign size={24} className="text-accent-primary" />,
-      title: 'Stablecoin Settlement',
-      description: 'Subscriptions are priced and settled in USDC/USDT (or other custom tokens). Protects your revenue from crypto volatility and simplifies accounting.'
+      title: 'Token Agnostic Settlement',
+      description: 'Subscriptions can be funded in any token. Schedulers leverage DeepBook to atomically swap funds into your platform\'s required token during settlement.'
     },
     {
       icon: <ShieldCheck size={24} className="text-accent-secondary" />,
@@ -25,8 +25,8 @@ export default function CoreFeatures() {
     },
     {
       icon: <Code2 size={24} className="text-accent-secondary" />,
-      title: 'Developer API & Webhooks',
-      description: 'Plug-and-play integration into your existing platform. Saves weeks of expensive, complex in-house engineering time.'
+      title: 'TypeScript SDK & On-Chain Events',
+      description: 'Plug-and-play integration into your existing platform. Listen to on-chain events instead of managing complex webhook infrastructure.'
     },
     {
       icon: <BarChart3 size={24} className="text-accent-primary" />,
