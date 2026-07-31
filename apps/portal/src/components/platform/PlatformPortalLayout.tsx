@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
-import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useWalletConnection, useDAppKit } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
-import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2, ExternalLink } from "lucide-react";
+import { Menu, X, LayoutDashboard, Layers, Users, Wallet, Settings, Loader2, ExternalLink, LogOut } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 import { useOwnedPlatforms, PlatformObject } from "../../lib/platformDiscovery";
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
 export function PlatformPortalLayout() {
   const account = useCurrentAccount();
   const { isConnecting } = useWalletConnection();
+  const dAppKit = useDAppKit();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -138,12 +139,19 @@ export function PlatformPortalLayout() {
               <ExternalLink size={16} />
               Subscription Dashboard
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-xs text-muted-foreground font-mono">
-                {account.address.slice(0, 6)}...{account.address.slice(-4)}
-              </span>
-            </div>
+            <button
+              onClick={() => dAppKit.disconnectWallet()}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-[#94a3b8] hover:text-red-400 transition-all group cursor-pointer"
+              title="Disconnect wallet"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 group-hover:bg-red-400 transition-colors" />
+                <span className="text-xs font-mono font-medium text-white/90 group-hover:text-red-400 transition-colors">
+                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                </span>
+              </div>
+              <LogOut size={14} className="opacity-40 group-hover:opacity-100 group-hover:text-red-400 transition-all" />
+            </button>
           </div>
         </aside>
 

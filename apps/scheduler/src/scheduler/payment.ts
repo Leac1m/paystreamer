@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { grpcClient, getSchedulerKeypair, getSchedulerAddress } from '../lib/sui.js';
-import { PACKAGE_ID, PAYMENT_SCHEDULER_ID } from '../lib/config.js';
+import { PACKAGE_ID, PAYMENT_SCHEDULER_ID, REGISTRY_ID, CLOCK_OBJECT_ID } from '../lib/config.js';
 import { DiscoveredSubscription } from './discovery.js';
 
 export async function processDuePayments(subscriptions: DiscoveredSubscription[]): Promise<string[]> {
@@ -13,13 +13,27 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
       console.log(`[Payment] Processing for Account: ${sub.accountId}`);
       const tx = new Transaction();
 
+      const limiters = tx.moveCall({
+        target: `${PACKAGE_ID}::policies::empty_limiters`,
+        arguments: [tx.object(CLOCK_OBJECT_ID)],
+      });
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::policies::ensure_initialized`,
+        typeArguments: [sub.denomination],
+        arguments: [tx.object(sub.accountId), limiters, tx.object(CLOCK_OBJECT_ID)],
+      });
+
       tx.moveCall({
         target: `${PACKAGE_ID}::scheduler::process_due_payment`,
         typeArguments: [sub.denomination],
         arguments: [
+          tx.object(REGISTRY_ID),
           tx.object(PAYMENT_SCHEDULER_ID),
           tx.object(sub.platformId),
           tx.object(sub.accountId),
+          limiters,
+          tx.object(CLOCK_OBJECT_ID),
         ],
       });
 
@@ -27,13 +41,15 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
 
       const coins = await grpcClient.core.listCoins({ owner: schedulerAddress, coinType: '0x2::sui::SUI' });
       const largestCoin = coins.objects.sort((a: any, b: any) => Number(BigInt(b.balance) - BigInt(a.balance)))[0];
-      if (largestCoin) {
-        tx.setGasPayment([{
-          objectId: largestCoin.objectId,
-          version: largestCoin.version,
-          digest: largestCoin.digest,
-        }]);
+      if (!largestCoin) {
+        throw new Error(`Unable to perform gas selection due to insufficient SUI balance for scheduler address ${schedulerAddress}`);
       }
+      tx.setGasPayment([{
+        objectId: largestCoin.objectId,
+        version: largestCoin.version,
+        digest: largestCoin.digest,
+      }]);
+      tx.setGasBudget(50000000);
 
       const bytes = await tx.build({ client: grpcClient });
       const { signature } = await schedulerKeypair.signTransaction(bytes);

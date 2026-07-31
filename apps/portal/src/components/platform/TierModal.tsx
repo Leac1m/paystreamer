@@ -15,7 +15,7 @@ import {
 import { Input } from "@paystreamer/sdk";
 import { Button } from "@paystreamer/sdk";
 import { getErrorMessage } from "../../lib/errors";
-import { useTxToast, generateToastId } from "../TxStatusToast";
+import { useTxToast, generateToastId, type ExecutionMode } from "../TxStatusToast";
 import { useAppConfig } from "../../hooks/useAppConfig";
 import { formatFrequency } from "../../lib/format";
 
@@ -125,7 +125,7 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
       }
       
       await client.waitForTransaction({ digest: result.digest! });
-      confirmToast(toastId, result.digest!);
+      confirmToast(toastId, result.digest!, "Tier created successfully", result.executionMode as ExecutionMode);
       
       setTimeout(async () => {
         await queryClient.invalidateQueries({ queryKey: ["owned-platforms", account.address] });
@@ -241,6 +241,9 @@ export function TierModal({ open, onClose, platformId, initialSharedVersion, tie
           )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-2 border-t border-border/30">
+            <span>⚡</span> Sponsored transaction (auto-fallback to wallet gas if SUI &ge; 0.01 or service offline)
+          </p>
         </div>
 
         <ModalFooter>

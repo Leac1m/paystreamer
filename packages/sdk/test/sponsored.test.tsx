@@ -36,7 +36,7 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
         data: {
           address: {
             balance: {
-              totalBalance: "10000" // Low balance: < 0.1 SUI (triggers sponsor flow)
+              totalBalance: "10000" // Low balance: < 0.01 SUI (triggers sponsor flow)
             }
           }
         }
@@ -98,6 +98,8 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
         <div data-testid="status">{result ? result.status : "Idle"}</div>
         <div data-testid="digest">{result?.digest || "None"}</div>
         <div data-testid="error">{result?.error || "None"}</div>
+        <div data-testid="mode">{result?.executionMode || "None"}</div>
+        <div data-testid="isSponsored">{String(result?.isSponsored ?? "None")}</div>
         <button onClick={handleRun}>Run Transaction</button>
       </div>
     );
@@ -143,6 +145,8 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     await waitFor(() => {
       expect(screen.getByTestId('status').textContent).toBe('success');
       expect(screen.getByTestId('digest').textContent).toBe('MOCK_SPONSOR_DIGEST');
+      expect(screen.getByTestId('mode').textContent).toBe('sponsored');
+      expect(screen.getByTestId('isSponsored').textContent).toBe('true');
     });
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -178,6 +182,8 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     await waitFor(() => {
       expect(screen.getByTestId('status').textContent).toBe('success');
       expect(screen.getByTestId('digest').textContent).toBe('MOCK_LOCAL_FALLBACK_DIGEST');
+      expect(screen.getByTestId('mode').textContent).toBe('local_fallback');
+      expect(screen.getByTestId('isSponsored').textContent).toBe('false');
     });
 
     expect(mockSignTransaction).toHaveBeenCalled();
@@ -225,6 +231,8 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     await waitFor(() => {
       expect(screen.getByTestId('status').textContent).toBe('success');
       expect(screen.getByTestId('digest').textContent).toBe('MOCK_LOCAL_FALLBACK_DIGEST');
+      expect(screen.getByTestId('mode').textContent).toBe('local_fallback');
+      expect(screen.getByTestId('isSponsored').textContent).toBe('false');
     });
 
     expect(mockSignTransaction).toHaveBeenCalled();
@@ -232,4 +240,42 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
 
     Transaction.from = originalFrom;
   });
+
+  it('should skip sponsor flow and execute locally when wallet balance is >= 0.01 SUI (10_000_000 MIST)', async () => {
+    // Override query to return >= 10,000,000 MIST
+    mockGraphqlClient.query.mockImplementationOnce(async () => ({
+      data: {
+        address: {
+          balance: { totalBalance: "10000000" } // exactly 0.01 SUI
+        }
+      }
+    }));
+
+    const mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <TestComponent />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    const button = screen.getByText('Run Transaction');
+    button.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status').textContent).toBe('success');
+      expect(screen.getByTestId('digest').textContent).toBe('MOCK_LOCAL_FALLBACK_DIGEST');
+      expect(screen.getByTestId('mode').textContent).toBe('local_balance');
+      expect(screen.getByTestId('isSponsored').textContent).toBe('false');
+    });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockSignTransaction).toHaveBeenCalled();
+    expect(mockGraphqlClient.executeTransaction).toHaveBeenCalled();
+  });
 });
+

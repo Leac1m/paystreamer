@@ -8,10 +8,14 @@ export interface SponsoredTransactionResult {
   status?: "success" | "failure";
 }
 
+export type SponsorExecutionMode = "sponsored" | "local_balance" | "local_fallback";
+
 export interface ExecuteSponsoredResult {
   digest?: string;
   error?: string;
   status?: "success" | "failure";
+  executionMode?: SponsorExecutionMode;
+  isSponsored?: boolean;
 }
 
 export function useSponsoredTransaction() {
@@ -24,12 +28,13 @@ export function useSponsoredTransaction() {
       return { error: "No wallet connected", status: "failure" };
     }
 
+    let suiBalance = "0";
     try {
       if (!config.graphqlClient) throw new Error("GraphQL client not configured");
 
       const query = `query GetSuiBalance($owner: SuiAddress!) {
         address(address: $owner) {
-          balance(type: "0x2::sui::SUI") {
+          balance(coinType: "0x2::sui::SUI") {
             totalBalance
           }
         }
@@ -40,10 +45,10 @@ export function useSponsoredTransaction() {
         variables: { owner: account.address },
       });
 
-      const suiBalance = (balRes.data as any)?.address?.balance?.totalBalance || "0";
+      suiBalance = (balRes.data as any)?.address?.balance?.totalBalance || "0";
 
-      // 100,000,000 MIST = 0.1 SUI
-      if (BigInt(suiBalance) >= 100_000_000n) {
+      // 10,000,000 MIST = 0.01 SUI
+      if (BigInt(suiBalance) >= 10_000_000n) {
         console.log("Wallet has sufficient SUI balance, skipping sponsor flow...");
         
         const { signature, bytes } = await dAppKit.signTransaction({
@@ -60,7 +65,7 @@ export function useSponsoredTransaction() {
            return { error: errStr, status: "failure" };
         }
 
-        return { digest: res.Transaction?.digest || "", status: "success" };
+        return { digest: res.Transaction?.digest || "", status: "success", executionMode: "local_balance", isSponsored: false };
       }
 
       if (!config.sponsorApiUrl) {
@@ -110,11 +115,19 @@ export function useSponsoredTransaction() {
       }
 
       const result = await executeResponse.json();
-      return { digest: result.digest, status: "success" };
+      return { digest: result.digest, status: "success", executionMode: "sponsored", isSponsored: true };
 
     } catch (sponsorError: any) {
-      console.warn("Sponsored execution failed, falling back to local execution:", sponsorError);
+      console.warn("Sponsored execution failed:", sponsorError);
 
+      if (BigInt(suiBalance) === 0n) {
+        return { 
+          error: sponsorError.message || "Sponsored transaction failed", 
+          status: "failure" 
+        };
+      }
+
+      console.warn("Falling back to local execution...");
       if (!config.graphqlClient) return { error: "GraphQL client not configured", status: "failure" };
 
       try {
@@ -133,7 +146,7 @@ export function useSponsoredTransaction() {
            return { error: errStr, status: "failure" };
         }
 
-        return { digest: res.Transaction?.digest || "", status: "success" };
+        return { digest: res.Transaction?.digest || "", status: "success", executionMode: "local_fallback", isSponsored: false };
       } catch (localError: any) {
         return { 
           error: localError.message || sponsorError.message || "Execution failed", 

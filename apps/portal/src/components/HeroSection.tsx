@@ -5,10 +5,10 @@ import { ArrowRight, CheckCircle, Zap, Shield, Sparkles } from 'lucide-react';
 import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { Button } from "@paystreamer/sdk";
 import { OnboardModal } from './OnboardModal';
-// import {  DEMO_PLATFORM_ID  } from "@paystreamer/sdk";
+import { DEMO_PLATFORM_ID } from "@paystreamer/sdk";
 
-// const hasDemo = typeof DEMO_PLATFORM_ID === 'string';
-const demoLink = null; // hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : null;
+const hasDemo = typeof DEMO_PLATFORM_ID === 'string' && DEMO_PLATFORM_ID.length > 0;
+const demoLink = hasDemo ? `/subscribe/${DEMO_PLATFORM_ID}` : "/subscribe/0x6db491b67eb3cae7e25699a4bd52aad263c06223e86117bdb8acca91bf4bedce";
 
 export default function HeroSection() {
   const navigate = useNavigate();

@@ -21,19 +21,19 @@ export interface NetworkConfig {
 
 export const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
   local: {
-    PACKAGE_ID: "0xb787f2e21c77b8da64b097650cafc951341b0c1f60c25f0fd9217d20b931e0ba",
-    COIN_TYPE_REGISTRY_ID: "0x3a0709efc74ebef114364ce2e07e7c4e46a4a97d250cbbd955ce24379b366e69",
-    COIN_TYPE_REGISTRY_INIT_VERSION: 24518,
-    PAYMENT_SCHEDULER_ID: "0x2fc5f65e528a3bf4563ddbde103454d0415768ca7d89052f76d33bed5fcbd378",
-    PAYMENT_SCHEDULER_INIT_VERSION: 24518,
+    PACKAGE_ID: "0xe3eafda79cf9963f1e5df5d752bd6da9c69e28ca79136465e90948ff0640bc5d",
+    COIN_TYPE_REGISTRY_ID: "0x507328ab1a1d267df6d0abe4d2e6d5a237b1cefd4457a24547146da5dd179e58",
+    COIN_TYPE_REGISTRY_INIT_VERSION: 45420,
+    PAYMENT_SCHEDULER_ID: "0xa1d26f31aaeefbb5faaaee90b01514563dbadbffcab0c4fa10aace3f4ea4b911",
+    PAYMENT_SCHEDULER_INIT_VERSION: 45420,
     ACCESS_CONTROL_ID: "",
     GRAPHQL_URL: "http://127.0.0.1:8000/graphql",
-    PUSD_PACKAGE_ID: "0xfdf35d4d4b7fb2412c49148e4b9a8319f2236515e64b6ad78b239a958945bd1b",
-    PUSD_TYPE_ARG: "0xfdf35d4d4b7fb2412c49148e4b9a8319f2236515e64b6ad78b239a958945bd1b::pusd::PUSD",
-    PUSD_TREASURY_CAP_ID: "0x3948abc5505a4bc7cee889005db3690c43f003965b3f0ef686cce907569c1728",
-    PUSD_TREASURY_CAP_INIT_VERSION: 24517,
-    DEMO_PLATFORM_ID: "0xdf79e6b705c7f9cbaa8bb3141baec65925f08a6a4e012d40dacfd1e44362e83c",
-    DEMO_PLATFORM_INIT_VERSION: 44483,
+    PUSD_PACKAGE_ID: "0x275567ed754f8bbb77c5128cd6e43ea820f217dcd596a111e89ce9e19e962e7d",
+    PUSD_TYPE_ARG: "0x275567ed754f8bbb77c5128cd6e43ea820f217dcd596a111e89ce9e19e962e7d::pusd::PUSD",
+    PUSD_TREASURY_CAP_ID: "0x2c079c05f1adf51d0fe2f1840aa1166d7accd9c22560d13808606c561c68e95d",
+    PUSD_TREASURY_CAP_INIT_VERSION: 45419,
+    DEMO_PLATFORM_ID: "0x50a58eaed271251b702e8a61a35b0aadd15889be5bd5869d5f4aa4ac639eaff2",
+    DEMO_PLATFORM_INIT_VERSION: 443838,
   },
   devnet: {
     PACKAGE_ID: "0x0808b08199b07c7786c65fdbca996b2a2a0ccae29de8bd467d36225d2a7a9d73",
@@ -62,7 +62,7 @@ export const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
     PUSD_TYPE_ARG: "0x74d11b1c40509335fd139b7b173328a1e1d55d2816a55b893861148d3724a61f::pusd::PUSD",
     PUSD_TREASURY_CAP_ID: "0xca02759942d7c917bb74166c1ea44336f9819e6e36b051ff92b43de6989bcba2",
     PUSD_TREASURY_CAP_INIT_VERSION: 349181682,
-    DEMO_PLATFORM_ID: "0x1743834955aca50bc3c79dffbf93531ba2bbfa38c9f124f57afcee3d61d4b0ee",
+    DEMO_PLATFORM_ID: "0x6db491b67eb3cae7e25699a4bd52aad263c06223e86117bdb8acca91bf4bedce",
     DEMO_PLATFORM_INIT_VERSION: 909612921,
   }
 };
@@ -74,11 +74,17 @@ const getEnvNetwork = () => {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_NETWORK) return (import.meta as any).env.VITE_NETWORK;
   return null;
 };
-const isProd = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.PROD;
-export const NETWORK = (getEnvNetwork() || (isProd ? "testnet" : "devnet")) as SupportedNetwork;
+const getTestMode = () => {
+  const procEnv = (globalThis as any).process?.env;
+  const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
+  return (procEnv && (procEnv.NODE_ENV === 'test' || procEnv.NEXT_PUBLIC_IS_TEST_MODE === 'true' || procEnv.VITEST)) ||
+    (metaEnv && (metaEnv.MODE === 'test' || metaEnv.VITE_NETWORK === 'local'));
+};
+export const NETWORK = (getEnvNetwork() || (getTestMode() ? "local" : "testnet")) as SupportedNetwork;
 
-export function getConfig(network?: SupportedNetwork): NetworkConfig {
-  const targetNetwork = network || (NETWORK as SupportedNetwork);
+export function getConfig(network?: SupportedNetwork | string): NetworkConfig {
+  let targetNetwork = network || (NETWORK as string);
+  if (targetNetwork === "localnet") targetNetwork = "local";
   return NETWORK_CONFIGS[targetNetwork] || NETWORK_CONFIGS.testnet!;
 }
 

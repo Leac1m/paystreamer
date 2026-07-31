@@ -4,7 +4,7 @@ import { X, Wallet } from "lucide-react";
 import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "@paystreamer/sdk";
-import { TxStatusToast, TxStatus } from "../TxStatusToast";
+import { TxStatusToast, type TxStatus, type ExecutionMode } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,12 +39,14 @@ export function WithdrawModal({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
+  const [executionMode, setExecutionMode] = useState<ExecutionMode | undefined>();
 
   useEffect(() => {
     if (isOpen) {
       setWithdrawAmount("");
       setTxStatus("idle");
       setTxDigest(undefined);
+      setExecutionMode(undefined);
     }
   }, [isOpen]);
 
@@ -59,6 +61,7 @@ export function WithdrawModal({
 
     setTxStatus("pending");
     setTxMessage("Processing withdrawal...");
+    setExecutionMode(undefined);
 
     try {
       const withdrawParsed = parseFloat(withdrawAmount || "0");
@@ -88,6 +91,7 @@ export function WithdrawModal({
       setTxDigest(digest);
       setTxStatus("success");
       setTxMessage("Withdrawal successful!");
+      setExecutionMode(result.executionMode as ExecutionMode);
       
       // Refresh balances
       await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
@@ -153,6 +157,9 @@ export function WithdrawModal({
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 text-center">
+              <span>⚡</span> Sponsored transaction (auto-fallback to wallet gas if SUI &ge; 0.01 or service offline)
+            </p>
             <Button
               onClick={handleWithdraw}
               disabled={isPending || !withdrawAmount}
@@ -169,6 +176,7 @@ export function WithdrawModal({
           status={txStatus}
           message={txMessage}
           digest={txDigest}
+          executionMode={executionMode}
           onClose={() => setTxStatus("idle")}
         />
       </div>

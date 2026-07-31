@@ -21,7 +21,7 @@ export function usePusdBalance() {
       const query = `
         query GetPusdBalance($owner: SuiAddress!, $type: String!) {
           address(address: $owner) {
-            balance(type: $type) {
+            balance(coinType: $type) {
               totalBalance
             }
           }

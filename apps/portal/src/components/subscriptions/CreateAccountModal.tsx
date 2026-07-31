@@ -12,8 +12,7 @@ import {
   CardTitle,
 } from "@paystreamer/sdk";
 import { DenominationSelector } from "./DenominationSelector";
-import { TxStatusToast } from "../TxStatusToast";
-import { TxStatus } from "../TxStatusToast";
+import { TxStatusToast, type TxStatus, type ExecutionMode } from "../TxStatusToast";
 import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { parseMoveError } from "../../lib/errors";
 import { 
@@ -44,6 +43,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState("");
+  const [executionMode, setExecutionMode] = useState<ExecutionMode | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
@@ -75,6 +75,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
 
     setTxStatus("pending");
     setTxMessage("Creating account...");
+    setExecutionMode(undefined);
     setError(null);
 
     try {
@@ -113,6 +114,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
       setTxStatus("success");
       setTxMessage("Account created successfully!");
       setTxDigest(result.digest!);
+      setExecutionMode(result.executionMode as ExecutionMode);
 
       await client.waitForTransaction({ digest: result.digest! });
 
@@ -265,6 +267,12 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
               {error}
             </div>
           )}
+
+          {currentStepIndex === steps.length - 1 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-2">
+              <span>⚡</span> Sponsored transaction (auto-fallback to wallet gas if SUI &ge; 0.01 or service offline)
+            </p>
+          )}
         </div>
 
         <div className="flex justify-between p-4 border-t">
@@ -289,6 +297,7 @@ export function CreateAccountModal({ open, onClose, onCreated }: CreateAccountMo
         status={txStatus}
         message={txMessage}
         digest={txDigest}
+        executionMode={executionMode}
         onClose={() => setTxStatus("idle")}
       />
     </div>

@@ -83,4 +83,34 @@ test.describe('Portal Core Navigation & Routing', () => {
     // Rule 7: Explicit Empty State assertion for fresh burner wallet
     await expect(page.getByText("You don't own any platforms yet.")).toBeVisible({ timeout: 15000 });
   });
+
+  test('should load explore platforms page successfully and verify DOM UI and content state', async ({ page }) => {
+    await page.goto('/explore');
+    await connectWalletIfPrompted(page);
+
+    // Rule 1 & 2: Heading DOM visibility
+    await expect(page.getByRole('heading', { name: 'Discover Platforms', level: 1 })).toBeVisible({ timeout: 15000 });
+
+    // Rule 6: Loading State Transition
+    await expect(page.locator('.animate-pulse')).not.toBeVisible({ timeout: 15000 });
+
+    // Rule 7: Explicitly verify populated cards or fallback demo/empty content
+    const featuredDemo = page.getByText('Featured Demo Platform');
+    const emptyState = page.getByText('No platforms found');
+    const platformCards = page.locator('.group.relative.overflow-hidden');
+    await expect(featuredDemo.or(emptyState).or(platformCards.first())).toBeVisible({ timeout: 15000 });
+  });
+
+  test('should navigate smoothly from subscription dashboard to explore platforms page via sidebar', async ({ page }) => {
+    await page.goto('/dashboard/subscriptions');
+    await connectWalletIfPrompted(page);
+
+    // Verify sidebar item is present and click it
+    const exploreLink = page.getByRole('link', { name: /Explore Platforms/i }).first();
+    await expect(exploreLink).toBeVisible({ timeout: 15000 });
+    await exploreLink.click();
+
+    // Verify DOM rendered Explore Page
+    await expect(page.getByRole('heading', { name: 'Discover Platforms', level: 1 })).toBeVisible({ timeout: 15000 });
+  });
 });

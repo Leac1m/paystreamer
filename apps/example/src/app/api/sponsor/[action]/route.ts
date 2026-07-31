@@ -1,36 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SuiJsonRpcClient as SuiClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient as SuiClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 
-const getFullnodeUrl = (network: string) => {
+const getRpcUrl = (network: string) => {
   if (network === 'localnet' || network === 'local') return 'http://127.0.0.1:9000';
   return `https://fullnode.${network}.sui.io:443`;
 };
 
-const SUI_NETWORK = (process.env.NEXT_PUBLIC_NETWORK || 'localnet') as 'localnet' | 'devnet' | 'testnet' | 'mainnet';
+const isTestMode = process.env.NODE_ENV === 'test' || process.env.NEXT_PUBLIC_IS_TEST_MODE === 'true';
+const SUI_NETWORK = (process.env.NEXT_PUBLIC_NETWORK || (isTestMode ? 'localnet' : 'testnet')) as 'localnet' | 'devnet' | 'testnet' | 'mainnet';
 const client = new SuiClient({ 
-  url: getFullnodeUrl(SUI_NETWORK),
+  baseUrl: getRpcUrl(SUI_NETWORK),
   network: SUI_NETWORK === 'localnet' ? 'local' : SUI_NETWORK as any
 });
 
 function getSponsorKeypair() {
-  const privateKey = process.env.SPONSOR_PRIVATE_KEY;
+  const privateKey = process.env.SPONSOR_PRIVATE_KEY || (isTestMode ? process.env.E2E_PRIVATE_KEY : undefined);
   if (!privateKey) {
-    throw new Error('SPONSOR_PRIVATE_KEY is missing');
+    throw new Error('SPONSOR_PRIVATE_KEY or E2E_PRIVATE_KEY is missing');
   }
-  const bech32Key = Buffer.from(privateKey, 'hex').toString('utf8');
+  let bech32Key = privateKey.trim();
+  if (!bech32Key.startsWith('suiprivkey')) {
+    bech32Key = Buffer.from(bech32Key, 'hex').toString('utf8');
+  }
   const { secretKey } = decodeSuiPrivateKey(bech32Key);
   return Ed25519Keypair.fromSecretKey(secretKey);
 }
 
 function getSponsorAddress() {
-  const address = process.env.SPONSOR_ADDRESS;
-  if (!address) {
-    throw new Error('SPONSOR_ADDRESS is missing');
+  if (process.env.SPONSOR_ADDRESS) {
+    return process.env.SPONSOR_ADDRESS;
   }
-  return address;
+  // Automatically derive address from private key if SPONSOR_ADDRESS is omitted
+  return getSponsorKeypair().toSuiAddress();
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
+}
+
+function corsJson(data: any, status = 200) {
+  return NextResponse.json(data, { status, headers: corsHeaders });
 }
 
 export async function POST(
@@ -44,7 +62,7 @@ export async function POST(
     if (action === 'prepare') {
       const { transaction: txJson, userAddress } = body;
       if (!txJson || !userAddress) {
-        return NextResponse.json({ error: 'Missing parameters', code: 'VALIDATION_ERROR' }, { status: 400 });
+        return corsJson({ error: 'Missing parameters', code: 'VALIDATION_ERROR' }, 400);
       }
 
       const transaction = Transaction.from(txJson);
@@ -53,30 +71,30 @@ export async function POST(
       const sponsorAddress = getSponsorAddress();
       transaction.setGasOwner(sponsorAddress);
 
-      const coins = await client.getCoins({
+      const coins = await client.listCoins({
         owner: sponsorAddress,
         coinType: '0x2::sui::SUI',
       });
 
-      if (coins.data.length === 0) {
-        return NextResponse.json({ error: 'Sponsor has no gas', code: 'SUBMISSION_FAILED' }, { status: 400 });
+      if (coins.objects.length === 0) {
+        return corsJson({ error: 'Sponsor has no gas', code: 'SUBMISSION_FAILED' }, 400);
       }
 
-      const gasCoin = coins.data[0];
+      const gasCoin = coins.objects[0];
       transaction.setGasPayment([{
-        objectId: gasCoin.coinObjectId,
+        objectId: gasCoin.objectId,
         digest: gasCoin.digest,
         version: gasCoin.version,
       }]);
       transaction.setGasBudget(50000000);
 
       const builtTx = await transaction.build({ client });
-      return NextResponse.json({ bytes: Buffer.from(builtTx).toString('base64') });
+      return corsJson({ bytes: Buffer.from(builtTx).toString('base64') });
 
     } else if (action === 'execute') {
       const { bytes, userSignature, userAddress } = body;
       if (!bytes || !userSignature || !userAddress) {
-        return NextResponse.json({ error: 'Missing parameters', code: 'VALIDATION_ERROR' }, { status: 400 });
+        return corsJson({ error: 'Missing parameters', code: 'VALIDATION_ERROR' }, 400);
       }
 
       const transactionBytes = Buffer.from(bytes, 'base64');
@@ -84,19 +102,23 @@ export async function POST(
       const { signature: sponsorSignature } = await sponsorKeypair.signTransaction(transactionBytes);
 
       const signatures = [userSignature, sponsorSignature];
-      const result = await client.executeTransactionBlock({
-        transactionBlock: transactionBytes,
-        signature: signatures,
-        options: { showEffects: true, showEvents: true },
+      const result = await client.executeTransaction({
+        transaction: transactionBytes,
+        signatures,
       });
 
-      return NextResponse.json({ digest: result.digest });
+      if (result.$kind === 'FailedTransaction') {
+        const errStr = result.FailedTransaction.status.error ? JSON.stringify(result.FailedTransaction.status.error) : 'Sponsor execution failed';
+        return corsJson({ error: errStr, code: 'SUBMISSION_FAILED' }, 400);
+      }
+
+      return corsJson({ digest: result.Transaction?.digest || '' });
     } else {
-      return NextResponse.json({ error: 'Invalid action', code: 'VALIDATION_ERROR' }, { status: 404 });
+      return corsJson({ error: 'Invalid action', code: 'VALIDATION_ERROR' }, 404);
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[API Sponsor] Error:', error);
-    return NextResponse.json({ error: 'Internal server error', code: 'SUBMISSION_FAILED' }, { status: 500 });
+    return corsJson({ error: error?.message || 'Internal server error', code: 'SUBMISSION_FAILED' }, 500);
   }
 }

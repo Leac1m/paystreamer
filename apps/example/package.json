@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test:e2e": "playwright test --reporter=list",
-    "test": "vitest run && playwright test --reporter=list",
+    "test": "vitest run",
     "lint": "eslint"
   },
   "dependencies": {

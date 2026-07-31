@@ -137,8 +137,10 @@ function CheckoutProvider({ children }: { children: React.ReactNode }) {
     registryId: networkConfig.COIN_TYPE_REGISTRY_ID,
     clockId: CLOCK_OBJECT_ID,
     pusdType: networkConfig.PUSD_TYPE_ARG,
+    pusdPackageId: networkConfig.PUSD_PACKAGE_ID,
+    pusdTreasuryCapId: networkConfig.PUSD_TREASURY_CAP_ID,
     graphqlUrl: networkConfig.GRAPHQL_URL,
-    sponsorApiUrl: import.meta.env.VITE_SPONSOR_API_URL || "http://localhost:3000/sponsor",
+    sponsorApiUrl: import.meta.env.VITE_SPONSOR_API_URL || "http://localhost:3000/api/sponsor",
   }), [network, networkConfig]);
 
   return <PayStreamerProvider config={config}>{children}</PayStreamerProvider>;

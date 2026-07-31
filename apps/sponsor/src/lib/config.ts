@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Network
-export const SUI_RPC_URL = process.env.SUI_RPC_URL || 'https://fullnode.devnet.sui.io:443';
-export const NETWORK = process.env.NETWORK || 'devnet';
+const isTestMode = process.env.NODE_ENV === 'test' || process.env.VITEST;
+export const NETWORK = process.env.NETWORK || (isTestMode ? 'localnet' : 'testnet');
+export const SUI_RPC_URL = process.env.SUI_RPC_URL || (NETWORK === 'localnet' || NETWORK === 'local' ? 'http://127.0.0.1:9000' : `https://fullnode.${NETWORK}.sui.io:443`);
 export const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Contracts

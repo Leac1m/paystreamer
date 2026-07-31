@@ -319,8 +319,8 @@ export interface BuildRegisterPlatformTxParams {
 
 export function buildRegisterPlatformTx(params: BuildRegisterPlatformTxParams) {
   const { tx, packageId, clockId, name, description, category, iconUrl } = params;
-  tx.moveCall({
-    target: `${packageId}::platform::register_platform`,
+  const [platform, receipt] = tx.moveCall({
+    target: `${packageId}::platform::create_platform`,
     arguments: [
       tx.pure.string(name),
       tx.pure.string(description),
@@ -328,6 +328,11 @@ export function buildRegisterPlatformTx(params: BuildRegisterPlatformTxParams) {
       tx.pure.option("string", iconUrl || null),
       tx.object(clockId),
     ],
+  });
+
+  tx.moveCall({
+    target: `${packageId}::platform::register_platform`,
+    arguments: [platform, receipt],
   });
 }
 

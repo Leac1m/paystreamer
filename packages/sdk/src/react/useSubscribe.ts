@@ -90,10 +90,8 @@ export function useSubscribe(params: UseSubscribeParams) {
               objects(first: 50, filter: { type: $type }) {
                 nodes {
                   address
-                  asMoveObject {
-                    contents {
-                      json
-                    }
+                  contents {
+                    json
                   }
                 }
               }
@@ -108,7 +106,7 @@ export function useSubscribe(params: UseSubscribeParams) {
           const nodes = (res.data as any)?.address?.objects?.nodes || [];
           let total = 0n;
           for (const node of nodes) {
-            const balance = BigInt(node.asMoveObject?.contents?.json?.balance || 0);
+            const balance = BigInt(node.contents?.json?.balance || 0);
             total += balance;
             coinsToUse.push(node.address);
             if (total >= depositAmount) break;

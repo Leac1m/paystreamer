@@ -4,7 +4,7 @@ import { X, Wallet } from "lucide-react";
 import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "@paystreamer/sdk";
-import { TxStatusToast, TxStatus } from "../TxStatusToast";
+import { TxStatusToast, type TxStatus, type ExecutionMode } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { parsePUSDToMist, APP_COIN_DECIMALS } from "../../lib/format";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ export function DepositModal({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
+  const [executionMode, setExecutionMode] = useState<ExecutionMode | undefined>();
 
   useEffect(() => {
     if (account && isOpen) {
@@ -69,6 +70,7 @@ export function DepositModal({
 
     setTxStatus("pending");
     setTxMessage("Processing deposit...");
+    setExecutionMode(undefined);
 
     try {
       const depositParsed = parseFloat(depositAmount || "0");
@@ -112,6 +114,7 @@ export function DepositModal({
       setTxDigest(digest);
       setTxStatus("success");
       setTxMessage("Deposit successful!");
+      setExecutionMode(result.executionMode as ExecutionMode);
       
       // Refresh balances
       await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
@@ -214,6 +217,9 @@ export function DepositModal({
               </div>
             )}
 
+            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 text-center">
+              <span>⚡</span> Sponsored transaction (auto-fallback to wallet gas if SUI &ge; 0.01 or service offline)
+            </p>
             <Button
               onClick={handleDeposit}
               disabled={isPending || !depositAmount || hasInsufficientWalletBalance}
@@ -230,6 +236,7 @@ export function DepositModal({
           status={txStatus}
           message={txMessage}
           digest={txDigest}
+          executionMode={executionMode}
           onClose={() => setTxStatus("idle")}
         />
       </div>
