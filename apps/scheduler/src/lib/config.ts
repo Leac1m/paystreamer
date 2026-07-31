@@ -7,7 +7,7 @@ export const GRAPHQL_URL = process.env.VITE_GRAPHQL_URL;
 export const PACKAGE_ID = process.env.VITE_PACKAGE_ID as string;
 export const REGISTRY_ID = process.env.VITE_COIN_TYPE_REGISTRY_ID as string;
 export const PAYMENT_SCHEDULER_ID = process.env.VITE_PAYMENT_SCHEDULER_ID as string;
-export const SPONSOR_PRIVATE_KEY = process.env.SPONSOR_PRIVATE_KEY as string;
+export const SCHEDULER_PRIVATE_KEY = process.env.SCHEDULER_PRIVATE_KEY as string;
 export const PUSD_TYPE_ARG = process.env.VITE_PUSD_TYPE_ARG as string;
 export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
 
