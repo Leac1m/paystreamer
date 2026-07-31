@@ -28,8 +28,8 @@ test.describe('Demo SaaS User Flow', () => {
     await expect(burnerWalletButton).toBeVisible({ timeout: 10000 });
     await burnerWalletButton.click();
 
-    // The ConnectButton should change to the address or "Disconnect" should appear
-    await expect(page.getByRole('button', { name: /Disconnect/i }).first()).toBeVisible({ timeout: 15000 });
+    // The ConnectButton should change from "Connect Wallet" to displaying the connected address
+    await expect(page.getByRole('button', { name: /Connect Wallet/i })).not.toBeVisible({ timeout: 15000 });
 
     // 2. Initial state: Balance is 0, should show the Mint button
     // Ensure "Try the Live Demo" is gone because we're connected

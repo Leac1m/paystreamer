@@ -4,14 +4,19 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { NETWORK, SUI_RPC_URL, GRAPHQL_URL, SCHEDULER_PRIVATE_KEY } from './config.js';
 
+const netStr = NETWORK as string;
+const targetNetwork = netStr === 'localnet' ? 'local' : netStr;
+const defaultRpcUrl = (netStr === 'local' || netStr === 'localnet') ? 'http://127.0.0.1:9000' : `https://fullnode.${targetNetwork}.sui.io:443`;
+const defaultGraphqlUrl = (netStr === 'local' || netStr === 'localnet') ? 'http://127.0.0.1:8000/graphql' : `https://graphql.${targetNetwork}.sui.io/graphql`;
+
 export const grpcClient = new SuiGrpcClient({
-  network: NETWORK as any,
-  baseUrl: SUI_RPC_URL || `https://fullnode.${NETWORK}.sui.io:443`,
+  network: targetNetwork as any,
+  baseUrl: SUI_RPC_URL || defaultRpcUrl,
 });
 
 export const gqlClient = new SuiGraphQLClient({
-  network: NETWORK as any,
-  url: GRAPHQL_URL || `https://graphql.${NETWORK}.sui.io/graphql`,
+  network: (targetNetwork === 'local' ? 'localnet' : targetNetwork) as any,
+  url: GRAPHQL_URL || defaultGraphqlUrl,
 });
 
 export function getSchedulerKeypair() {

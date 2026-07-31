@@ -14,8 +14,7 @@ import {
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@paystreamer/sdk";
 import { parseMoveError, isRetryableError } from "../../lib/errors";
 import { formatMistToPUSD, formatFrequency } from "../../lib/format";
-import { TxStatusToast } from "../TxStatusToast";
-import { TxStatus } from "../TxStatusToast";
+import { TxStatusToast, type TxStatus, type ExecutionMode } from "../TxStatusToast";
 import { Pause, Play, X, Zap } from "lucide-react";
 import { 
   PAYMENT_SCHEDULER_ID,
@@ -65,6 +64,7 @@ export function SubscriptionCard({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState("");
+  const [executionMode, setExecutionMode] = useState<ExecutionMode | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -134,6 +134,7 @@ export function SubscriptionCard({
       setTxStatus("success");
       setTxMessage("Subscription paused");
       setTxDigest(result.digest!);
+      setExecutionMode(result.executionMode as ExecutionMode);
       await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
@@ -172,6 +173,7 @@ export function SubscriptionCard({
       setTxStatus("success");
       setTxMessage("Subscription resumed");
       setTxDigest(result.digest!);
+      setExecutionMode(result.executionMode as ExecutionMode);
       await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
@@ -210,6 +212,7 @@ export function SubscriptionCard({
       setTxStatus("success");
       setTxMessage("Subscription cancelled");
       setTxDigest(result.digest!);
+      setExecutionMode(result.executionMode as ExecutionMode);
       await client.waitForTransaction({ digest: result.digest! });
       await queryClient.invalidateQueries({ queryKey: ["subscription-accounts", account?.address] });
     } catch (err) {
@@ -256,6 +259,7 @@ export function SubscriptionCard({
         const result = await executeSponsored(tx);
         if (result.error) throw new Error(result.error);
         digest = result.digest;
+        setExecutionMode(result.executionMode as ExecutionMode);
       } catch (primaryErr) {
         const isTimeout =
           primaryErr instanceof Error &&
@@ -423,6 +427,7 @@ export function SubscriptionCard({
         status={txStatus}
         message={txMessage}
         digest={txDigest}
+        executionMode={executionMode}
         onClose={() => setTxStatus("idle")}
       />
 

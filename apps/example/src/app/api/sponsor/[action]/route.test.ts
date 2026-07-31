@@ -3,13 +3,13 @@ import { POST } from './route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies
-vi.mock('@mysten/sui/jsonRpc', () => {
+vi.mock('@mysten/sui/grpc', () => {
   return {
-    SuiJsonRpcClient: class {
-      getCoins = vi.fn().mockResolvedValue({
-        data: [{ coinObjectId: '0x1', digest: 'dig', version: 1 }]
+    SuiGrpcClient: class {
+      listCoins = vi.fn().mockResolvedValue({
+        objects: [{ objectId: '0x1', digest: 'dig', version: 1 }]
       });
-      executeTransactionBlock = vi.fn().mockResolvedValue({ digest: 'mock_digest' });
+      executeTransaction = vi.fn().mockResolvedValue({ $kind: 'Transaction', Transaction: { digest: 'mock_digest' } });
     }
   };
 });

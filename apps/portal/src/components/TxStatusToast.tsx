@@ -5,6 +5,7 @@ import { getErrorMessage } from "../lib/errors";
 import { useCurrentNetwork } from "@mysten/dapp-kit-react";
 
 export type ToastId = string;
+export type ExecutionMode = "sponsored" | "local_balance" | "local_fallback";
 
 export interface Toast {
   id: ToastId;
@@ -12,12 +13,13 @@ export interface Toast {
   message: string;
   error?: string;
   digest?: string;
+  executionMode?: ExecutionMode;
 }
 
 interface TxToastContextValue {
   toasts: Toast[];
   addToast: (id: ToastId) => void;
-  confirmToast: (id: ToastId, digest?: string, customMessage?: string) => void;
+  confirmToast: (id: ToastId, digest?: string, customMessage?: string, executionMode?: ExecutionMode) => void;
   failToast: (id: ToastId, error: unknown) => void;
   removeToast: (id: ToastId) => void;
 }
@@ -31,13 +33,13 @@ export function TxToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => [...prev, { id, status: "pending", message: "Transaction submitted..." }]);
   }, []);
 
-  const confirmToast = useCallback((id: ToastId, digest?: string, customMessage?: string) => {
+  const confirmToast = useCallback((id: ToastId, digest?: string, customMessage?: string, executionMode?: ExecutionMode) => {
     setToasts((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: customMessage || "Transaction confirmed", digest } : t))
+      prev.map((t) => (t.id === id ? { ...t, status: "confirmed", message: customMessage || "Transaction confirmed", digest, executionMode } : t))
     );
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 5000);
   }, []);
 
   const failToast = useCallback((id: ToastId, error: unknown) => {
@@ -91,6 +93,7 @@ function TxStatusToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemov
           {toast.status === "failed" && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white">{toast.message}</p>
+            <ExecutionModeBadge mode={toast.executionMode} variant="dark" />
             {toast.error && <p className="text-xs text-red-300 mt-1">{toast.error}</p>}
             {toast.digest && (
               <a
@@ -124,14 +127,57 @@ export function generateToastId(): string {
 
 export type TxStatus = "idle" | "pending" | "success" | "error";
 
+export function ExecutionModeBadge({ mode, variant = "dark" }: { mode?: ExecutionMode; variant?: "dark" | "light" }) {
+  if (!mode) return null;
+
+  if (mode === "sponsored") {
+    return (
+      <div className={cn(
+        "inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide border",
+        variant === "dark" 
+          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" 
+          : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+      )}>
+        ⚡ Gas Sponsored <span className="opacity-80 font-normal">(0 SUI Fee)</span>
+      </div>
+    );
+  }
+  if (mode === "local_balance") {
+    return (
+      <div className={cn(
+        "inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide border",
+        variant === "dark" 
+          ? "bg-amber-500/20 text-amber-200 border-amber-500/30" 
+          : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+      )}>
+        🪙 Paid via Wallet Gas <span className="opacity-80 font-normal">(SUI available)</span>
+      </div>
+    );
+  }
+  if (mode === "local_fallback") {
+    return (
+      <div className={cn(
+        "inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide border",
+        variant === "dark" 
+          ? "bg-orange-500/20 text-orange-200 border-orange-500/30" 
+          : "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800"
+      )}>
+        🛡️ Sponsor Fallback: <span className="opacity-80 font-normal">Paid via Wallet Gas</span>
+      </div>
+    );
+  }
+  return null;
+}
+
 interface TxStatusToastProps {
   status: TxStatus;
   message: string;
   digest?: string;
+  executionMode?: ExecutionMode;
   onClose?: () => void;
 }
 
-export function TxStatusToast({ status, message, digest, onClose }: TxStatusToastProps) {
+export function TxStatusToast({ status, message, digest, executionMode, onClose }: TxStatusToastProps) {
   const [visible, setVisible] = useState(false);
   const network = useCurrentNetwork();
 
@@ -180,6 +226,7 @@ export function TxStatusToast({ status, message, digest, onClose }: TxStatusToas
         >
           {message}
         </p>
+        <ExecutionModeBadge mode={executionMode} variant="light" />
         {digest && (
           <a
             href={`https://suiscan.xyz/${network}/tx/${digest}`}

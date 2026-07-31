@@ -1,14 +1,15 @@
 import { useState, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useCurrentAccount, useWalletConnection } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useWalletConnection, useDAppKit } from "@mysten/dapp-kit-react";
 import { ConnectModal } from "@mysten/dapp-kit-react/ui";
 import { Button } from "@paystreamer/sdk";
 
-import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink } from "lucide-react";
+import { Menu, Wallet, CreditCard, Bell, Settings, Loader2, ExternalLink, LogOut, Compass } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/dashboard/accounts", label: "Accounts", icon: Wallet },
   { path: "/dashboard/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { path: "/explore", label: "Explore Platforms", icon: Compass },
   { path: "/dashboard/activity", label: "Activity", icon: Bell },
   { path: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
 export function DashboardLayout() {
   const account = useCurrentAccount();
   const { isConnecting } = useWalletConnection();
+  const dAppKit = useDAppKit();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -106,12 +108,19 @@ export function DashboardLayout() {
               <ExternalLink size={16} />
               Platform Portal
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-xs text-muted-foreground font-mono">
-                {account.address.slice(0, 6)}...{account.address.slice(-4)}
-              </span>
-            </div>
+            <button
+              onClick={() => dAppKit.disconnectWallet()}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 hover:bg-red-500/10 border border-border/50 hover:border-red-500/20 text-muted-foreground hover:text-red-500 transition-all group cursor-pointer"
+              title="Disconnect wallet"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 group-hover:bg-red-500 transition-colors" />
+                <span className="text-xs font-mono font-medium text-foreground/90 group-hover:text-red-500 transition-colors">
+                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                </span>
+              </div>
+              <LogOut size={14} className="opacity-40 group-hover:opacity-100 group-hover:text-red-500 transition-all" />
+            </button>
           </div>
         </aside>
 

@@ -194,9 +194,7 @@ async function fetchBalanceMIST(
     query: `
             query GetAccount($id: SuiAddress!) {
                 object(address: $id) {
-                    asMoveObject {
-                        contents { json }
-                    }
+                    asMoveObject { contents { json } }
                 }
             }
         `,

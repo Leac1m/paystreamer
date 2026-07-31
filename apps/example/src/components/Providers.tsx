@@ -5,24 +5,26 @@ import { PayStreamerProvider, getConfig, CLOCK_OBJECT_ID } from '@paystreamer/sd
 import { ReactNode } from 'react';
 import { createPersistentBurnerWalletInitializer } from '../lib/persistentBurnerWallet';
 import { DAppKitProvider, createDAppKit } from '@mysten/dapp-kit-react';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: ReactNode }) {
-  // Determine network from env, defaulting to localnet
-  const defaultNetwork = (process.env.NEXT_PUBLIC_NETWORK || 'localnet') as any;
-  const sdkConfig = getConfig(defaultNetwork);
+  // Default to testnet for live demo usage, and localnet only during automated test runs
+  const isTestMode = process.env.NODE_ENV === 'test' || process.env.NEXT_PUBLIC_IS_TEST_MODE === 'true';
+  const defaultNetwork = (process.env.NEXT_PUBLIC_NETWORK || (isTestMode ? 'localnet' : 'testnet')) as any;
+  const sdkConfig = getConfig(defaultNetwork === 'localnet' ? 'local' : defaultNetwork);
 
   const dAppKit = createDAppKit({
     enableBurnerWallet: false,
     networks: ['localnet', 'testnet', 'mainnet'],
     defaultNetwork: defaultNetwork,
     createClient: (network: string) => {
-      const url = network === 'localnet' 
-        ? 'http://127.0.0.1:8000/graphql' 
-        : `https://graphql.${network}.sui.io/graphql`;
-      return new SuiGraphQLClient({ url, network });
+      const baseUrl = network === 'localnet' 
+        ? 'http://127.0.0.1:9000' 
+        : `https://fullnode.${network}.sui.io:443`;
+      const targetNetwork = network === 'localnet' ? 'local' : network;
+      return new SuiGrpcClient({ baseUrl, network: targetNetwork as any });
     },
     walletInitializers: [createPersistentBurnerWalletInitializer() as any]
   });

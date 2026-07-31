@@ -60,11 +60,9 @@ export default function NavBar() {
   }, []);
 
   const navLinks = [
-    { label: 'How It Works', href: '/#how-it-works' },
-    { label: 'The Problem', href: '/#the-problem' },
-    { label: 'Platform Features', href: '/#for-platforms' },
-    { label: 'Pricing', href: '/pricing' },
-    { label: 'Security', href: '/#security' },
+    { label: 'Subscriptions Dashboard', href: '/dashboard' },
+    { label: 'Explore Platforms', href: '/explore' },
+    { label: 'Platform Portal', href: '/platforms' },
   ];
 
   return (

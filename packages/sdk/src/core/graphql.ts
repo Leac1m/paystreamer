@@ -151,7 +151,7 @@ export async function queryMultiplePlatforms(platformIds: string[], network?: Su
           }
           asMoveObject { contents { json } }
         }
-      `).join("\\n")}
+      `).join("\n")}
     }
   `;
 

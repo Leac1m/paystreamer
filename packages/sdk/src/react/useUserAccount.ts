@@ -34,10 +34,8 @@ export function useUserAccount() {
             objects(filter: { type: $type }) {
               nodes {
                 address
-                asMoveObject {
-                  contents {
-                    json
-                  }
+                contents {
+                  json
                 }
               }
             }
@@ -64,7 +62,7 @@ export function useUserAccount() {
 
       if (resData?.address?.objects?.nodes && resData.address.objects.nodes.length > 0) {
         const obj = resData.address.objects.nodes[0];
-        const json = obj.asMoveObject?.contents?.json;
+        const json = obj.contents?.json;
         if (json?.account_id) {
           accountCapId = obj.address || '';
           accountId = json.account_id;

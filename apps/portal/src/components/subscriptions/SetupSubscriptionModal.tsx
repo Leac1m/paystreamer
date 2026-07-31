@@ -4,7 +4,7 @@ import { X, Wallet, CheckCircle } from "lucide-react";
 import { useCurrentClient, useCurrentAccount } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "@paystreamer/sdk";
-import { TxStatusToast, TxStatus } from "../TxStatusToast";
+import { TxStatusToast, type TxStatus, type ExecutionMode } from "../TxStatusToast";
 import { parseMoveError } from "../../lib/errors";
 import { APP_COIN_DECIMALS, parsePUSDToMist } from "../../lib/format";
 import { useNavigate } from "react-router-dom";
@@ -82,6 +82,7 @@ export function SetupSubscriptionModal({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txMessage, setTxMessage] = useState("");
   const [txDigest, setTxDigest] = useState<string | undefined>();
+  const [executionMode, setExecutionMode] = useState<ExecutionMode | undefined>();
 
   useEffect(() => {
     if (isOpen) {
@@ -89,6 +90,7 @@ export function SetupSubscriptionModal({
       setDepositAmount(defaultDepositUsd.toString());
       setTxStatus("idle");
       setTxDigest(undefined);
+      setExecutionMode(undefined);
     }
   }, [isOpen, platformId, tierIndex]);
 
@@ -107,6 +109,7 @@ export function SetupSubscriptionModal({
 
     setTxStatus("pending");
     setTxMessage(hasAccount ? "Subscribing..." : "Setting up account and subscribing...");
+    setExecutionMode(undefined);
 
     try {
       const depositParsed = parseFloat(depositAmount || "0");
@@ -154,6 +157,7 @@ export function SetupSubscriptionModal({
       setTxDigest(txDigest);
       setTxStatus("success");
       setTxMessage("Subscription active!");
+      setExecutionMode(result.executionMode as ExecutionMode);
       
       onSuccess(txDigest);
       setStep("success");
@@ -284,6 +288,9 @@ export function SetupSubscriptionModal({
                   </div>
                 )}
 
+                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 text-center my-2">
+                  <span>⚡</span> Sponsored transaction (auto-fallback to wallet gas if SUI &ge; 0.01 or service offline)
+                </p>
                 <Button
                   onClick={handleSubscribe}
                   disabled={isPending || hasInsufficientWalletBalance}
@@ -345,6 +352,7 @@ export function SetupSubscriptionModal({
           status={txStatus}
           message={txMessage}
           digest={txDigest}
+          executionMode={executionMode}
           onClose={() => setTxStatus("idle")}
         />
       </div>

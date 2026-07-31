@@ -2,7 +2,8 @@ import { config } from 'dotenv';
 import { getConfig, SupportedNetwork } from '@paystreamer/sdk';
 config({ path: '../../.env' }); // Load from root
 
-export const NETWORK = (process.env.VITE_NETWORK || process.env.NETWORK || 'devnet') as SupportedNetwork;
+const isTestMode = process.env.NODE_ENV === 'test' || process.env.VITEST;
+export const NETWORK = (process.env.VITE_NETWORK || process.env.NETWORK || (isTestMode ? 'local' : 'testnet')) as SupportedNetwork;
 const networkConfig = getConfig(NETWORK);
 
 export const SUI_RPC_URL = process.env.VITE_SUI_RPC_URL;
