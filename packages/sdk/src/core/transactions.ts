@@ -61,16 +61,14 @@ export function buildCreateAccountTx(params: BuildCreateAccountTxParams) {
 export interface BuildDepositTxParams {
   tx: Transaction;
   packageId: string;
-  clockId: string;
   denomination: string;
   accountId: string;
-  capId: string;
   depositAmount: bigint;
   coinsToUse: string[];
 }
 
 export function buildDepositTx(params: BuildDepositTxParams) {
-  const { tx, packageId, clockId, denomination, accountId, capId, depositAmount, coinsToUse } = params;
+  const { tx, packageId, denomination, accountId, depositAmount, coinsToUse } = params;
 
   if (coinsToUse.length === 0) {
     throw new Error("coinsToUse must be provided for deposit");
