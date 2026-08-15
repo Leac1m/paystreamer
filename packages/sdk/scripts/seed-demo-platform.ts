@@ -40,6 +40,7 @@ import { fileURLToPath } from "node:url";
 
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 
 import {
   CLOCK_OBJECT_ID,
@@ -57,7 +58,8 @@ const V2_NETWORK = NETWORK;
 const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
 const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
 const PUSD_TREASURY_CAP_ID = networkConfig.PUSD_TREASURY_CAP_ID;
-import { loadKeypair, newTx, sharedObjectMut } from "./test-utils.ts";
+const PUSD_TREASURY_CAP_INIT_VERSION = networkConfig.PUSD_TREASURY_CAP_INIT_VERSION;
+import { loadKeypair, newTx, sharedObjectMut, sharedObjectImm } from "./test-utils.ts";
 
 const DEMO_PLATFORM_NAME = "Demo SaaS 2";
 const DEMO_PLATFORM_DESCRIPTION =
@@ -92,23 +94,9 @@ type SeedResult = {
   pusdDiscriminant: number;
 };
 
-async function fetchPlatformObjectVersion(
-  client: SuiGraphQLClient,
-  platformId: string,
-): Promise<number | undefined> {
-  const res = await client.query({
-    query: `
-      query GetObj($id: SuiAddress!) {
-        object(address: $id) {
-          asMoveObject { contents { json } }
-          owner { ... on Shared { initialSharedVersion } }
-        }
-      }
-    `,
-    variables: { id: platformId },
-  });
-  const v = (res.data as any)?.object?.owner?.initialSharedVersion;
-  return typeof v === "number" ? v : undefined;
+async function fetchPlatformObjectVersion(client: SuiGrpcClient, platformId: string) {
+  const res = await client.core.getObject({ objectId: platformId });
+  return res.data ? Number(res.data.version) : undefined;
 }
 
 /**
@@ -126,6 +114,7 @@ async function fetchPlatformObjectVersion(
  */
 async function discoverDemoPlatform(
   client: SuiGraphQLClient,
+  grpcClient: SuiGrpcClient
 ): Promise<DiscoveredPlatform | undefined> {
   const eventType = `${V3_PACKAGE_ID}::platform::PlatformRegistered`;
   let cursor: string | null = null;
@@ -162,7 +151,7 @@ async function discoverDemoPlatform(
   }
 
   if (!match) return undefined;
-  const version = await fetchPlatformObjectVersion(client, match.platformId);
+  const version = await fetchPlatformObjectVersion(grpcClient, match.platformId);
   if (version === undefined) return undefined;
   return {
     platformId: match.platformId,
@@ -207,16 +196,17 @@ async function fetchSuiDiscriminant(
 
 
 async function mintPusdToDemoUser(
-  client: SuiGraphQLClient,
+  client: SuiGrpcClient,
   keypair: ReturnType<typeof loadKeypair>,
   treasuryCapId: string,
+  treasuryCapInitVersion: number,
   amount: bigint,
 ): Promise<void> {
   const tx = newTx(keypair);
   tx.moveCall({
     target: `${PUSD_PACKAGE_ID}::pusd::mint`,
     arguments: [
-      tx.object(treasuryCapId),
+      sharedObjectMut(treasuryCapId, treasuryCapInitVersion)(tx),
       tx.pure.address(DEMO_USER_ADDRESS),
       tx.pure.u64(amount),
     ],
@@ -228,52 +218,22 @@ async function mintPusdToDemoUser(
 }
 
 async function findExistingTier(
-  client: SuiGraphQLClient,
+  client: SuiGrpcClient,
   platformId: string,
 ): Promise<{ tierIndex: number; amount: string; frequencyMs: string } | undefined> {
-  // Read the platform object and look for a tier with a matching name.
-  // Tier 0 is the only tier on a freshly seeded demo platform, but the
-  // seed should be robust to re-runs that added extra tiers.
-  const res = await client.query({
-    query: `
-      query GetPlatform($id: SuiAddress!) {
-        object(address: $id) {
-          asMoveObject { contents { json } }
-        }
-      }
-    `,
-    variables: { id: platformId },
-  });
-  const json: any = (res.data as any)?.object?.asMoveObject?.contents?.json;
-  if (!json || typeof json !== "object") return undefined;
-
-  // The `tiers` field is a `VecMap<u64, SubscriptionTier>`. Sui GraphQL
-  // renders `VecMap` as `{ contents: [{ key, value }, ...] }` — the
-  // top-level `tiers` object is the wrapper, not the array of pairs.
-  // Unwrap the `contents` array first, then iterate the pairs.
-  const tiers = json.tiers;
-  if (!tiers) return undefined;
+  const res = await client.core.getObject({ objectId: platformId, include: { content: true } });
+  const content = (res.data as any)?.content;
+  if (content?.dataType !== "moveObject") return undefined;
+  const fields = content.fields;
+  
+  if (!fields.tiers) return undefined;
+  const tiers = fields.tiers.fields.contents; // VecMap
+  if (!Array.isArray(tiers)) return undefined;
 
   let pairs: Array<{ key: number; value: any }> = [];
-  if (Array.isArray(tiers.contents)) {
-    for (const e of tiers.contents) {
-      if (e && typeof e.key !== "undefined" && e.value) {
-        pairs.push({ key: Number(e.key), value: e.value });
-      }
-    }
-  } else if (Array.isArray(tiers)) {
-    // Defensive: in case a future Sui GraphQL change drops the
-    // `contents` wrapper.
-    for (const e of tiers) {
-      if (e && typeof e.key !== "undefined" && e.value) {
-        pairs.push({ key: Number(e.key), value: e.value });
-      }
-    }
-  } else if (typeof tiers === "object") {
-    for (const [k, v] of Object.entries(tiers)) {
-      if (v && typeof v === "object" && (v as any).name) {
-        pairs.push({ key: Number(k), value: v });
-      }
+  for (const e of tiers) {
+    if (e && typeof e.fields?.key !== "undefined" && e.fields?.value) {
+      pairs.push({ key: Number(e.fields.key), value: e.fields.value.fields });
     }
   }
 
@@ -290,53 +250,79 @@ async function findExistingTier(
 }
 
 async function executeOrSkip(
-  client: SuiGraphQLClient,
+  client: SuiGrpcClient,
   keypair: ReturnType<typeof loadKeypair>,
   name: string,
   tx: Transaction,
   expectedAbortCodes: number[] = [],
 ): Promise<{ status: "success" | "failure" | "skipped"; digest: string; error?: string }> {
   console.log(`\n=== ${name} ===`);
-  try {
-    const result = await client.signAndExecuteTransaction({
-      transaction: tx,
-      signer: keypair,
-    });
-    if (result.$kind === "FailedTransaction") {
-      const msg = result.FailedTransaction.status.error
-        ? JSON.stringify(result.FailedTransaction.status.error)
-        : "unknown";
-      // Treat known idempotency-related aborts (e.g. tier already exists
-      // with the same name) as a soft success: the script's discover
-      // step will pick up the existing tier afterwards.
-      const knownAborts: Record<number, string> = {
-        32770: "EInvalidTier",
-        4097: "EPlatformAlreadyExists", // placeholder — adjust if Move defines its own
-      };
-      const matched = expectedAbortCodes.find((c) => msg.includes(String(c)));
-      if (matched !== undefined) {
-        console.log(`  status: expected (${knownAborts[matched] ?? `code ${matched}`})`);
+  
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const grpcClient = new SuiGrpcClient({
+        baseUrl: V2_NETWORK === "local" ? "http://127.0.0.1:9000" : (V2_NETWORK === "devnet" ? "https://fullnode.devnet.sui.io:443" : "https://fullnode.testnet.sui.io:443")
+      });
+
+      const result = await keypair.signAndExecuteTransaction({
+        transaction: tx,
+        client: grpcClient,
+        include: { effects: true }
+      });
+
+      if (result.$kind === 'FailedTransaction') {
+        const errorMsg = result.FailedTransaction.status.error?.message || "unknown";
+        if (expectedAbortCodes.some(c => errorMsg.includes(String(c)))) {
+          console.log(`  status: expected abort caught (idempotent re-run)`);
+          return { status: "success", digest: result.digest };
+        }
+        console.log(`  status: FAILED (${errorMsg})`);
+        return { status: "failure", digest: result.digest, error: errorMsg };
+      }
+
+      console.log(`  status: executed (waiting for finality...)`);
+      try {
+        await grpcClient.waitForTransaction({ digest: result.digest });
+      } catch (waitError) {
+        // Execution already succeeded above (we only reach here past the
+        // FailedTransaction check) — this local node's grpc getTransaction
+        // has been observed to lag/time out confirming transactions that
+        // already landed. Nothing downstream depends on this wait, so treat
+        // it as a soft warning rather than failing an already-successful tx.
+        const waitMessage = waitError instanceof Error ? waitError.message : String(waitError);
+        console.log(`  status: WARNING (finality wait failed, but transaction already executed: ${waitMessage})`);
+      }
+      console.log(`  status: success`);
+
+      return { status: "success", digest: result.digest || "executed" };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (expectedAbortCodes.some((c) => message.includes(String(c)))) {
+        console.log(`  status: expected abort caught (idempotent re-run)`);
         return { status: "success", digest: "" };
       }
-      console.log(`  status: FAILED (${msg})`);
-      return { status: "failure", digest: result.FailedTransaction.digest, error: msg };
+      
+      const isStaleGasCoin = message.includes("unavailable for consumption") || message.includes("needs to be rebuilt");
+      if ((message.includes("timed-out") || message.includes("timed out") || message.includes("timeout") || isStaleGasCoin) && attempts < maxAttempts) {
+        console.log(`  status: ${isStaleGasCoin ? "STALE GAS COIN" : "TIMEOUT"} (attempt ${attempts}/${maxAttempts}), retrying in 5 seconds...`);
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+      
+      console.log(`  status: EXCEPTION (${message})`);
+      return { status: "failure", digest: "", error: message };
     }
-    const digest = result.Transaction!.digest;
-    console.log(`  status: success   digest: ${digest}`);
-    return { status: "success", digest };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    if (expectedAbortCodes.some((c) => message.includes(String(c)))) {
-      console.log(`  status: expected abort caught (idempotent re-run)`);
-      return { status: "success", digest: "" };
-    }
-    console.log(`  status: EXCEPTION (${message})`);
-    return { status: "failure", digest: "", error: message };
   }
+  
+  return { status: "failure", digest: "", error: "Max retries reached" };
 }
 
 async function registerPlatformWithTier(
-  client: SuiGraphQLClient,
+  client: SuiGrpcClient,
   keypair: ReturnType<typeof loadKeypair>,
   denominationType: string,
 ): Promise<DiscoveredPlatform> {
@@ -353,8 +339,8 @@ async function registerPlatformWithTier(
       tx.pure.string(DEMO_PLATFORM_NAME),
       tx.pure.string(DEMO_PLATFORM_DESCRIPTION),
       tx.pure.string(DEMO_PLATFORM_CATEGORY),
-      tx.pure.option("string", null),
-      tx.object(CLOCK_OBJECT_ID),
+      tx.pure.option('string', null),
+      sharedObjectImm('0x6', 1)(tx),
     ],
   });
 
@@ -374,31 +360,57 @@ async function registerPlatformWithTier(
     arguments: [platform, receipt],
   });
 
-  const r = await executeOrSkip(
-    client,
-    keypair,
-    "register_platform_with_tier",
-    tx,
+  
+
+  console.log(`\n=== register_platform_with_tier ===`);
+  const grpcClient = new SuiGrpcClient({
+    baseUrl: V2_NETWORK === "local" ? "http://127.0.0.1:9000" : (V2_NETWORK === "devnet" ? "https://fullnode.devnet.sui.io:443" : "https://fullnode.testnet.sui.io:443")
+  });
+  const result = await keypair.signAndExecuteTransaction({
+    transaction: tx,
+    client: grpcClient,
+    include: { effects: true, events: true, objectChanges: true }
+  });
+
+  if (result.$kind === 'FailedTransaction') {
+    throw new Error(`register_platform_with_tier failed: ${result.FailedTransaction.status.error?.message}`);
+  }
+  // Wait for finality before any later transaction from this sender resolves
+  // its own gas coin — otherwise the next call's automatic gas selection can
+  // race the local node's read index and pick up the pre-mutation version.
+  const txDigest = (result as any).Transaction?.digest ?? (result as any).digest;
+  await grpcClient.waitForTransaction({ digest: txDigest });
+  console.log(`  status: success`);
+
+  // In v2, depending on how you call it, the result might be wrapped in `{ $kind: 'Transaction', Transaction: { effects: ... } }`
+  const effects = (result as any).Transaction?.effects ?? (result as any).effects;
+  const changedObjects = effects?.changedObjects ?? [];
+  
+  // Find the created shared object, which should be our platform!
+  const sharedObject = changedObjects.find((o: any) => 
+    o.idOperation === "Created" && 
+    (o.outputOwner?.Shared || o.outputOwner?.shared || o.outputOwner?.$kind === "Shared")
   );
-  if (r.status === "failure") {
-    throw new Error(`register_platform_with_tier failed: ${r.error ?? "unknown"}`);
+  
+  if (!sharedObject) {
+    throw new Error(`register_platform_with_tier reported success but no Shared object was created in ${changedObjects.length} changed objects`);
   }
-  let discovered: Awaited<ReturnType<typeof discoverDemoPlatform>>;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    discovered = await discoverDemoPlatform(client);
-    if (discovered) break;
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  if (!discovered) {
-    throw new Error(
-      "register_platform_with_tier reported success but no \"Demo SaaS\" PlatformRegistered event was found",
-    );
-  }
-  return discovered;
+
+  const platformId = sharedObject.objectId;
+  const sharedOwner = sharedObject.outputOwner?.Shared || sharedObject.outputOwner?.shared;
+  const initialSharedVersion = sharedOwner?.initial_shared_version 
+    ?? sharedOwner?.initialSharedVersion
+    ?? Number(sharedObject.outputVersion);
+
+  return {
+    platformId,
+    initialSharedVersion: Number(initialSharedVersion),
+    foundExisting: false,
+  };
 }
 
 async function createDemoTier(
-  client: SuiGraphQLClient,
+  client: SuiGrpcClient,
   keypair: ReturnType<typeof loadKeypair>,
   platformId: string,
   platformInitVersion: number,
@@ -496,10 +508,18 @@ function patchConstants(result: SeedResult): { patched: boolean; reason: string 
 async function main() {
   const keypair = loadKeypair();
   const sender = keypair.toSuiAddress();
-  const client = new SuiGraphQLClient({
+  
+  const grpcClient = new SuiGrpcClient({
+    baseUrl: V2_NETWORK === "local" ? "http://127.0.0.1:9000" : (V2_NETWORK === "devnet" ? "https://fullnode.devnet.sui.io:443" : "https://fullnode.testnet.sui.io:443")
+  });
+  
+  const graphqlClient = new SuiGraphQLClient({
     url: V2_GRAPHQL_URL,
     network: V2_NETWORK,
   });
+  const client = graphqlClient;
+
+
 
   console.log("======================================================");
   console.log(" PayStreamer — Demo Platform Seeder (v3 migration)");
@@ -516,7 +536,7 @@ async function main() {
   const pusdDiscriminant = 1;
 
   let platform: DiscoveredPlatform;
-  const existing = await discoverDemoPlatform(client);
+  const existing = await discoverDemoPlatform(client, grpcClient);
   if (existing) {
     console.log("\n=== discover platform ===");
     console.log(`  status: FOUND existing "Demo SaaS" platform`);
@@ -525,24 +545,33 @@ async function main() {
     platform = existing;
   } else {
     console.log("\n=== register_platform_with_tier ===");
-    platform = await registerPlatformWithTier(client, keypair, PUSD_TYPE_ARG);
+    platform = await registerPlatformWithTier(grpcClient, keypair, PUSD_TYPE_ARG);
   }
 
   console.log("\n=== mint PUSD to demo user ===");
-  await mintPusdToDemoUser(client, keypair, PUSD_TREASURY_CAP_ID, 10_000_000_000n);
+  await mintPusdToDemoUser(grpcClient, keypair, PUSD_TREASURY_CAP_ID, PUSD_TREASURY_CAP_INIT_VERSION, 10_000_000_000n);
 
-  const tier = await findExistingTier(client, platform.platformId);
-  if (!tier) {
-    throw new Error("tier not found after platform registration");
+  let tierIndex = 0;
+  let tierAmountMist = DEMO_TIER_AMOUNT_MIST.toString();
+  let tierFrequencyMs = DEMO_TIER_FREQUENCY_MS.toString();
+
+  if (platform.foundExisting) {
+    const tier = await findExistingTier(client, platform.platformId);
+    if (!tier) {
+      throw new Error("tier not found on existing platform");
+    }
+    tierIndex = tier.tierIndex;
+    tierAmountMist = tier.amount;
+    tierFrequencyMs = tier.frequencyMs;
   }
 
   const result: SeedResult = {
     platformId: platform.platformId,
     platformInitVersion: platform.initialSharedVersion,
-    tierIndex: tier.tierIndex,
+    tierIndex,
     tierName: DEMO_TIER_NAME,
-    tierAmountMist: tier.amount,
-    tierFrequencyMs: tier.frequencyMs,
+    tierAmountMist,
+    tierFrequencyMs,
     suiDiscriminant: 0,
     pusdDiscriminant,
   };

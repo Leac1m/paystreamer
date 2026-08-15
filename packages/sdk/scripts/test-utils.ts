@@ -79,3 +79,14 @@ export function sharedObjectMut(id: string, initialVersion: number) {
       }),
     );
 }
+
+export function sharedObjectImm(id: string, initialVersion: number) {
+  return (tx: Transaction) =>
+    tx.object(
+      Inputs.SharedObjectRef({
+        objectId: id,
+        mutable: false,
+        initialSharedVersion: initialVersion,
+      }),
+    );
+}

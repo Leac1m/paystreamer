@@ -1,13 +1,13 @@
-import { SuiJsonRpcClient as SuiClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { SPONSOR_PRIVATE_KEY, SPONSOR_ADDRESS, SUI_RPC_URL, NETWORK } from './config.js';
 
-// Initialize SuiClient
-export const client = new SuiClient({
-  url: SUI_RPC_URL,
+// Initialize SuiGrpcClient
+export const client = new SuiGrpcClient({
+  baseUrl: SUI_RPC_URL,
   network: NETWORK as 'devnet' | 'testnet' | 'mainnet',
 });
 

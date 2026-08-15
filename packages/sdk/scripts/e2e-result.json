@@ -1,21 +1,21 @@
 {
   "network": "local",
-  "packageId": "0xe3eafda79cf9963f1e5df5d752bd6da9c69e28ca79136465e90948ff0640bc5d",
-  "sender": "0xc345cfd1c13b10fe1a406f7b94825321751e0385d7d9b61730ead3fd0f5d908d",
+  "packageId": "0x4889e6b34c694040dc1ff00314cd46b3ab067bc4dbe420f998e7f00808e8e81a",
+  "sender": "0xadc3cabae9073e7f4935fb5449f95ced77a312ffda55a82d5e9b44564fdaced3",
   "ids": {
-    "platformId": "0x50a58eaed271251b702e8a61a35b0aadd15889be5bd5869d5f4aa4ac639eaff2",
-    "accountId": "0x939996edb0f7faa25bcd1ed3540f559bac117aa67dc5dfe9305fe7606cd8300a",
-    "capId": "0x50c2e75d0e9f9aefac594a48558639b0fc8a119ce7d72fca0a2cd7b65f75d2f1"
+    "platformId": "0x1cfc20db70bae368ce90fb1e7ce123019f10f65d83b985ed93f05b81946d6d50",
+    "accountId": "0x82a57e11119fcc7075f04537dfda06865d8c982e7ced9f3da23f9ac41ba0afa6",
+    "capId": "0x2edce3f7f502f6ee0281d8c96054c61cbedc6e939011aa1c2bd8c097a120fd55"
   },
   "digests": {
-    "Step 2: register_platform_with_tier": "CMeexJMTE2PJwUU499yniBqVAmC6TTAB99zYuisVdYfk",
-    "Step 3: create_account + share_account": "76E1DEihawxrEc7ViZZQCcu8cAn8JUE1hAjJQh1j4CKZ",
-    "Step 4a: mint PUSD": "4WCmTvSnqB3iz4Cy2MLsUofVqAd3sfTf29CzYq3ct4KM",
-    "Step 4b: deposit PUSD": "5Ch886Rmz5xMEhJRzbEGmb15jHNN4KfdNrcvTWQB78T4",
-    "Step 5: create_subscription": "rYyGkGyNqm5fqbywTw6DNNEwk9LsqVZMAWbo7CF65VH",
-    "Step 6: process_due_payment (1st)": "AgfoN9J3YkWuFE5mQ25ZzBtmSKL8RAkjs5VUbqkecFiN",
-    "Step 7: process_due_payment (2nd)": "J4xzckrxJhMRcZhzmNFuHwFvdfaZfNuycDWy9widLo5F",
-    "Step 8: cancel_subscription": "HBgNTa87KGrDpJgp8wrmygtCjEzWnikzSYWwuGV4Pyo7"
+    "Step 2: register_platform_with_tier": "EF2idcwazaB86J9kRDZW1kueUNMXBe5wycHBVphiVBJf",
+    "Step 3: create_account + share_account": "ZfzMRZ89aD3w5MKhQaWPJoELsfBUCK6U2uYK43vZSLV",
+    "Step 4a: mint PUSD": "Huhe9CRUN2QTDxfEco7Y8Nd5ifaXGiZB34G8EPncuPaY",
+    "Step 4b: deposit PUSD": "3kzc3oneWqAA4w9hev8LPuPtcdXfwJp2qSaJw3HopPDN",
+    "Step 5: create_subscription": "9MnUDU4oz78WmnJFJzwaP95jZNrzXBqQ43ec7DPD8NDq",
+    "Step 6: process_due_payment (1st)": "AQHtFxBhBwPrY3jj4srqsGndEZQccyoJEUGLssoFkTLF",
+    "Step 7: process_due_payment (2nd)": "Fw13TbvPSgKjLjh1bYMHb599fuFwKU64t75aPzaNXxLp",
+    "Step 8: cancel_subscription": "8f2D3vpEXvgVmmdVTdJzUPKNC5VJofR7nrXLah3UQKbd"
   },
   "balanceAfter1stPayment": "4000000",
   "balanceAfter2ndPayment": "3000000",
@@ -39,44 +39,44 @@
     },
     {
       "step": "Step 2: register_platform_with_tier",
-      "digest": "CMeexJMTE2PJwUU499yniBqVAmC6TTAB99zYuisVdYfk",
+      "digest": "EF2idcwazaB86J9kRDZW1kueUNMXBe5wycHBVphiVBJf",
       "status": "success"
     },
     {
       "step": "Step 3: create_account + share_account",
-      "digest": "76E1DEihawxrEc7ViZZQCcu8cAn8JUE1hAjJQh1j4CKZ",
+      "digest": "ZfzMRZ89aD3w5MKhQaWPJoELsfBUCK6U2uYK43vZSLV",
       "status": "success"
     },
     {
       "step": "Step 4a: mint PUSD",
-      "digest": "4WCmTvSnqB3iz4Cy2MLsUofVqAd3sfTf29CzYq3ct4KM",
+      "digest": "Huhe9CRUN2QTDxfEco7Y8Nd5ifaXGiZB34G8EPncuPaY",
       "status": "success"
     },
     {
       "step": "Step 4b: deposit PUSD",
-      "digest": "5Ch886Rmz5xMEhJRzbEGmb15jHNN4KfdNrcvTWQB78T4",
+      "digest": "3kzc3oneWqAA4w9hev8LPuPtcdXfwJp2qSaJw3HopPDN",
       "status": "success"
     },
     {
       "step": "Step 5: create_subscription",
-      "digest": "rYyGkGyNqm5fqbywTw6DNNEwk9LsqVZMAWbo7CF65VH",
+      "digest": "9MnUDU4oz78WmnJFJzwaP95jZNrzXBqQ43ec7DPD8NDq",
       "status": "success"
     },
     {
       "step": "Step 6: process_due_payment (1st)",
-      "digest": "AgfoN9J3YkWuFE5mQ25ZzBtmSKL8RAkjs5VUbqkecFiN",
+      "digest": "AQHtFxBhBwPrY3jj4srqsGndEZQccyoJEUGLssoFkTLF",
       "status": "success"
     },
     {
       "step": "Step 7: process_due_payment (2nd)",
-      "digest": "J4xzckrxJhMRcZhzmNFuHwFvdfaZfNuycDWy9widLo5F",
+      "digest": "Fw13TbvPSgKjLjh1bYMHb599fuFwKU64t75aPzaNXxLp",
       "status": "success"
     },
     {
       "step": "Step 8: cancel_subscription",
-      "digest": "HBgNTa87KGrDpJgp8wrmygtCjEzWnikzSYWwuGV4Pyo7",
+      "digest": "8f2D3vpEXvgVmmdVTdJzUPKNC5VJofR7nrXLah3UQKbd",
       "status": "success"
     }
   ],
-  "timestamp": "2026-07-31T10:28:16.022Z"
+  "timestamp": "2026-08-15T14:27:43.065Z"
 }

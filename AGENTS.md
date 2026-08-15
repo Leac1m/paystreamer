@@ -114,12 +114,9 @@ See `src/lib/persistentBurnerWallet.ts`.
 
 ## Skills
 
-Load before Sui work:
-```sh
-npx skills https://github.com/MystenLabs/skills
-```
+**MANDATORY RULE FOR ALL AGENT SESSIONS**: You MUST ALWAYS read and reference the local skills in `@[/home/michael/projects/paystreamer/.agents/skills]` before making any SDK or Move choices. The Sui ecosystem moves fast. For example, `SuiClient` is no longer part of `@mysten/sui/client` (replaced by `SuiGrpcClient` in `@mysten/sui/grpc`). If you do not read the skills every time, you will write deprecated or broken code.
 
-Key skills: `sui-move`, `ptbs`, `frontend-apps`, `sui-object-model`, `sui-publish`
+Key skills to read: `sui-sdks` (CRITICAL for TypeScript client changes), `sui-move`, `ptbs`, `frontend-apps`, `sui-object-model`, `sui-publish`.
 
 ## Architecture & Centralized SDK Rules
 
