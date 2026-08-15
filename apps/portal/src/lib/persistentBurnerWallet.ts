@@ -65,6 +65,7 @@ export function createPersistentBurnerWalletInitializer(): WalletInitializer {
 				}
 				return { unregister: () => {} };
 			} catch (err) {
+				console.error('Persistent Burner Wallet failed to register:', err);
 				return { unregister: () => {} };
 			}
 		},
