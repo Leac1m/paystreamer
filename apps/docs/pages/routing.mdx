@@ -42,7 +42,8 @@ Between those two calls, in the same PTB, you perform the actual swap. Nothing e
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
-import { createDeepBookClient, swapExactQuantity, buildOnboardWithSwapTx } from '@paystreamer/sdk/core';
+import { buildOnboardWithSwapTx } from '@paystreamer/sdk/core';
+import { createDeepBookClient, swapExactQuantity } from '@paystreamer/sdk/core/deepbook';
 import { testnetCoins, testnetPools } from '@mysten/deepbook-v3';
 
 const tx = new Transaction();
@@ -90,6 +91,10 @@ buildOnboardWithSwapTx({
 
 <Callout type="info">
   **`amount` vs. a supplied coin**: verified directly against the installed `@mysten/deepbook-v3` package — `swapExactQuantity`'s `amount` parameter is only used to auto-fund a fresh input coin from your wallet when you *don't* pass `baseCoin`/`quoteCoin` explicitly. If you do (as above, and as the recurring flow below always does), that coin's entire value becomes the swap input and `amount` is ignored.
+</Callout>
+
+<Callout type="info">
+  **Why `createDeepBookClient` lives at `@paystreamer/sdk/core/deepbook`, not `@paystreamer/sdk/core`**: `@mysten/deepbook-v3` is an optional peer dependency. Re-exporting it from the main `core` barrel would make *every* consumer's bundler statically resolve it, whether they use routing or not — this broke a Next.js dev build outright. Seal and Walrus follow the same pattern: `@paystreamer/sdk/core/seal`, `@paystreamer/sdk/core/walrus`.
 </Callout>
 
 ## Recurring: Scheduler-Driven Routing

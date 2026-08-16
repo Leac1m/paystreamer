@@ -333,10 +333,55 @@ Decisions locked in before planning:
       passing). Verified: clean build, `tsc --noEmit` clean across the SDK
       and all 4 downstream apps, full SDK suite 40/44 (same 2 pre-existing
       localnet-infra failures, 2 pre-existing skips, unrelated).
-- [ ] Worked example (under `apps/example` or a new docs-site interactive
-      sample): Walrus upload → Seal encrypt against a PayStreamer-backed
-      policy → gated fetch/decrypt keyed off a real
-      `has_active_subscription` check.
+- [x] Worked example: `apps/example/src/app/gated-content/` — encrypt with
+      Seal, upload the ciphertext to Walrus, then gate decryption on a real
+      client-side `has_active_subscription`-shaped check before even
+      attempting the Seal dry-run (the actual security boundary is the
+      on-chain `seal_approve` call itself; the client check is a UX
+      convenience, documented as such in the page). `packages/sdk/src/core/walrus.ts`
+      is a new thin `@mysten/walrus` wrapper (real, published, v1.2.14,
+      `.$extend(walrus())` verified against the installed package's own
+      `docs/index.md` — unlike Seal, this pattern IS real for Walrus),
+      4 mock-based tests in `test/walrus.test.ts`. The decrypt flow parses
+      the `id` back out of the downloaded ciphertext via `@mysten/seal`'s
+      `EncryptedObject.parse()` rather than threading it through component
+      state, so publish and unlock are independently correct (matches the
+      real-world case where you only ever have a blobId). Signing bridges
+      through `@mysten/dapp-kit-core`'s `CurrentAccountSigner` — a real
+      `Signer` subclass wrapping the connected wallet, found while tracing
+      how to satisfy Walrus's `writeBlob({signer})` without a raw keypair.
+      **Won't run end-to-end out of the box** (disclosed on the page
+      itself): needs a `seal_approve` policy module actually deployed on
+      testnet (the sample from `seal_policy_example_tests.move` works),
+      the two example Seal testnet key servers from `@mysten/seal`'s own
+      docs actually responding, and a wallet funded with testnet WAL to
+      pay Walrus storage fees — the same category of disclosed
+      infrastructure blocker as DeepBook's liquidity gap, not a code
+      problem. No dedicated test for the page's local subscription-status
+      helper (mirrors already-tested VecMap-parsing logic from
+      `chain.ts`/the scheduler's `discovery.ts`; not worth extracting for
+      one call site).
+
+      **Found and fixed a real bug while building this**: `core/index.ts`
+      was doing `export * from './seal'` / `'./deepbook'` / `'./walrus'`
+      — unconditionally re-exporting three *optional* peerDependency
+      wrappers from the main barrel. Verified live this breaks real
+      builds two different ways: (1) Next.js/Turbopack — importing
+      anything from `@paystreamer/sdk`'s root (as every app's top-level
+      provider does) pulled Walrus's WASM loader into the SSR bundle even
+      though only one client-only page used it, crashing with an ENOENT
+      on a Turbopack-virtualized path; (2) Vite — confirmed the portal
+      app, which uses *none* of Seal/DeepBook/Walrus, was pre-bundling
+      all three anyway. Fixed by giving each its own subpath entry point
+      (`@paystreamer/sdk/core/seal`, `.../core/deepbook`, `.../core/walrus`)
+      and removing them from the `core`/root barrels; updated every call
+      site (`routedPayment.ts`, `GatedContentDemo.tsx`, `routing.mdx`).
+      Re-verified: portal's Vite dep cache no longer contains any of the
+      three after a clean re-optimize, and `/gated-content` went from a
+      500 to a clean 200 on Next.js dev. This was a latent regression from
+      the DeepBook and Seal milestones earlier in Phase 3 — undetected
+      until an actual dev server was run against a page that imports the
+      SDK's root barrel, since `tsc --noEmit` alone can't catch it.
 - Note: no CI-level integration testing is possible against Seal's live
   key-server network (a separate MPC system) — inherently manual/demo-verified.
 

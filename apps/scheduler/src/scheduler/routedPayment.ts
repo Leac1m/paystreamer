@@ -1,5 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { createDeepBookClient, swapExactQuantity, buildProcessRoutedPaymentTx } from '@paystreamer/sdk/core';
+import { buildProcessRoutedPaymentTx } from '@paystreamer/sdk/core';
+import { createDeepBookClient, swapExactQuantity } from '@paystreamer/sdk/core/deepbook';
 import { testnetCoins, testnetPools, mainnetCoins, mainnetPools } from '@mysten/deepbook-v3';
 import { grpcClient, getSchedulerKeypair, getSchedulerAddress } from '../lib/sui.js';
 import { PACKAGE_ID, PAYMENT_SCHEDULER_ID, REGISTRY_ID, CLOCK_OBJECT_ID, NETWORK } from '../lib/config.js';
