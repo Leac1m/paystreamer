@@ -169,7 +169,7 @@ Decisions locked in before planning:
 
 ### DeepBook routing (`routing.mdx`)
 
-- [ ] **On-chain, already done — no changes needed.**
+- [x] **On-chain, already done — no changes needed.**
       `move/subscriptions/sources/payment.move:99-103` (`RoutingPotato<phantom FundingCoin, phantom PlatformCoin>`),
       `:230-285` (`withdraw_for_route`, runs the same `can_bill`/policy
       checks as normal billing and withdraws up to `max_spend` of
@@ -177,18 +177,40 @@ Decisions locked in before planning:
       potato plus the swap output, requires the *exact* amount, refunds
       change, distributes fees with the same 1%/2%/97% split as normal
       payments). `scheduler.move:138-186` already exposes both publicly.
-- [ ] SDK: `buildProcessRoutedPaymentTx` in `packages/sdk/src/core/transactions.ts`
+- [x] SDK: `buildProcessRoutedPaymentTx` in `packages/sdk/src/core/transactions.ts`
       (same `tx.sharedObjectRef` pattern as the existing
       `buildProcessPaymentTx` in that file) — chains
-      `withdraw_for_route` → caller's swap → `process_routed_payment` in
-      one PTB.
-- [ ] SDK: `packages/sdk/src/core/deepbook.ts`, a thin `@mysten/deepbook-v3`
+      `policies::empty_limiters` → `policies::ensure_initialized` →
+      `scheduler::withdraw_for_route` → caller's `performSwap` callback
+      (receives the withdrawn `FundingCoin` tx-argument, returns
+      `{platformCoin, fundingChange}`) → `scheduler::process_routed_payment`
+      in one PTB. Structural test in `test/routedPayment.test.ts` (via
+      `vi.spyOn(tx, 'moveCall')`, since `tx.getData()` needs resolved
+      object refs) asserts call order and that the exact potato returned
+      by `withdraw_for_route` is the one consumed by
+      `process_routed_payment`.
+- [x] SDK: `packages/sdk/src/core/deepbook.ts`, a thin `@mysten/deepbook-v3`
       wrapper (real, published, v1.6.4) behind a mockable interface, added
       as a **peerDependency** (not a regular dependency — Phase 1 already
       paid for that exact mistake once with `@mysten/sui`/`dapp-kit-react`).
-- [ ] SDK: `buildOnboardWithSwapTx` — swap → existing `buildCreateAccountTx`
+      `swapExactQuantity` wraps the real curried
+      `client.deepBook.swapExactQuantity(params)(tx)` call, which returns a
+      3-tuple `[baseCoinResult, quoteCoinResult, deepCoinResult]` (verified
+      against DeepBook's actual TS source, not guessed) — picks the correct
+      output coin based on `isBaseToCoin` direction. Also surfaces that a
+      real DEEP-token fee coin (`deepAmount`/`deepCoin`) is required for
+      every swap, a real cost the original fictional docs omitted entirely.
+      3 mock-based tests in `test/deepbook.test.ts`.
+- [x] SDK: `buildOnboardWithSwapTx` — swap → existing `buildCreateAccountTx`
       → existing `buildSubscribeTx` in one PTB. No Move dependency, no
       scheduler trust, could ship independently ahead of the recurring flow.
+      Composed via a new optional `depositCoin` param on `buildSubscribeTx`
+      (bypasses the existing owned-coin merge/split logic when the coin is
+      a fresh swap-output tx-argument rather than something the caller
+      already owns) rather than duplicating deposit logic in a new
+      function. 2 tests in `test/onboardWithSwap.test.ts` cover call order
+      (`performSwap` runs before any PayStreamer call) and that the
+      deposited coin is exactly `performSwap`'s output.
 - [ ] Scheduler: `apps/scheduler/src` currently has zero references to
       routing and assumes same-currency accounts throughout. Add a static
       opt-in allowlist (platform IDs the operator has chosen to support)

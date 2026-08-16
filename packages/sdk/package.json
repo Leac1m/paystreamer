@@ -42,8 +42,8 @@
   ],
   "scripts": {
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
-    "build": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @tanstack/react-query --no-splitting && tsc --emitDeclarationOnly",
-    "dev": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --watch --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @tanstack/react-query --no-splitting",
+    "build": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @mysten/deepbook-v3 --external @tanstack/react-query --no-splitting && tsc --emitDeclarationOnly",
+    "dev": "tsup src/index.ts src/core/index.ts src/react/index.ts src/ui/index.ts --format esm --watch --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @mysten/deepbook-v3 --external @tanstack/react-query --no-splitting",
     "prepublishOnly": "pnpm build",
     "test": "vitest",
     "seed:demo": "tsx scripts/seed-demo-platform.ts",
@@ -59,6 +59,7 @@
   },
   "peerDependencies": {
     "@mysten/dapp-kit-react": "^2.1.10",
+    "@mysten/deepbook-v3": "^1.6.4",
     "@mysten/seal": "^1.4.0",
     "@mysten/sui": "^2.23.1",
     "@tanstack/react-query": "^5.90.16",
@@ -66,6 +67,9 @@
     "react-dom": "^18.2.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@mysten/deepbook-v3": {
+      "optional": true
+    },
     "@mysten/seal": {
       "optional": true
     }
@@ -73,6 +77,7 @@
   "devDependencies": {
     "@mysten/codegen": "^0.11.1",
     "@mysten/dapp-kit-react": "2.1.10",
+    "@mysten/deepbook-v3": "1.6.4",
     "@mysten/seal": "1.4.0",
     "@mysten/sui": "2.23.1",
     "@tanstack/react-query": "^5.90.16",
