@@ -67,8 +67,28 @@ feature checklist.
       quickstart. Verified: clean build, `tsc --noEmit`, and SDK test suite
       (35/38 — the 3 localnet-only tests need a fresh chain deploy to
       re-verify, unrelated to this change, see PR notes).
-- [ ] Test against real testnet, not just localnet (scheduled run of
-      `apps/example`'s suite against testnet)
+- [x] Test against real testnet, not just localnet (scheduled run of
+      `apps/example`'s suite against testnet) — added
+      `.github/workflows/testnet-e2e.yml` (daily cron + manual dispatch).
+      Fixed `apps/example/playwright.config.ts`, which hardcoded
+      `NEXT_PUBLIC_NETWORK: 'localnet'` unconditionally, clobbering any
+      externally-set value — now respects an existing env var. The job
+      checks out and builds the actual workspace SDK (via `workspace:*`),
+      so it validates this session's real fixes against real testnet,
+      independent of the still-open publish gap (item above).
+      **Needs one manual step to actually run**: add a
+      `TESTNET_SPONSOR_PRIVATE_KEY` repo secret — an Ed25519 keypair funded
+      with testnet SUI (a few SUI is plenty; it only pays gas for the demo
+      mint/subscribe flow). I can't provision or fund a wallet myself, so
+      the workflow will fail on `E2E_PRIVATE_KEY missing` until this secret
+      is added. Generate a keypair (e.g. `sui client new-address ed25519`
+      against testnet), fund it via `sui client faucet`, and add its
+      `suiprivkey...` export as the secret.
+
+**Phase 1 status**: closed out. 3 of 4 items done and verified; the 4th
+(publish) is intentionally on hold, not forgotten — it's a one-command
+action (`npm publish` after a version bump) whenever there's a go-ahead.
+Everything needed to ship is already committed on this branch.
 
 ## Phase 2 — Harden against real developer failure modes
 

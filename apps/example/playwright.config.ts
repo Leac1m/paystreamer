@@ -32,7 +32,7 @@ export default defineConfig({
     timeout: 120000,
     env: {
       ...process.env,
-      NEXT_PUBLIC_NETWORK: 'localnet',
+      NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK || 'localnet',
       NEXT_PUBLIC_IS_TEST_MODE: 'true',
     },
   },
