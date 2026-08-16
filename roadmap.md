@@ -254,10 +254,21 @@ Decisions locked in before planning:
       leg is UNTESTED against live liquidity (still no real DeepBook pool
       for any PayStreamer token, on any network) — only structural
       wiring, documented inline in `routedPayment.ts`'s module comment.
-- [ ] Docs: rewrite `routing.mdx` — drop the fictional `DepositCap` example,
-      document the real `RoutingPotato` PTB shape and the onboarding
-      composition, working code against the new SDK builders, explicit
-      about opt-in-only and the liquidity blocker on live demos.
+- [x] Docs: rewrote `routing.mdx` — dropped the fictional `DepositCap`
+      example and wrong `swapExactBaseForQuote` call signature entirely.
+      Documents the real `RoutingPotato<FundingCoin, PlatformCoin>`
+      (`payment.move:99-103`), both on-chain functions with file:line
+      citations, and the exact-amount requirement (with a callout
+      explaining why, since it's the least intuitive part). Two full
+      working code samples against the real, now-committed SDK builders:
+      `buildOnboardWithSwapTx` for one-shot onboarding, and
+      `buildProcessRoutedPaymentTx` for the scheduler's recurring path,
+      including the `inputChange`/`deepChange` consumption the on-chain
+      hot-potato and `Coin<T>`'s missing `drop` ability both demand.
+      Documents `ROUTING_ALLOWLIST_JSON`/`DEEP_COIN_TYPE` for operators.
+      Opens with an upfront `Callout` disclosing the liquidity blocker
+      rather than burying it. `next build` passes, `/routing` compiles
+      clean (7.02 kB).
 - [x] Tests: `payment_tests.move` had only the happy path
       (`test_process_routed_payment_succeeds`) for the routed flow — no
       abort coverage. Added `test_process_routed_payment_wrong_amount_fails`
