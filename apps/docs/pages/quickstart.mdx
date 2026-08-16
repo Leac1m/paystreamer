@@ -1,0 +1,101 @@
+import { Callout } from 'nextra/components';
+
+# Quickstart
+
+This guide will walk you through setting up the PayStreamer SDK in your React application.
+
+## 1. Installation
+
+Install the PayStreamer SDK alongside its peer dependencies (`@mysten/dapp-kit-react`, `@mysten/sui`, and `@tanstack/react-query`).
+
+```bash
+npm install @paystreamer/sdk @mysten/dapp-kit-react @mysten/sui @tanstack/react-query
+```
+
+## 2. Setup the Provider
+
+PayStreamer sits on top of [dApp Kit](https://sdk.mystenlabs.com/dapp-kit)'s `createDAppKit`/`DAppKitProvider`, which manages the wallet connection and the Sui client. Wrap that with `PayStreamerProvider`, which carries the PayStreamer-specific contract addresses for whichever network you target — `getConfig()` looks these up for you so you don't have to hardcode package IDs.
+
+<Callout type="warning">
+  This example targets **testnet** — build and test your integration there before ever pointing at mainnet.
+</Callout>
+
+```tsx
+import React from "react";
+import { createDAppKit, DAppKitProvider } from "@mysten/dapp-kit-react";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PayStreamerProvider, getConfig, CLOCK_OBJECT_ID } from "@paystreamer/sdk";
+
+const queryClient = new QueryClient();
+const sdkConfig = getConfig("testnet");
+
+const dAppKit = createDAppKit({
+  networks: ["testnet"],
+  defaultNetwork: "testnet",
+  createClient: (network) =>
+    new SuiGrpcClient({
+      network,
+      baseUrl: `https://fullnode.${network}.sui.io:443`,
+    }),
+});
+
+export default function App({ children }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DAppKitProvider dAppKit={dAppKit}>
+        <PayStreamerProvider
+          config={{
+            network: "testnet",
+            packageId: sdkConfig.PACKAGE_ID,
+            registryId: sdkConfig.COIN_TYPE_REGISTRY_ID,
+            clockId: CLOCK_OBJECT_ID,
+            pusdPackageId: sdkConfig.PUSD_PACKAGE_ID,
+            pusdType: sdkConfig.PUSD_TYPE_ARG,
+            pusdTreasuryCapId: sdkConfig.PUSD_TREASURY_CAP_ID,
+            graphqlUrl: sdkConfig.GRAPHQL_URL,
+          }}
+        >
+          {children}
+        </PayStreamerProvider>
+      </DAppKitProvider>
+    </QueryClientProvider>
+  );
+}
+```
+
+<Callout type="info">
+  Want a connect button with zero extra wiring during development? Register `createPersistentBurnerWalletInitializer()` (see the [example app](https://github.com/paystreamer)) via `createDAppKit`'s `walletInitializers` option. It stores a keypair in `localStorage` — convenient for testnet demos, but never enable it in production.
+</Callout>
+
+## 3. Drop in a Component
+
+With the provider configured, you can import drop-in UI components or use headless hooks. Here is how to easily render a subscription modal.
+
+```tsx
+import { useState } from "react";
+import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
+
+export function SubscribeSection() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen(true)}>Subscribe Now</button>
+      
+      <SetupSubscriptionModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        platformId="0xYOUR_PLATFORM_ID"
+        tierIndex={0}
+        // tierAmount and tierFrequencyMs are automatically fetched from the contract!
+        onSuccess={(digest) => console.log("Subscribed!", digest)}
+      />
+    </div>
+  );
+}
+```
+
+<Callout type="info">
+  **Not a Developer?** If you are an end-user simply looking to manage your PayStreamer subscriptions, you do not need to build a custom dApp! Head over to the [PayStreamer Portal](/portal) to manage your account natively.
+</Callout>
