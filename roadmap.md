@@ -145,10 +145,97 @@ next time something like this slips through.
 
 ## Phase 3 — Deferred features (only after Phase 1–2 are solid)
 
-- [ ] DeepBook routing (`routing.mdx`) — currently undocumented-as-fiction;
-      no `DeepBook`/`DepositCap` anywhere in Move or the SDK. Needs real
-      scoping before it's built.
-- [ ] Seal/Walrus integration (`integration.mdx`) — one read-only helper
-      exists; rest is aspirational. Same rule: don't advertise until there's
-      a working reference.
-- [ ] Mark both docs pages "Coming soon" in the interim
+Scoped and planned (see `~/.claude/plans/linked-conjuring-dream.md` for the
+full plan). Direct research — reading the Move contracts and the official
+Seal/DeepBook sources — found that the actual building blocks for both
+features already exist on-chain. The gap is almost entirely in the
+SDK/scheduler/docs layer, not new Move engineering, and **neither feature
+needs a contract change or redeploy** given the scope decisions below.
+
+Decisions locked in before planning:
+- DeepBook: build both the recurring (scheduler-driven) and onboarding
+  (pay-with-any-token-to-subscribe) flows; the swap leg is mocked/stubbed
+  in tests since **no real DeepBook liquidity pool exists for PUSD** (a
+  demo-only token) on any network — a hard blocker on live end-to-end
+  demoing, not a code problem.
+- Seal: document the integration pattern only. PayStreamer does not publish
+  its own `seal_approve` module — platforms write their own, calling
+  PayStreamer's existing `has_active_subscription`. Zero new contract
+  surface.
+- Recurring DeepBook routing is **opt-in per platform** (a scheduler-side
+  allowlist), not automatic — enforced off-chain, since the existing
+  `RoutingPotato` mechanism only produces value if the scheduler chooses to
+  call it.
+
+### DeepBook routing (`routing.mdx`)
+
+- [ ] **On-chain, already done — no changes needed.**
+      `move/subscriptions/sources/payment.move:99-103` (`RoutingPotato<phantom FundingCoin, phantom PlatformCoin>`),
+      `:230-285` (`withdraw_for_route`, runs the same `can_bill`/policy
+      checks as normal billing and withdraws up to `max_spend` of
+      `FundingCoin`), `:290-365` (`process_routed_payment`, consumes the
+      potato plus the swap output, requires the *exact* amount, refunds
+      change, distributes fees with the same 1%/2%/97% split as normal
+      payments). `scheduler.move:138-186` already exposes both publicly.
+- [ ] SDK: `buildProcessRoutedPaymentTx` in `packages/sdk/src/core/transactions.ts`
+      (same `tx.sharedObjectRef` pattern as the existing
+      `buildProcessPaymentTx` in that file) — chains
+      `withdraw_for_route` → caller's swap → `process_routed_payment` in
+      one PTB.
+- [ ] SDK: `packages/sdk/src/core/deepbook.ts`, a thin `@mysten/deepbook-v3`
+      wrapper (real, published, v1.6.4) behind a mockable interface, added
+      as a **peerDependency** (not a regular dependency — Phase 1 already
+      paid for that exact mistake once with `@mysten/sui`/`dapp-kit-react`).
+- [ ] SDK: `buildOnboardWithSwapTx` — swap → existing `buildCreateAccountTx`
+      → existing `buildSubscribeTx` in one PTB. No Move dependency, no
+      scheduler trust, could ship independently ahead of the recurring flow.
+- [ ] Scheduler: `apps/scheduler/src` currently has zero references to
+      routing and assumes same-currency accounts throughout. Add a static
+      opt-in allowlist (platform IDs the operator has chosen to support)
+      and branch mismatched-currency accounts on that list into the new
+      routed-payment path instead of the plain payment path.
+- [ ] Docs: rewrite `routing.mdx` — drop the fictional `DepositCap` example,
+      document the real `RoutingPotato` PTB shape and the onboarding
+      composition, working code against the new SDK builders, explicit
+      about opt-in-only and the liquidity blocker on live demos.
+- [ ] Tests: verify `payment_tests.move`/`scheduler_tests.move` cover the
+      routed-payment abort paths (add if gaps found — no new Move code, so
+      this is verification not new test-writing); mock-based SDK tests for
+      the new builders; scheduler tests for the opt-in branching logic. No
+      live testnet swap coverage possible until real liquidity exists.
+
+### Seal integration (`integration.mdx`) — docs-only
+
+- [ ] **On-chain: nothing to build.**
+      `move/subscriptions/sources/account.move:543-562`'s
+      `has_active_subscription<T>(account, platform_id): bool` is already
+      the exact primitive needed (doc-commented for this purpose at line
+      541).
+- [ ] Docs: fix `integration.mdx`'s Move example — the current
+      `use seal::policy::{Self, SealPolicy}; public fun verify_access(...): bool`
+      is fictional. The real Seal contract shape (sourced directly from
+      Seal's own official example,
+      github.com/MystenLabs/seal/blob/main/move/patterns/sources/subscription.move,
+      fetched and verified during planning) is
+      `entry fun seal_approve(id: vector<u8>, ...)` — no return value,
+      aborts via `assert!` on denial, `id` follows a namespace-prefix
+      convention. Show a real sample a platform integrator would write,
+      delegating to `has_active_subscription`.
+- [ ] SDK: `packages/sdk/src/core/seal.ts`, a thin `@mysten/seal` wrapper
+      (real, published, v1.4.0) for encrypt-on-upload and
+      session-key/decryption-key-fetch.
+- [ ] Worked example (under `apps/example` or a new docs-site interactive
+      sample): Walrus upload → Seal encrypt against a PayStreamer-backed
+      policy → gated fetch/decrypt keyed off a real
+      `has_active_subscription` check. This is what makes the docs page
+      trustworthy instead of aspirational.
+- [ ] Tests: Move unit tests for a *sample* `seal_approve` (active/paused/
+      no-subscription/wrong-prefix cases) under `move/subscriptions/tests/`.
+      No CI-level integration testing possible against Seal's live
+      key-server network — inherently manual/demo-verified.
+
+**Sequencing**: after the still-held SDK npm publish (Phase 1's last item),
+since both features' SDK pieces build on the already-fixed provider/hooks.
+Seal (docs-only) is the faster win and could ship first; DeepBook has more
+moving parts (scheduler bot changes) and a disclosed liquidity blocker on
+full live verification.
