@@ -206,33 +206,38 @@ Decisions locked in before planning:
 
 ### Seal integration (`integration.mdx`) — docs-only
 
-- [ ] **On-chain: nothing to build.**
+- [x] **On-chain: nothing to build.**
       `move/subscriptions/sources/account.move:543-562`'s
       `has_active_subscription<T>(account, platform_id): bool` is already
       the exact primitive needed (doc-commented for this purpose at line
       541).
-- [ ] Docs: fix `integration.mdx`'s Move example — the current
+- [x] Docs: fixed `integration.mdx`'s Move example — the old
       `use seal::policy::{Self, SealPolicy}; public fun verify_access(...): bool`
-      is fictional. The real Seal contract shape (sourced directly from
-      Seal's own official example,
+      was fictional. Replaced with the real Seal contract shape (sourced
+      directly from Seal's own official example,
       github.com/MystenLabs/seal/blob/main/move/patterns/sources/subscription.move,
-      fetched and verified during planning) is
-      `entry fun seal_approve(id: vector<u8>, ...)` — no return value,
-      aborts via `assert!` on denial, `id` follows a namespace-prefix
-      convention. Show a real sample a platform integrator would write,
-      delegating to `has_active_subscription`.
+      fetched and verified live): `entry fun seal_approve(id: vector<u8>, ...)`
+      — no return value, aborts via `assert!` on denial, `id` follows a
+      namespace-prefix convention. Docs now show a real sample a platform
+      integrator would write, delegating to `has_active_subscription`, plus
+      an explicit callout that PayStreamer doesn't publish its own module
+      (the locked-in scope decision).
+- [x] Tests: added `move/subscriptions/tests/seal_policy_example_tests.move`
+      — the exact sample shown in the docs, compiled and tested for real
+      (active/paused/wrong-platform/wrong-namespace-prefix cases, 4 tests,
+      all passing). This is what makes the docs page trustworthy instead of
+      just plausible-looking; the whole point of this roadmap has been
+      docs describing things that don't actually work. Full suite:
+      40/40 passing, zero warnings.
 - [ ] SDK: `packages/sdk/src/core/seal.ts`, a thin `@mysten/seal` wrapper
       (real, published, v1.4.0) for encrypt-on-upload and
       session-key/decryption-key-fetch.
 - [ ] Worked example (under `apps/example` or a new docs-site interactive
       sample): Walrus upload → Seal encrypt against a PayStreamer-backed
       policy → gated fetch/decrypt keyed off a real
-      `has_active_subscription` check. This is what makes the docs page
-      trustworthy instead of aspirational.
-- [ ] Tests: Move unit tests for a *sample* `seal_approve` (active/paused/
-      no-subscription/wrong-prefix cases) under `move/subscriptions/tests/`.
-      No CI-level integration testing possible against Seal's live
-      key-server network — inherently manual/demo-verified.
+      `has_active_subscription` check.
+- Note: no CI-level integration testing is possible against Seal's live
+  key-server network (a separate MPC system) — inherently manual/demo-verified.
 
 **Sequencing**: after the still-held SDK npm publish (Phase 1's last item),
 since both features' SDK pieces build on the already-fixed provider/hooks.
