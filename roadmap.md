@@ -26,7 +26,26 @@ feature checklist.
       suite (37 passed) and a live localnet smoke test through the portal
       dashboard (wallet connect, platform/account fetch — zero console
       errors).
-- [ ] Dogfood the quickstart end to end from a cold start, testnet only
+- [x] Dogfood the quickstart end to end from a cold start, testnet only —
+      installed the real published `@paystreamer/sdk@0.2.0` from npm into a
+      fresh Vite app (outside this monorepo) and followed the quickstart
+      verbatim. **Blocking finding: it doesn't compile.** The corrected
+      quickstart's config uses `pusdTreasuryCapInitVersion`, which only
+      exists in this session's unpublished local fixes — 0.2.0 on npm still
+      has the old broken provider/hooks. A real developer following today's
+      docs against today's published package gets a TS2353 on step 2.
+      Separately, even with that field removed to match 0.2.0's actual
+      shape, the subscribe modal fetched a real testnet platform (verified
+      the object exists on-chain via a raw GraphQL query) but rendered
+      "Tier Amount 0.00 PUSD" — a live bug in the published hooks, already
+      fixed by this session's gRPC migration but not yet released. Also
+      confirmed a fresh `npm install` today pulls `@mysten/sui@2.24.0` /
+      `@mysten/dapp-kit-react@2.1.16`, newer than what this repo pins
+      (`2.23.1` / `2.1.10`) — feeds directly into the next item.
+      **Conclusion: none of Phase 0/1's fixes reach real developers until a
+      new version is published to npm. This is now the single blocking
+      action for the north star.**
+- [ ] Publish a new `@paystreamer/sdk` version with this session's fixes
 - [ ] Pin and publish a compatibility matrix (SDK / dApp Kit / Sui CLI /
       node versions actually tested together)
 - [ ] Test against real testnet, not just localnet (scheduled run of
