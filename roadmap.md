@@ -99,10 +99,10 @@ Everything needed to ship is already committed on this branch.
       — the SDK's flagship exported component — destructured `usePlatform`'s
       `data`/`isLoading` but completely discarded `error`/`isError`.** On a
       failed platform fetch it silently rendered a $0.00 tier with an
-      *enabled* Subscribe button instead of any error. This is almost
-      certainly what the Phase 1 dogfood run actually hit ("Tier Amount
-      0.00 PUSD" against a platform confirmed to have real on-chain data).
-      Fixed: added a dedicated error/empty state using the SDK's own
+      *enabled* Subscribe button instead of any error — a real gap, though
+      the last item below found the Phase 1 dogfood run's actual root cause
+      was a step earlier (bad tier data, not a fetch failure). Fixed: added
+      a dedicated error/empty state using the SDK's own
       (previously unused) `ErrorState` component with a working Retry
       button, and disabled the Subscribe path entirely until real tier data
       loads. Also added a `console.error` to `TestnetFaucetButton`'s catch,
@@ -136,6 +136,12 @@ Everything needed to ship is already committed on this branch.
       regressions across the full mocked suite (36/39 — same 2 pre-existing
       localnet-only failures, unrelated) and `tsc --noEmit` on the SDK and
       portal.
+
+**Phase 2 status**: closed out, all 3 items done and verified. Between
+Phase 1 and 2, the dogfood run's original "Tier Amount 0.00 PUSD" finding
+is now fully explained and fixed at its real root cause, plus the SDK
+degrades gracefully (visible error + retry, not a misleading render) the
+next time something like this slips through.
 
 ## Phase 3 — Deferred features (only after Phase 1–2 are solid)
 
