@@ -200,7 +200,19 @@ Decisions locked in before planning:
       output coin based on `isBaseToCoin` direction. Also surfaces that a
       real DEEP-token fee coin (`deepAmount`/`deepCoin`) is required for
       every swap, a real cost the original fictional docs omitted entirely.
-      3 mock-based tests in `test/deepbook.test.ts`.
+      3 mock-based tests in `test/deepbook.test.ts`. **Corrected during
+      Milestone 4's execution wiring:** read the real installed package's
+      `dist/transactions/deepbook.mjs` directly and found the leg my
+      wrapper was dropping (`baseCoinResult` when swapping base→quote, or
+      vice versa) is not always zero — if you pass your own `baseCoin`/
+      `quoteCoin` argument (the composition case this whole feature exists
+      for), that coin's entire value becomes DeepBook's input regardless
+      of `amount`, and any unfilled leftover comes back through the
+      dropped leg. Since `Coin<T>` has no `drop`, silently discarding a
+      possibly-nonzero result would abort the PTB. Renamed it
+      `inputChange` and now return it; `amount`'s real, narrower meaning
+      (only used to auto-fund an input coin when none is supplied) is
+      documented on the type. 2 tests updated to assert on it.
 - [x] SDK: `buildOnboardWithSwapTx` — swap → existing `buildCreateAccountTx`
       → existing `buildSubscribeTx` in one PTB. No Move dependency, no
       scheduler trust, could ship independently ahead of the recurring flow.
@@ -211,20 +223,61 @@ Decisions locked in before planning:
       function. 2 tests in `test/onboardWithSwap.test.ts` cover call order
       (`performSwap` runs before any PayStreamer call) and that the
       deposited coin is exactly `performSwap`'s output.
-- [ ] Scheduler: `apps/scheduler/src` currently has zero references to
-      routing and assumes same-currency accounts throughout. Add a static
-      opt-in allowlist (platform IDs the operator has chosen to support)
-      and branch mismatched-currency accounts on that list into the new
-      routed-payment path instead of the plain payment path.
+- [x] Scheduler: opt-in routing support. `discovery.ts` now reads each
+      account's tier_index/tier_amount (already in the on-chain
+      `Subscription` struct, just never extracted before) and, once per
+      platform per cycle, the platform's `SubscriptionTier.denomination`
+      for that index via a new `getPlatformTierDenominations` — confirmed
+      live against the real testnet demo platform
+      (`0xe6baf886...eb1eb`) that gRPC encodes a `TypeName` field as a
+      plain fully-qualified type string (e.g.
+      `"0x74d1...::pusd::PUSD"`), not a nested object — grounded in real
+      data, not assumed. `routing.ts`'s `classifyPayment` (pure, 4 tests
+      in `test/routing.test.ts`) is the actual behavior change: same
+      currency → `direct` (the untouched existing path, i.e. every demo
+      platform today); mismatched but not in
+      `ROUTING_ALLOWLIST_JSON` → `unroutable`, now explicitly *skipped*
+      in `payment.ts` instead of falling through to the plain path, which
+      would otherwise silently credit the platform in the wrong coin
+      (`process_due_payment` never checks the account's coin type against
+      the tier's declared denomination on-chain — a real, previously
+      undocumented gap); mismatched and opted in → `routed`, executed by
+      the new `routedPayment.ts` via `buildProcessRoutedPaymentTx` +
+      `swapExactQuantity`, using DeepBook's own published
+      `testnetCoins`/`testnetPools` registries rather than inventing a
+      pool schema. The allowlist (`routingConfig.ts`, `ROUTING_ALLOWLIST_JSON`
+      env var) requires the operator to set `maxSpend` explicitly per
+      platform+funding-currency pair — there's no price oracle here to
+      derive a FundingCoin bound from the tier's PlatformCoin amount, the
+      same reason `withdraw_for_route` itself takes `max_spend` as a
+      caller-supplied bound rather than computing one on-chain. The swap
+      leg is UNTESTED against live liquidity (still no real DeepBook pool
+      for any PayStreamer token, on any network) — only structural
+      wiring, documented inline in `routedPayment.ts`'s module comment.
 - [ ] Docs: rewrite `routing.mdx` — drop the fictional `DepositCap` example,
       document the real `RoutingPotato` PTB shape and the onboarding
       composition, working code against the new SDK builders, explicit
       about opt-in-only and the liquidity blocker on live demos.
-- [ ] Tests: verify `payment_tests.move`/`scheduler_tests.move` cover the
-      routed-payment abort paths (add if gaps found — no new Move code, so
-      this is verification not new test-writing); mock-based SDK tests for
-      the new builders; scheduler tests for the opt-in branching logic. No
-      live testnet swap coverage possible until real liquidity exists.
+- [x] Tests: `payment_tests.move` had only the happy path
+      (`test_process_routed_payment_succeeds`) for the routed flow — no
+      abort coverage. Added `test_process_routed_payment_wrong_amount_fails`
+      (`EZeroAmount`, the exact-payment-required check) and
+      `test_process_routed_payment_wrong_account_fails` (`EInvalidPotato`,
+      settling against an account the potato wasn't minted for). Full
+      suite: 42/42 passing (was 40, zero Move source changes — test-only
+      additions). SDK: 6 mock-based tests across `deepbook.test.ts` /
+      `routedPayment.test.ts` (Milestones 1-2). Scheduler: 9 tests across
+      `discovery.test.ts` (tier-index/settlement-denomination extraction,
+      including a live-shaped mock and an RPC-failure-returns-empty-map
+      case) and `routing.test.ts` (all 4 `classifyPayment` branches). No
+      live testnet swap coverage exists or can exist until real DeepBook
+      liquidity does — `routedPayment.ts`'s execution wiring itself has no
+      dedicated test file, since mocking `@mysten/deepbook-v3`'s real
+      curried API convincingly enough to be worth more than the SDK-level
+      `swapExactQuantity` tests already provide wasn't judged worth the
+      churn; it's covered structurally by `payment.ts` routing through the
+      already-tested classifier plus a clean `tsc --noEmit` across the
+      whole call chain.
 
 ### Seal integration (`integration.mdx`) — docs-only
 

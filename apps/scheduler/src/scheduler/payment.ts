@@ -2,6 +2,8 @@ import { Transaction } from '@mysten/sui/transactions';
 import { grpcClient, getSchedulerKeypair, getSchedulerAddress } from '../lib/sui.js';
 import { PACKAGE_ID, PAYMENT_SCHEDULER_ID, REGISTRY_ID, CLOCK_OBJECT_ID } from '../lib/config.js';
 import { DiscoveredSubscription } from './discovery.js';
+import { classifyPayment } from './routing.js';
+import { processRoutedPayment } from './routedPayment.js';
 
 export async function processDuePayments(subscriptions: DiscoveredSubscription[]): Promise<string[]> {
   const digests: string[] = [];
@@ -9,6 +11,31 @@ export async function processDuePayments(subscriptions: DiscoveredSubscription[]
   const schedulerKeypair = getSchedulerKeypair();
 
   for (const sub of subscriptions) {
+    const classification = classifyPayment(sub);
+
+    if (classification.kind === 'unroutable') {
+      // Currency mismatch, and the platform hasn't opted this funding
+      // currency into ROUTING_ALLOWLIST_JSON. Skip rather than fall
+      // through to the plain path below, which would otherwise silently
+      // credit the platform in the wrong coin (process_due_payment never
+      // checks the account's coin type against the tier's declared
+      // denomination on-chain).
+      console.log(`[Payment] Skipping ${sub.accountId}: holds ${sub.denomination}, platform ${sub.platformId} settles in ${sub.settlementDenomination} and has not opted in for this funding currency`);
+      continue;
+    }
+
+    if (classification.kind === 'routed') {
+      try {
+        console.log(`[Payment] Routing ${sub.accountId} via DeepBook: ${sub.denomination} -> ${sub.settlementDenomination}`);
+        const digest = await processRoutedPayment(sub, classification.pool);
+        console.log(`[Payment] Routed success: ${digest}`);
+        digests.push(digest);
+      } catch (err: any) {
+        console.error(`[Payment] Routed payment failed for ${sub.accountId}:`, err);
+      }
+      continue;
+    }
+
     try {
       console.log(`[Payment] Processing for Account: ${sub.accountId}`);
       const tx = new Transaction();

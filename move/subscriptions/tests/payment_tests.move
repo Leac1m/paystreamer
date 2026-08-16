@@ -298,6 +298,141 @@ module subscriptions::payment_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = 0x09006)] // EZeroAmount, reused as the exact-payment-required check
+    fun test_process_routed_payment_wrong_amount_fails() {
+        let owner = @0xA;
+        let mut sc = ts::begin(owner);
+        registry::init_for_testing(ts::ctx(&mut sc));
+        let clock = fresh_clock(&mut sc);
+
+        let (account_id, platform_id) = setup_account_with_subscription(
+            &clock,
+            &mut sc,
+            100, // tier_amount (needs 100 WAL)
+            0,
+        );
+
+        ts::next_tx(&mut sc, owner);
+
+        let registry = ts::take_shared<registry::Registry>(&sc);
+        let mut account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
+            &sc, account_id,
+        );
+        let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
+        let mut limiters = fresh_initialized_limiters(&account, &clock);
+
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
+        let coin_usdc = coin::mint_for_testing<TEST_USDC>(200, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin_usdc, ts::ctx(&mut sc));
+        ts::return_to_address(owner, cap);
+
+        let (withdrawn_usdc, potato) = payment::withdraw_for_route<TEST_USDC, TEST_WAL>(
+            &p,
+            &mut account,
+            &mut limiters,
+            &clock,
+            150,
+            ts::ctx(&mut sc),
+        );
+
+        // Tier needs exactly 100 WAL — provide 99 and expect the exact-payment abort.
+        let swap_payment = coin::mint_for_testing<TEST_WAL>(99, ts::ctx(&mut sc));
+
+        payment::process_routed_payment<TEST_USDC, TEST_WAL>(
+            potato,
+            &registry,
+            &mut p,
+            &mut account,
+            swap_payment,
+            withdrawn_usdc,
+            &clock,
+            ts::ctx(&mut sc),
+        );
+
+        policies::destroy_limiters_for_testing(limiters);
+        ts::return_shared(p);
+        account::destroy_account_for_testing(account);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(registry);
+        sc.end();
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0x09007)] // EInvalidPotato
+    fun test_process_routed_payment_wrong_account_fails() {
+        let owner = @0xA;
+        let mut sc = ts::begin(owner);
+        registry::init_for_testing(ts::ctx(&mut sc));
+        let clock = fresh_clock(&mut sc);
+
+        let (account_id, platform_id) = setup_account_with_subscription(
+            &clock,
+            &mut sc,
+            100, // tier_amount (needs 100 WAL)
+            0,
+        );
+        // A second, unrelated account/platform — the potato below is scoped
+        // to the first account_id/platform_id and must not settle against it.
+        let (other_account_id, _other_platform_id) = setup_account_with_subscription(
+            &clock,
+            &mut sc,
+            100,
+            0,
+        );
+
+        ts::next_tx(&mut sc, owner);
+
+        let registry = ts::take_shared<registry::Registry>(&sc);
+        let mut account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
+            &sc, account_id,
+        );
+        let mut other_account = ts::take_shared_by_id<account::SubscriptionAccount<TEST_USDC>>(
+            &sc, other_account_id,
+        );
+        let mut p = ts::take_shared_by_id<platform::Platform>(&mut sc, platform_id);
+        let mut limiters = fresh_initialized_limiters(&account, &clock);
+
+        let cap = ts::take_from_address<account::AccountCap>(&sc, owner);
+        let coin_usdc = coin::mint_for_testing<TEST_USDC>(200, ts::ctx(&mut sc));
+        account::deposit(&mut account, coin_usdc, ts::ctx(&mut sc));
+        ts::return_to_address(owner, cap);
+
+        let (withdrawn_usdc, potato) = payment::withdraw_for_route<TEST_USDC, TEST_WAL>(
+            &p,
+            &mut account,
+            &mut limiters,
+            &clock,
+            150,
+            ts::ctx(&mut sc),
+        );
+
+        let swap_payment = coin::mint_for_testing<TEST_WAL>(100, ts::ctx(&mut sc));
+
+        // Settling against `other_account` (not the account the potato was
+        // minted for) must abort with EInvalidPotato.
+        payment::process_routed_payment<TEST_USDC, TEST_WAL>(
+            potato,
+            &registry,
+            &mut p,
+            &mut other_account,
+            swap_payment,
+            withdrawn_usdc,
+            &clock,
+            ts::ctx(&mut sc),
+        );
+
+        policies::destroy_limiters_for_testing(limiters);
+        ts::return_shared(p);
+        account::destroy_account_for_testing(account);
+        account::destroy_account_for_testing(other_account);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(registry);
+        sc.end();
+    }
+
+    #[test]
     fun test_process_due_payment_insufficient_balance() {
         let owner = @0xA;
         let mut sc = ts::begin(owner);

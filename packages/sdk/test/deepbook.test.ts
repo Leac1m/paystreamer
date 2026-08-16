@@ -57,6 +57,7 @@ describe('core/deepbook', () => {
       quoteCoin: undefined,
     });
     expect(result.outputCoin).toBe(quoteResult);
+    expect(result.inputChange).toBe(baseResult);
     expect(result.deepChange).toBe(deepResult);
   });
 
@@ -80,6 +81,7 @@ describe('core/deepbook', () => {
     });
 
     expect(result.outputCoin).toBe(baseResult);
+    expect(result.inputChange).toBe(quoteResult);
     expect(result.deepChange).toBe(deepResult);
   });
 });

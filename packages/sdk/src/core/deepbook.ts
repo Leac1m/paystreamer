@@ -36,7 +36,17 @@ export interface SwapExactQuantityParams {
   poolKey: string;
   /** true: swap the pool's base asset for its quote asset. false: quote for base. */
   isBaseToCoin: boolean;
-  /** Amount of the input side to swap, in the input coin's own decimal units. */
+  /**
+   * Amount of the input side to swap, in the input coin's own decimal
+   * units. Only used to auto-fund a fresh input coin from the sender's
+   * wallet — verified directly against the real
+   * `@mysten/deepbook-v3` source (`swapExactQuantity` in
+   * `dist/transactions/deepbook.mjs`), which does
+   * `baseCoin ?? coinWithBalance({..., balance: convertQuantity(amount, ...)})`.
+   * If you pass an explicit `baseCoin`/`quoteCoin` (e.g. a coin produced
+   * earlier in the same PTB, as PayStreamer's routed-payment flow does),
+   * that coin's *entire* value becomes the input and `amount` is ignored.
+   */
   amount: number | bigint;
   /** Minimum acceptable output — the slippage guard. */
   minOut: number | bigint;
@@ -55,6 +65,17 @@ export interface SwapExactQuantityParams {
 export interface SwapExactQuantityResult {
   /** The coin actually produced by the swap (quote if isBaseToCoin, base otherwise) — pipe this into the next call. */
   outputCoin: TransactionObjectArgument;
+  /**
+   * Leftover of whatever `baseCoin`/`quoteCoin` you supplied as the input
+   * side (same coin type you passed in as input). This is NOT guaranteed
+   * to be zero-value — a partial fill on a real order book leaves genuine
+   * change here. `Coin<T>` has no `drop` ability, so this result MUST be
+   * consumed downstream (merged, transferred, or `destroy_zero`'d) or the
+   * transaction aborts with an unused-value error. If you didn't supply
+   * an explicit input coin, this is a freshly zero-funded coin and is
+   * safe to transfer/destroy unconditionally.
+   */
+  inputChange: TransactionObjectArgument;
   /** Unused DEEP fee change — refund or reuse it, don't let it silently vanish from the PTB's result set. */
   deepChange: TransactionObjectArgument;
 }
@@ -62,10 +83,9 @@ export interface SwapExactQuantityResult {
 /**
  * Swaps within `tx` using DeepBook's manager-less `swapExactQuantity` — no
  * BalanceManager setup required, suited for a one-off swap inside a larger
- * PTB. Picks the correct output coin out of DeepBook's 3-tuple result
- * (`[baseCoinResult, quoteCoinResult, deepCoinResult]`) based on swap
- * direction; the other leg's result is intentionally not exposed since a
- * `swapExactQuantity` call always fully consumes its input side.
+ * PTB. Picks the correct output/input-change coins out of DeepBook's
+ * 3-tuple result (`[baseCoinResult, quoteCoinResult, deepCoinResult]`)
+ * based on swap direction.
  */
 export function swapExactQuantity({
   deepbook,
@@ -92,6 +112,7 @@ export function swapExactQuantity({
 
   return {
     outputCoin: isBaseToCoin ? quoteCoinResult : baseCoinResult,
+    inputChange: isBaseToCoin ? baseCoinResult : quoteCoinResult,
     deepChange: deepCoinResult,
   };
 }
