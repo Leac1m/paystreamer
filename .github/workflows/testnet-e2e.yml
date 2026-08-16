@@ -30,6 +30,10 @@ jobs:
         run: cd apps/example && npx playwright install --with-deps chromium
       - name: Build SDK
         run: pnpm --filter @paystreamer/sdk build
+      - name: Check demo platform health (read-only, no secret needed)
+        env:
+          RUN_TESTNET_HEALTH_CHECKS: 'true'
+        run: cd packages/sdk && npx vitest run test/testnet-demo-health.test.ts
       - name: Run E2E suite against testnet
         env:
           NEXT_PUBLIC_NETWORK: testnet

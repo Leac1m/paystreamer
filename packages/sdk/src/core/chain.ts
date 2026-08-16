@@ -23,6 +23,13 @@ export interface PlatformObject {
   image_url: string | null;
   is_paused: boolean;
   created_at: number;
+  tiers?: Array<{
+    name: string;
+    amount: string;
+    frequency: string;
+    subscriber_count: number;
+    is_active: boolean;
+  }>;
 }
 
 export interface SubscriptionAccountObject {
@@ -142,7 +149,28 @@ async function listEventsOfType<T>(
 export async function queryPlatform(platformId: string, network?: SupportedNetwork): Promise<PlatformObject> {
   const client = getGrpcClient(network);
   const res = await client.core.getObject({ objectId: platformId, include: { json: true } });
-  return res.object.json as unknown as PlatformObject;
+  const json = res.object.json as any;
+
+  // `tiers` is a Move VecMap<u64, SubscriptionTier> — its on-chain JSON
+  // representation is `{ contents: [{ key, value }, ...] }`, not a plain
+  // array. Unwrap it so callers get a usable tiers array directly, and map
+  // the on-chain `frequency_ms` field to `frequency` for consistency with
+  // usePlatform's shape.
+  const rawTiers = Array.isArray(json?.tiers) ? json.tiers : json?.tiers?.contents;
+  const tiers = Array.isArray(rawTiers)
+    ? rawTiers.map((entry: any) => {
+        const value = entry?.value ?? entry ?? {};
+        return {
+          name: value.name ?? "",
+          amount: value.amount ?? "0",
+          frequency: value.frequency_ms ?? value.frequency ?? "0",
+          subscriber_count: Number(value.subscriber_count ?? 0),
+          is_active: value.is_active ?? true,
+        };
+      })
+    : json?.tiers;
+
+  return { ...json, tiers } as unknown as PlatformObject;
 }
 
 export async function queryMultiplePlatforms(platformIds: string[], network?: SupportedNetwork): Promise<Array<{ objectId: string, initialSharedVersion: number, json: any }>> {

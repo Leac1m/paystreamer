@@ -116,8 +116,26 @@ Everything needed to ship is already committed on this branch.
       (explicit error state, not a silent stuck/wrong render). Audited the
       only other data-fetching UI export (`TestnetFaucetButton`) — already
       surfaces its `error` state in the UI.
-- [ ] Keep a demo platform reliably alive on testnet for docs "try it live"
-      links
+- [x] Keep a demo platform reliably alive on testnet for docs "try it live"
+      links — built a health check (`test/testnet-demo-health.test.ts`,
+      wired into the Phase-1 testnet workflow, no secret needed since it's
+      read-only) that queries `DEMO_PLATFORM_ID` on testnet and asserts it
+      has a real, active, non-zero tier. Running it immediately caught a
+      **real, pre-existing bug — the actual root cause of the Phase 1
+      dogfood run's "Tier Amount 0.00 PUSD"**: `tiers` is a Move
+      `VecMap<u64, SubscriptionTier>`, whose on-chain JSON shape is
+      `{ contents: [{ key, value }] }`, not a plain array. Neither
+      `usePlatform` nor `core/chain.ts`'s `queryPlatform` ever unwrapped it
+      — confirmed this predates this session's gRPC migration (the original
+      GraphQL code had the identical bug, faithfully carried over). Fixed
+      both, mapping the on-chain `frequency_ms` field to `frequency` (what
+      `SetupSubscriptionModal`/`buildSubscribeTx` actually call `BigInt()`
+      on), while staying tolerant of an already-flat array so the existing
+      mock-based tests didn't need to change. Verified against real
+      testnet data (failed before the fix, passes after) and confirmed zero
+      regressions across the full mocked suite (36/39 — same 2 pre-existing
+      localnet-only failures, unrelated) and `tsc --noEmit` on the SDK and
+      portal.
 
 ## Phase 3 — Deferred features (only after Phase 1–2 are solid)
 

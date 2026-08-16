@@ -72,8 +72,31 @@ export function usePlatform(platformId: string | undefined) {
       }
 
       const owner = res.object.owner as any;
+      const json = res.object.json as any;
+
+      // `tiers` is a Move VecMap<u64, SubscriptionTier> — the on-chain JSON
+      // representation wraps entries as `{ contents: [{ key, value }, ...] }`,
+      // not a plain array. Unwrap it, and map `frequency_ms` (the raw field
+      // name on-chain) to `frequency`, which is what buildSubscribeTx/
+      // SetupSubscriptionModal expect (as a raw millisecond bigint string).
+      // Tolerate an already-flat array too (e.g. mock data).
+      const rawTiers = Array.isArray(json?.tiers) ? json.tiers : json?.tiers?.contents;
+      const tiers: PlatformTier[] = Array.isArray(rawTiers)
+        ? rawTiers.map((entry: any) => {
+            const value = entry?.value ?? entry ?? {};
+            return {
+              name: value.name ?? "",
+              amount: value.amount ?? "0",
+              frequency: value.frequency_ms ?? value.frequency ?? "0",
+              subscriber_count: Number(value.subscriber_count ?? 0),
+              is_active: value.is_active ?? true,
+            };
+          })
+        : [];
+
       return {
-        ...(res.object.json as any),
+        ...json,
+        tiers,
         packageId,
         coinType,
         initialSharedVersion: owner?.$kind === "Shared" ? Number(owner.Shared.initialSharedVersion) : 0,
