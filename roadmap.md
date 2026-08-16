@@ -229,9 +229,24 @@ Decisions locked in before planning:
       just plausible-looking; the whole point of this roadmap has been
       docs describing things that don't actually work. Full suite:
       40/40 passing, zero warnings.
-- [ ] SDK: `packages/sdk/src/core/seal.ts`, a thin `@mysten/seal` wrapper
-      (real, published, v1.4.0) for encrypt-on-upload and
-      session-key/decryption-key-fetch.
+- [x] SDK: `packages/sdk/src/core/seal.ts` — thin wrapper (`createSealClient`,
+      `encryptForPolicy`, `createSealSessionKey`, `decryptWithPolicy`) around
+      `@mysten/seal` (real, published, v1.4.0). Built against the package's
+      actual shipped type declarations, not its prose docs — the docs.md
+      bundled in the npm package shows a `client.$extend(seal({...}))`
+      pattern that **doesn't exist in the real exports** (confirmed: no
+      `seal()` extend function anywhere in `dist/index.d.mts`); the real,
+      type-checked API is a plain `new SealClient({ suiClient,
+      serverConfigs, ... })` constructor. `SealCompatibleClient` is the same
+      `ClientWithExtensions<{ core: CoreClient }>` shape as the rest of this
+      SDK's transport-agnostic client handling, so it slots in directly
+      wherever `useCurrentClient()` is already used. Added `@mysten/seal` as
+      an **optional peerDependency** (`peerDependenciesMeta.optional`,
+      matching the Phase-1 dependency-hygiene fix — most SDK consumers don't
+      need Seal). Mock-based unit tests added (`test/seal.test.ts`, 4
+      passing). Verified: clean build, `tsc --noEmit` clean across the SDK
+      and all 4 downstream apps, full SDK suite 40/44 (same 2 pre-existing
+      localnet-infra failures, 2 pre-existing skips, unrelated).
 - [ ] Worked example (under `apps/example` or a new docs-site interactive
       sample): Walrus upload → Seal encrypt against a PayStreamer-backed
       policy → gated fetch/decrypt keyed off a real

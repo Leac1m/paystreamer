@@ -587,6 +587,9 @@ importers:
       '@mysten/dapp-kit-react':
         specifier: 2.1.10
         version: 2.1.10(@mysten/sui@2.23.1(typescript@5.9.3))(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
+      '@mysten/seal':
+        specifier: 1.4.0
+        version: 1.4.0(@mysten/sui@2.23.1(typescript@5.9.3))
       '@mysten/sui':
         specifier: 2.23.1
         version: 2.23.1(typescript@5.9.3)
@@ -1565,6 +1568,11 @@ packages:
     peerDependencies:
       '@types/react': ^19.2.8
       react: ^19.2.3
+
+  '@mysten/seal@1.4.0':
+    resolution: {integrity: sha512-VoWEuVPrrNiWJzyPpW9dN/07yKd1NeOaYPYUYw6lZX+MpKsbu+cYeCVrzJi+6IO+qvR5JUhr7Q2LgSLn5LzViA==}
+    peerDependencies:
+      '@mysten/sui': 2.23.1
 
   '@mysten/slush-wallet@1.1.8':
     resolution: {integrity: sha512-BVewJtSyo1HW02L5e+/A1QXmVA5BkqOC2FV47x9rqWNpkrjEGLtcR7yfsw1l0mEQMpybOlm4jt1KgCkfD/u3ew==}
@@ -8198,6 +8206,13 @@ snapshots:
     transitivePeerDependencies:
       - '@mysten/sui'
       - typescript
+
+  '@mysten/seal@1.4.0(@mysten/sui@2.23.1(typescript@5.9.3))':
+    dependencies:
+      '@mysten/bcs': 2.1.0
+      '@mysten/sui': 2.23.1(typescript@5.9.3)
+      '@noble/curves': 2.2.0
+      '@noble/hashes': 2.2.0
 
   '@mysten/slush-wallet@1.1.8(@mysten/sui@2.23.1(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
