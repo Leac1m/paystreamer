@@ -6,11 +6,15 @@ This guide will walk you through setting up the PayStreamer SDK in your React ap
 
 ## 1. Installation
 
-Install the PayStreamer SDK alongside its peer dependencies (`@mysten/dapp-kit-react`, `@mysten/sui`, and `@tanstack/react-query`).
+Install the PayStreamer SDK alongside its peer dependencies (`@mysten/dapp-kit-react`, `@mysten/sui`, and `@tanstack/react-query`). Pin the peer versions below — this is the exact combination the SDK is tested against; an unpinned `npm install` can silently resolve newer, unverified versions of `@mysten/sui` or `@mysten/dapp-kit-react`.
 
 ```bash
-npm install @paystreamer/sdk @mysten/dapp-kit-react @mysten/sui @tanstack/react-query
+npm install @paystreamer/sdk @mysten/dapp-kit-react@2.1.10 @mysten/sui@2.23.1 @tanstack/react-query
 ```
+
+<Callout type="info">
+  **Compatibility matrix**: `@mysten/sui@2.23.1`, `@mysten/dapp-kit-react@2.1.10`, `@mysten/dapp-kit-core@1.6.8`, `@tanstack/react-query@^5.90.16`, React 18 or 19, Node 20+. Sui CLI `1.75.x` for local development. See the [SDK README](https://github.com/paystreamer) for the current matrix.
+</Callout>
 
 ## 2. Setup the Provider
 

@@ -562,18 +562,9 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@mysten/dapp-kit-react':
-        specifier: 2.1.10
-        version: 2.1.10(@mysten/sui@2.23.1(typescript@5.9.3))(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
-      '@mysten/sui':
-        specifier: 2.23.1
-        version: 2.23.1(typescript@5.9.3)
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.3.0(@types/react@19.2.17)(react@19.2.7)
-      '@tanstack/react-query':
-        specifier: ^5.90.16
-        version: 5.101.2(react@19.2.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -593,6 +584,15 @@ importers:
       '@mysten/codegen':
         specifier: ^0.11.1
         version: 0.11.8
+      '@mysten/dapp-kit-react':
+        specifier: 2.1.10
+        version: 2.1.10(@mysten/sui@2.23.1(typescript@5.9.3))(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
+      '@mysten/sui':
+        specifier: 2.23.1
+        version: 2.23.1(typescript@5.9.3)
+      '@tanstack/react-query':
+        specifier: ^5.90.16
+        version: 5.101.2(react@19.2.7)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1

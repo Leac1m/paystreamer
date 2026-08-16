@@ -46,8 +46,27 @@ feature checklist.
       new version is published to npm. This is now the single blocking
       action for the north star.**
 - [ ] Publish a new `@paystreamer/sdk` version with this session's fixes
-- [ ] Pin and publish a compatibility matrix (SDK / dApp Kit / Sui CLI /
-      node versions actually tested together)
+      (deliberately held for now — continuing other Phase 1 items locally
+      first; publishing needs explicit go-ahead when the time comes)
+- [x] Pin and publish a compatibility matrix (SDK / dApp Kit / Sui CLI /
+      node versions actually tested together) — the dogfood run found the
+      root cause: `@mysten/dapp-kit-react`, `@mysten/sui`, and
+      `@tanstack/react-query` were regular `dependencies` in the SDK's
+      package.json (loose caret ranges), not `peerDependencies`, so a fresh
+      `npm install` had no reason to resolve the versions this repo actually
+      tests against (pinned via `pnpm-workspace.yaml` overrides but never
+      propagated to the published package). Moved them to
+      `peerDependencies` pinned to the workspace's actual tested versions
+      (`@mysten/sui@2.23.1`, `@mysten/dapp-kit-react@2.1.10`), published a
+      compatibility matrix table in the SDK README (the first thing a
+      developer sees on the npm page) and the docs quickstart, and pinned
+      the install command's peer versions explicitly. Also fixed the SDK
+      README's own quickstart example — `<PayStreamerProvider
+      network="devnet">` didn't match any real prop and skipped
+      `DAppKitProvider` entirely, the same class of bug as the docs-site
+      quickstart. Verified: clean build, `tsc --noEmit`, and SDK test suite
+      (35/38 — the 3 localnet-only tests need a fresh chain deploy to
+      re-verify, unrelated to this change, see PR notes).
 - [ ] Test against real testnet, not just localnet (scheduled run of
       `apps/example`'s suite against testnet)
 
