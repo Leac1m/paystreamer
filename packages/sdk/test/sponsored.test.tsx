@@ -15,32 +15,10 @@ const mockSignTransaction = vi.fn().mockImplementation(async ({ transaction }: a
   return { signature: "user_sig", bytes: "dGVzdF9ieXRlcw==" }; // base64 representation of "test_bytes"
 });
 
-vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
-  const actual = await importOriginal<any>();
-  return {
-    ...actual,
-    useCurrentAccount: () => ({ address: VALID_USER_ADDRESS }),
-    useCurrentClient: () => ({
-      waitForTransaction: async () => ({}),
-    }),
-    useDAppKit: () => ({
-      signTransaction: mockSignTransaction
-    })
-  };
-});
-
-describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
-  const mockGraphqlClient = {
-    query: vi.fn().mockImplementation(async () => {
-      return {
-        data: {
-          address: {
-            balance: {
-              totalBalance: "10000" // Low balance: < 0.01 SUI (triggers sponsor flow)
-            }
-          }
-        }
-      };
+const mockClient = {
+  core: {
+    getBalance: vi.fn().mockImplementation(async () => {
+      return { balance: { balance: "10000" } }; // Low balance: < 0.01 SUI (triggers sponsor flow)
     }),
     executeTransaction: vi.fn().mockImplementation(async () => {
       return {
@@ -48,15 +26,28 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
         Transaction: { digest: "MOCK_LOCAL_FALLBACK_DIGEST" }
       };
     }),
-  };
+  },
+};
 
+vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useCurrentAccount: () => ({ address: VALID_USER_ADDRESS }),
+    useCurrentClient: () => mockClient,
+    useDAppKit: () => ({
+      signTransaction: mockSignTransaction
+    })
+  };
+});
+
+describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
   const config = {
     packageId: "0x111",
     registryId: "0x222",
     clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
     pusdType: "0x333::pusd::PUSD",
     sponsorApiUrl: "https://mock-sponsor.api",
-    graphqlClient: mockGraphqlClient as any,
   };
 
   const createTestQueryClient = () => new QueryClient({
@@ -74,8 +65,8 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     capturedTransaction = null;
     vi.restoreAllMocks();
     mockSignTransaction.mockClear();
-    mockGraphqlClient.executeTransaction.mockClear();
-    mockGraphqlClient.query.mockClear();
+    mockClient.core.executeTransaction.mockClear();
+    mockClient.core.getBalance.mockClear();
   });
 
   function TestComponent() {
@@ -187,7 +178,7 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     });
 
     expect(mockSignTransaction).toHaveBeenCalled();
-    expect(mockGraphqlClient.executeTransaction).toHaveBeenCalled();
+    expect(mockClient.core.executeTransaction).toHaveBeenCalled();
   });
 
   it('should trigger local fallback when execute endpoint returns 500', async () => {
@@ -236,19 +227,15 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
     });
 
     expect(mockSignTransaction).toHaveBeenCalled();
-    expect(mockGraphqlClient.executeTransaction).toHaveBeenCalled();
+    expect(mockClient.core.executeTransaction).toHaveBeenCalled();
 
     Transaction.from = originalFrom;
   });
 
   it('should skip sponsor flow and execute locally when wallet balance is >= 0.01 SUI (10_000_000 MIST)', async () => {
-    // Override query to return >= 10,000,000 MIST
-    mockGraphqlClient.query.mockImplementationOnce(async () => ({
-      data: {
-        address: {
-          balance: { totalBalance: "10000000" } // exactly 0.01 SUI
-        }
-      }
+    // Override balance to return >= 10,000,000 MIST
+    mockClient.core.getBalance.mockImplementationOnce(async () => ({
+      balance: { balance: "10000000" } // exactly 0.01 SUI
     }));
 
     const mockFetch = vi.fn();
@@ -275,7 +262,7 @@ describe('useSponsoredTransaction Fallback & Sponsor flow', () => {
 
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockSignTransaction).toHaveBeenCalled();
-    expect(mockGraphqlClient.executeTransaction).toHaveBeenCalled();
+    expect(mockClient.core.executeTransaction).toHaveBeenCalled();
   });
 });
 

@@ -1,4 +1,4 @@
-import { useCurrentAccount, useDAppKit } from "@mysten/dapp-kit-react";
+import { useCurrentAccount, useCurrentClient, useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
 import { usePayStreamerConfig } from "./provider";
@@ -22,6 +22,7 @@ export function useSponsoredTransaction() {
   const config = usePayStreamerConfig();
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
+  const client = useCurrentClient();
 
   async function executeSponsored(tx: Transaction): Promise<ExecuteSponsoredResult> {
     if (!account) {
@@ -30,32 +31,18 @@ export function useSponsoredTransaction() {
 
     let suiBalance = "0";
     try {
-      if (!config.graphqlClient) throw new Error("GraphQL client not configured");
-
-      const query = `query GetSuiBalance($owner: SuiAddress!) {
-        address(address: $owner) {
-          balance(coinType: "0x2::sui::SUI") {
-            totalBalance
-          }
-        }
-      }`;
-
-      const balRes = await config.graphqlClient.query({
-        query,
-        variables: { owner: account.address },
-      });
-
-      suiBalance = (balRes.data as any)?.address?.balance?.totalBalance || "0";
+      const balRes = await client.core.getBalance({ owner: account.address, coinType: "0x2::sui::SUI" });
+      suiBalance = balRes.balance.balance;
 
       // 10,000,000 MIST = 0.01 SUI
       if (BigInt(suiBalance) >= 10_000_000n) {
         console.log("Wallet has sufficient SUI balance, skipping sponsor flow...");
-        
+
         const { signature, bytes } = await dAppKit.signTransaction({
           transaction: tx,
         });
 
-        const res = await config.graphqlClient.executeTransaction({
+        const res = await client.core.executeTransaction({
           transaction: fromBase64(bytes),
           signatures: [signature],
         });
@@ -128,7 +115,6 @@ export function useSponsoredTransaction() {
       }
 
       console.warn("Falling back to local execution...");
-      if (!config.graphqlClient) return { error: "GraphQL client not configured", status: "failure" };
 
       try {
         // Fallback: Sign and execute the original transaction directly using the user's SUI for gas
@@ -136,7 +122,7 @@ export function useSponsoredTransaction() {
           transaction: tx,
         });
 
-        const res = await config.graphqlClient.executeTransaction({
+        const res = await client.core.executeTransaction({
           transaction: fromBase64(bytes),
           signatures: [signature],
         });

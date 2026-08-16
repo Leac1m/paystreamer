@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Transaction } from "@mysten/sui/transactions";
 import { usePayStreamerConfig } from "./provider";
 import { useSponsoredTransaction } from "./useSponsoredTransaction";
@@ -14,6 +15,7 @@ export function useMintTestPusd(): UseMintTestPusdResult {
   const config = usePayStreamerConfig();
   const account = useCurrentAccount();
   const { executeSponsored } = useSponsoredTransaction();
+  const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +40,10 @@ export function useMintTestPusd(): UseMintTestPusdResult {
 
       const pusdPackageId = config.pusdPackageId;
       const treasuryCapId = config.pusdTreasuryCapId;
+      const treasuryCapInitVersion = config.pusdTreasuryCapInitVersion;
 
-      if (!pusdPackageId || !treasuryCapId) {
-        setError("pusdPackageId or pusdTreasuryCapId not configured");
+      if (!pusdPackageId || !treasuryCapId || treasuryCapInitVersion === undefined) {
+        setError("pusdPackageId, pusdTreasuryCapId, or pusdTreasuryCapInitVersion not configured");
         return null;
       }
 
@@ -52,7 +55,14 @@ export function useMintTestPusd(): UseMintTestPusdResult {
         tx.moveCall({
           target: `${pusdPackageId}::pusd::mint`,
           arguments: [
-            tx.object(treasuryCapId),
+            // The PUSD TreasuryCap is a shared object (minting is gated by
+            // AccessControl, not owned-object custody) — it must be
+            // referenced as a shared object, not tx.object().
+            tx.sharedObjectRef({
+              objectId: treasuryCapId,
+              initialSharedVersion: treasuryCapInitVersion,
+              mutable: true,
+            }),
             tx.pure.address(account.address),
             tx.pure.u64(amountMist),
           ],
@@ -64,6 +74,8 @@ export function useMintTestPusd(): UseMintTestPusdResult {
           throw new Error(result.error || "Transaction failed");
         }
 
+        await queryClient.invalidateQueries({ queryKey: ["paystreamer", "balance"] });
+
         return result.digest || null;
       } catch (err: any) {
         console.error("useMintTestPusd error:", err);
@@ -73,7 +85,7 @@ export function useMintTestPusd(): UseMintTestPusdResult {
         setIsLoading(false);
       }
     },
-    [account, config, executeSponsored]
+    [account, config, executeSponsored, queryClient]
   );
 
   return {
