@@ -92,9 +92,30 @@ Everything needed to ship is already committed on this branch.
 
 ## Phase 2 — Harden against real developer failure modes
 
-- [ ] Audit SDK hooks/provider for silently-swallowed errors
-- [ ] Apply `E2E_TESTING_RULES.md`'s loading/empty-state rigor to the SDK's
-      own exported components
+- [x] Audit SDK hooks/provider for silently-swallowed errors — swept every
+      `catch` block in `packages/sdk/src` (5 total). `useSubscribe`,
+      `useMintTestPusd`, `useSponsoredTransaction` already log and surface
+      correctly. Found the real gap one level up: **`SetupSubscriptionModal`
+      — the SDK's flagship exported component — destructured `usePlatform`'s
+      `data`/`isLoading` but completely discarded `error`/`isError`.** On a
+      failed platform fetch it silently rendered a $0.00 tier with an
+      *enabled* Subscribe button instead of any error. This is almost
+      certainly what the Phase 1 dogfood run actually hit ("Tier Amount
+      0.00 PUSD" against a platform confirmed to have real on-chain data).
+      Fixed: added a dedicated error/empty state using the SDK's own
+      (previously unused) `ErrorState` component with a working Retry
+      button, and disabled the Subscribe path entirely until real tier data
+      loads. Also added a `console.error` to `TestnetFaucetButton`'s catch,
+      which silently dropped errors when no `onError` handler was passed.
+      Added a regression test proving the fix (fetch fails → error shown,
+      no $0.00, no clickable button → retry recovers real data). Also
+      cleared three stale `graphqlClient`/GraphQL references left behind
+      in the hook docs from before this session's gRPC migration.
+- [x] Apply `E2E_TESTING_RULES.md`'s loading/empty-state rigor to the SDK's
+      own exported components — same fix as above satisfies this directly
+      (explicit error state, not a silent stuck/wrong render). Audited the
+      only other data-fetching UI export (`TestnetFaucetButton`) — already
+      surfaces its `error` state in the UI.
 - [ ] Keep a demo platform reliably alive on testnet for docs "try it live"
       links
 

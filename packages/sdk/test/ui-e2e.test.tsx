@@ -134,6 +134,41 @@ describe('React SDK UI Components E2E', () => {
     });
   });
 
+  it('should show an error state instead of a misleading $0.00 tier when the platform fetch fails', async () => {
+    mockPusdBalance = 50000000000n;
+    mockClient.core.getObject.mockRejectedValueOnce(new Error('network error: fetch failed'));
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <SetupSubscriptionModal
+            isOpen={true}
+            onClose={() => {}}
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            tierIndex={0}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load this platform's tier data.")).toBeDefined();
+      expect(screen.getByText('network error: fetch failed')).toBeDefined();
+    });
+
+    // Must not silently render a $0.00 tier with a clickable Subscribe button
+    expect(screen.queryByText('0.00 PUSD')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Setup & Subscribe/i })).toBeNull();
+
+    // Retry re-fetches and, once it succeeds, shows the real tier data
+    const retryBtn = screen.getByRole('button', { name: /Retry/i });
+    await userEvent.click(retryBtn);
+    await waitFor(() => {
+      expect(screen.getByText('10.00 PUSD')).toBeDefined();
+    });
+  });
+
   it('should apply custom theme styles to the modal wrapper when passed via props', async () => {
     mockPusdBalance = 50000000000n;
     const queryClient = createTestQueryClient();

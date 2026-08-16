@@ -44,8 +44,8 @@ You must pass an object with the following properties:
 |----------|------|-------------|
 | `platformId` | `string` | The target platform object ID. |
 | `tierIndex` | `number \| bigint` | The tier index on the platform to subscribe to. |
-| `tierAmount` | `bigint` | **Optional**. The cost of the tier per cycle (in MIST). Auto-resolved via GraphQL if omitted. |
-| `tierFrequencyMs` | `bigint` | **Optional**. The duration of the billing cycle (in MS). Auto-resolved via GraphQL if omitted. |
+| `tierAmount` | `bigint` | **Optional**. The cost of the tier per cycle (in MIST). Auto-resolved from the connected chain if omitted. |
+| `tierFrequencyMs` | `bigint` | **Optional**. The duration of the billing cycle (in MS). Auto-resolved from the connected chain if omitted. |
 | `maxAttempts` | `number` | Optional. The maximum number of retry attempts the scheduler should make for a failed payment. Defaults to 3. |
 | `accountId?` | `string` | Optional. The ID of the user's existing PayStreamer Account. |
 | `accountCapId?` | `string` | Optional. The ID of the user's existing Account Capability. |
