@@ -13,6 +13,6 @@ PayStreamer is a decentralized, recurring billing and subscription protocol buil
 
 ## Where to go next?
 
-- Jump into the [Quickstart](quickstart.md) to integrate PayStreamer in your React/Vite app.
+- Jump into the [Quickstart](quickstart.mdx) to integrate PayStreamer in your React/Vite app.
 - Explore the [React Hooks](hooks/useSubscribe.md) for custom integrations.
 - View our [UI Components](components/SetupSubscriptionModal.md) for easy drop-in solutions.

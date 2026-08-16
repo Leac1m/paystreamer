@@ -1,4 +1,4 @@
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
+import { useCurrentAccount, useCurrentClient } from '@mysten/dapp-kit-react';
 import { useQuery } from '@tanstack/react-query';
 import { usePayStreamerConfig } from './provider';
 
@@ -11,6 +11,7 @@ export interface PayStreamerUserAccount {
 export function useUserAccount() {
   const account = useCurrentAccount();
   const config = usePayStreamerConfig();
+  const client = useCurrentClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['getOwnedObjects', account?.address, config.packageId],
@@ -24,67 +25,26 @@ export function useUserAccount() {
       }
       
       if (!account?.address) return null;
-      if (!config.graphqlClient) {
-        throw new Error("GraphQL client is not configured in PayStreamerProvider");
-      }
 
-      const query = `
-        query GetAccountCap($owner: SuiAddress!, $type: String!) {
-          address(address: $owner) {
-            objects(filter: { type: $type }) {
-              nodes {
-                address
-                contents {
-                  json
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      const result = await config.graphqlClient.query({
-        query,
-        variables: {
-          owner: account.address,
-          type: `${config.packageId}::account::AccountCap`
-        }
+      const owned = await client.core.listOwnedObjects({
+        owner: account.address,
+        type: `${config.packageId}::account::AccountCap`,
+        include: { json: true },
       });
 
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors[0].message);
-      }
-
-      const resData = result.data as any;
       let accountCapId = '';
       let accountId = '';
       let balance = 0n;
 
-      if (resData?.address?.objects?.nodes && resData.address.objects.nodes.length > 0) {
-        const obj = resData.address.objects.nodes[0];
-        const json = obj.contents?.json;
+      if (owned.objects.length > 0) {
+        const obj = owned.objects[0];
+        const json = obj.json as any;
         if (json?.account_id) {
-          accountCapId = obj.address || '';
+          accountCapId = obj.objectId || '';
           accountId = json.account_id;
 
-          const balQuery = `
-            query GetAccountBal($id: SuiAddress!) {
-              object(address: $id) {
-                asMoveObject {
-                  contents {
-                    json
-                  }
-                }
-              }
-            }
-          `;
-
-          const balResult = await config.graphqlClient.query({
-            query: balQuery,
-            variables: { id: accountId }
-          });
-
-          const balStr = (balResult.data as any)?.object?.asMoveObject?.contents?.json?.balance || "0";
+          const balRes = await client.core.getObject({ objectId: accountId, include: { json: true } });
+          const balStr = (balRes.object.json as any)?.balance || "0";
           balance = BigInt(balStr);
         }
       }

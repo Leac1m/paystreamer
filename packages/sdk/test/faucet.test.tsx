@@ -10,14 +10,26 @@ import { TestnetFaucetButton } from '../src/ui';
 
 // Mock the dAppKit hooks
 let capturedTransaction: Transaction | null = null;
+const mockClient = {
+  core: {
+    getBalance: vi.fn().mockImplementation(async () => {
+      return { balance: { balance: "1000000000" } }; // 1 SUI (local execution path)
+    }),
+    executeTransaction: vi.fn().mockImplementation(async () => {
+      return {
+        $kind: "Transaction",
+        Transaction: { digest: "MOCK_FAUCET_DIGEST" }
+      };
+    }),
+  },
+};
+
 vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
     ...actual,
     useCurrentAccount: () => ({ address: "0x0000000000000000000000000000000000000000000000000000000000000123" }),
-    useCurrentClient: () => ({
-      waitForTransaction: async () => ({}),
-    }),
+    useCurrentClient: () => mockClient,
     useDAppKit: () => ({
       signTransaction: async ({ transaction }: any) => {
         capturedTransaction = transaction;
@@ -28,26 +40,6 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 });
 
 describe('SDK Faucet Utilities', () => {
-  const mockGraphqlClient = {
-    query: vi.fn().mockImplementation(async () => {
-      return {
-        data: {
-          address: {
-            balance: {
-              totalBalance: "1000000000" // 1 SUI (local execution path)
-            }
-          }
-        }
-      };
-    }),
-    executeTransaction: vi.fn().mockImplementation(async () => {
-      return {
-        $kind: "Transaction",
-        Transaction: { digest: "MOCK_FAUCET_DIGEST" }
-      };
-    }),
-  };
-
   const MOCK_PUSD_PACKAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000abc";
   const MOCK_TREASURY_CAP_ID = "0x0000000000000000000000000000000000000000000000000000000000000def";
 
@@ -58,7 +50,7 @@ describe('SDK Faucet Utilities', () => {
     pusdType: `${MOCK_PUSD_PACKAGE_ID}::pusd::PUSD`,
     pusdPackageId: MOCK_PUSD_PACKAGE_ID,
     pusdTreasuryCapId: MOCK_TREASURY_CAP_ID,
-    graphqlClient: mockGraphqlClient as any,
+    pusdTreasuryCapInitVersion: 42,
   };
 
   const createTestQueryClient = () => new QueryClient({

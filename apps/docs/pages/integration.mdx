@@ -2,76 +2,99 @@ import { Callout } from 'nextra/components';
 
 # Seal & Walrus Integration
 
-PayStreamer is fundamentally designed to integrate securely with Sui's advanced primitives, most notably **Walrus** (for decentralized storage) and **Seal** (for encrypted data access).
+PayStreamer is designed to integrate cleanly with Sui's advanced primitives, most notably **Walrus** (for decentralized storage) and **Seal** (for encrypted data access).
 
 This guide explains how content platforms can use PayStreamer as the on-chain source of truth to conditionally decrypt content for active subscribers.
 
+<Callout type="info">
+  **Scope**: PayStreamer doesn't publish its own Seal policy module — you write a small one yourself, in your own platform's Move package, that calls PayStreamer's existing `has_active_subscription` helper. That's the entire integration surface; everything below is real, working Move, not a conceptual sketch.
+</Callout>
+
 ## The Architecture
 
-When building a decentralized platform (like a video streaming dApp or a token-gated newsletter), you need a way to serve content only to users who have paid for it. 
+When building a decentralized platform (like a video streaming dApp or a token-gated newsletter), you need a way to serve content only to users who have paid for it.
 
 ### 1. Walrus for Storage
 Instead of relying on AWS S3, platforms upload their encrypted raw content (videos, images, articles) to [Walrus](https://walrus.sui.io/). The content is stored as decentralized blobs on the Sui network.
 
 ### 2. Seal for Access Control
-[Sui Seal](https://docs.sui.io) handles the key management and decryption layer. It allows developers to encrypt content off-chain and define an **on-chain Move policy** that determines exactly who is allowed to receive the decryption keys.
+[Seal](https://seal.mystenlabs.com/) handles key management and decryption. You encrypt content off-chain and write an **on-chain Move policy** — a `seal_approve` function — that Seal's key servers dry-run before releasing a decryption key. If your function doesn't abort, access is granted.
 
 ### 3. PayStreamer for Billing
-PayStreamer provides the dynamic Subscription Account. Because PayStreamer tracks subscription statuses (Active, Paused, Cancelled) entirely on-chain, Seal can read this state directly to enforce access.
+PayStreamer provides the dynamic `SubscriptionAccount`. Because it tracks subscription status (active, paused, cancelled) entirely on-chain, your `seal_approve` policy can read that state directly instead of reimplementing billing logic.
 
 ---
 
 ## Implementing the Seal Policy
 
-PayStreamer exposes a highly optimized, read-only helper method in its `account` module designed specifically for this integration:
+PayStreamer exposes a read-only helper in its `account` module built for exactly this:
 
 ```move
 public fun has_active_subscription<T>(
-    account: &SubscriptionAccount<T>, 
+    account: &SubscriptionAccount<T>,
     platform_id: ID
 ): bool
 ```
 
+It returns `false` if the platform was never subscribed to, if the account itself is paused or closed, or if that specific subscription is paused or cancelled — including PayStreamer's automatic pause after 3 consecutive failed payments (see the callout below).
+
 ### Writing Your Custom Move Policy
-When configuring your Seal setup, you write a custom Move module that checks the PayStreamer account. Here is a simplified example of how your content platform's policy might look:
+
+Seal's real on-chain contract is an `entry fun seal_approve(id: vector<u8>, ...)` — it takes no return value; access is denied by aborting, granted by returning normally. The `id` argument is the identity being requested for decryption, and by convention should be namespaced under something only your policy controls (here, your platform's own ID) — encrypt each piece of content with an `id` like `[platform_id][nonce]`, so this policy can never be tricked into approving a key for someone else's data.
 
 ```move
 module my_platform::content_policy {
-    use sui::tx_context::TxContext;
     use paystreamer::account::{Self, SubscriptionAccount};
-    use paystreamer::pusd::PUSD;
-    use seal::policy::{Self, SealPolicy};
 
-    // The ID of your platform registered in PayStreamer
+    /// Your platform's ID, as registered in PayStreamer.
     const PLATFORM_ID: address = @0x123...;
 
-    /// The function that Seal nodes call to verify access
-    public fun verify_access(
-        _policy: &SealPolicy,
-        subscriber_account: &SubscriptionAccount<PUSD>,
-        ctx: &mut TxContext
-    ): bool {
-        // Use PayStreamer's helper to ensure the user is actively paying
-        account::has_active_subscription(
-            subscriber_account, 
-            sui::object::id_from_address(PLATFORM_ID)
-        )
+    const ENoAccess: u64 = 1;
+
+    /// Called by Seal key servers (via dry-run) to decide whether to
+    /// release a decryption key share for `id`. Must be an `entry fun`
+    /// with no return value — Seal grants access if this doesn't abort.
+    entry fun seal_approve<T>(
+        id: vector<u8>,
+        account: &SubscriptionAccount<T>,
+    ) {
+        assert!(is_namespaced_to_platform(id), ENoAccess);
+        assert!(
+            account::has_active_subscription(
+                account,
+                sui::object::id_from_address(PLATFORM_ID),
+            ),
+            ENoAccess,
+        );
+    }
+
+    /// Enforces the `[platform_id][nonce]` id convention described above.
+    fun is_namespaced_to_platform(id: vector<u8>): bool {
+        let namespace = sui::address::to_bytes(PLATFORM_ID);
+        if (namespace.length() > id.length()) return false;
+        let mut i = 0;
+        while (i < namespace.length()) {
+            if (namespace[i] != id[i]) return false;
+            i = i + 1;
+        };
+        true
     }
 }
 ```
 
 <Callout type="info">
-  **Security Note**: PayStreamer is designed so that if a user fails **3 consecutive payments** due to insufficient funds, their subscription is automatically updated to a `PAUSED` state. Once paused, `has_active_subscription` immediately returns `false`, and Seal nodes will instantly stop providing decryption keys.
+  **Automatic pausing**: if a user fails **3 consecutive payments** due to insufficient funds, PayStreamer automatically pauses that subscription. Once paused, `has_active_subscription` immediately returns `false`, and your `seal_approve` policy starts aborting — Seal's key servers stop releasing keys the moment billing lapses, with no extra code on your end.
 </Callout>
 
 ## The User Flow
 
-1. **User Subscribes**: The user connects their wallet to your dApp and signs the PayStreamer `Subscribe` PTB.
-2. **Access Granted**: Your platform's backend (or the frontend via Walrus) fetches the encrypted blob.
-3. **Decryption Request**: The client requests the decryption key from Seal, presenting their `SubscriptionAccount` object ID.
-4. **On-Chain Verification**: Seal reads the blockchain, executes your custom `verify_access` policy, and confirms the `SubscriptionAccount` is active via PayStreamer.
-5. **Content Served**: Seal returns the key, the client decrypts the Walrus blob, and the user watches the video.
+1. **User Subscribes**: The user connects their wallet and signs the PayStreamer `Subscribe` PTB.
+2. **Content Fetched**: Your platform fetches the encrypted blob from Walrus.
+3. **Decryption Request**: The client requests the decryption key from Seal, targeting your `seal_approve` function with the user's `SubscriptionAccount` object.
+4. **On-Chain Verification**: Seal's key servers dry-run `seal_approve`. It checks the `id` namespace, then delegates to `has_active_subscription` to confirm the subscription is actually active.
+5. **Content Served**: If the policy doesn't abort, Seal returns key shares, the client decrypts the Walrus blob, and the user gets their content.
 
 ## Next Steps
 - Learn how to deploy a Platform in PayStreamer: [Registering a Platform](/platform)
+- Read the [Seal documentation](https://seal.mystenlabs.com/) for the full client SDK flow (encrypting on upload, session keys, fetching key shares).
 - Read the Sui documentation on [Walrus Sites](https://docs.walrus.site) to learn how to host your dApp completely decentralized!

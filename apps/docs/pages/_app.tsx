@@ -30,7 +30,8 @@ const config = {
   network: NETWORK,
   sponsorApiUrl: "/api/sponsor",
   pusdPackageId: sdKConfig.PUSD_PACKAGE_ID,
-  pusdTreasuryCapId: sdKConfig.PUSD_TREASURY_CAP_ID
+  pusdTreasuryCapId: sdKConfig.PUSD_TREASURY_CAP_ID,
+  pusdTreasuryCapInitVersion: sdKConfig.PUSD_TREASURY_CAP_INIT_VERSION,
 };
 
 const queryClient = new QueryClient();

@@ -131,15 +131,20 @@ export interface BuildSubscribeTxParams {
   accountId?: string;
   accountCapId?: string;
 
-  // Optional deposit details
+  // Optional deposit details. `coinsToUse` are existing owned coin object
+  // IDs to merge/split from. `depositCoin` is an alternative for when the
+  // deposit source is a fresh transaction argument that doesn't exist as
+  // an owned object yet -- e.g. buildOnboardWithSwapTx's DeepBook swap
+  // output -- in which case it's deposited directly, no merge/split.
   depositAmount?: bigint;
   coinsToUse?: string[];
+  depositCoin?: any;
 }
 
 export function buildSubscribeTx(params: BuildSubscribeTxParams) {
   const {
     tx, packageId, clockId, denomination, platformId, tierIndex, tierAmount, tierFrequencyMs,
-    maxAttempts = 3, accountId, accountCapId, depositAmount = 0n, coinsToUse = []
+    maxAttempts = 3, accountId, accountCapId, depositAmount = 0n, coinsToUse = [], depositCoin
   } = params;
 
   let workingAccountObj: any;
@@ -166,13 +171,19 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
     workingCap = tx.object(accountCapId!);
   }
 
-  if (depositAmount > 0n && coinsToUse.length > 0) {
+  if (depositCoin !== undefined) {
+    tx.moveCall({
+      target: `${packageId}::account::deposit`,
+      typeArguments: [denomination],
+      arguments: [workingAccountObj, depositCoin],
+    });
+  } else if (depositAmount > 0n && coinsToUse.length > 0) {
     const coinObjs = coinsToUse.map(id => tx.object(id));
     if (coinObjs.length > 1) {
        tx.mergeCoins(coinObjs[0], coinObjs.slice(1));
     }
     const [splitCoin] = tx.splitCoins(coinObjs[0], [tx.pure.u64(depositAmount)]);
-    
+
     tx.moveCall({
       target: `${packageId}::account::deposit`,
       typeArguments: [denomination],
@@ -202,6 +213,30 @@ export function buildSubscribeTx(params: BuildSubscribeTxParams) {
       arguments: [workingAccountObj, workingCap],
     });
   }
+}
+
+export interface BuildOnboardWithSwapTxParams extends Omit<BuildSubscribeTxParams, 'depositAmount' | 'coinsToUse' | 'depositCoin'> {
+  /**
+   * Called with no arguments; perform your swap (e.g. into a
+   * `deepbook.swapExactQuantity` call producing `Coin<denomination>`) and
+   * return the resulting coin argument. Composed into the same `tx`,
+   * before account creation and the deposit/subscribe call.
+   */
+  performSwap: () => any;
+}
+
+/**
+ * Lets a brand-new user subscribe by paying in whatever token they
+ * actually hold, converting it to the platform's settlement denomination
+ * in the same PTB — no separate "acquire PUSD first" step. Composes a
+ * swap with buildSubscribeTx's existing account-creation/deposit/subscribe
+ * flow via the `depositCoin` seam, rather than requiring the caller to
+ * already own a `denomination` coin the way `coinsToUse` does.
+ */
+export function buildOnboardWithSwapTx(params: BuildOnboardWithSwapTxParams) {
+  const { performSwap, ...subscribeParams } = params;
+  const depositCoin = performSwap();
+  buildSubscribeTx({ ...subscribeParams, depositCoin });
 }
 
 export interface BuildManageSubscriptionTxParams {
@@ -302,6 +337,104 @@ export function buildProcessPaymentTx(params: BuildProcessPaymentTxParams) {
       }),
       tx.object(accountId),
       limiters,
+      tx.object(clockId),
+    ],
+  });
+}
+
+export interface BuildProcessRoutedPaymentTxParams {
+  tx: Transaction;
+  packageId: string;
+  registryId: string;
+  clockId: string;
+  /** The coin type the account actually holds. */
+  fundingCoinType: string;
+  /** The coin type the platform settles in. */
+  platformCoinType: string;
+  accountId: string;
+  platformId: string;
+  platformInitVersion: number;
+  schedulerId: string;
+  schedulerInitVersion: number;
+  /** Upper bound on how much of the account's FundingCoin the swap may spend — also the amount policy limiters are evaluated against. */
+  maxSpend: bigint;
+  /**
+   * Called with the `Coin<FundingCoin>` withdrawn from the account (a
+   * transaction argument, not a value) — perform your swap against it
+   * (e.g. `deepbook.swapExactQuantity`) and return the resulting
+   * `Coin<PlatformCoin>` plus any unspent `Coin<FundingCoin>` change.
+   * Composed into the same `tx`, between `withdraw_for_route` and
+   * `process_routed_payment` — this is the only place a swap can go,
+   * since the funding coin doesn't exist until `withdraw_for_route` runs.
+   */
+  performSwap: (fundingCoin: any) => { platformCoin: any; fundingChange: any };
+}
+
+/**
+ * Recurring, scheduler-driven routed payment: withdraws up to `maxSpend`
+ * of the account's held coin, lets the caller swap it into the platform's
+ * settlement coin via `performSwap`, and settles the payment with the
+ * result — refunding unspent funding-coin change back into the account.
+ * Mirrors `move/subscriptions/sources/scheduler.move`'s
+ * `withdraw_for_route`/`process_routed_payment` pair exactly; see
+ * roadmap.md Phase 3 for why this exists (the on-chain side was already
+ * fully implemented, just never wired up to the SDK).
+ */
+export function buildProcessRoutedPaymentTx(params: BuildProcessRoutedPaymentTxParams) {
+  const {
+    tx, packageId, registryId, clockId, fundingCoinType, platformCoinType,
+    accountId, platformId, platformInitVersion, schedulerId, schedulerInitVersion,
+    maxSpend, performSwap,
+  } = params;
+
+  const limiters = tx.moveCall({
+    target: `${packageId}::policies::empty_limiters`,
+    arguments: [tx.object(clockId)],
+  });
+
+  tx.moveCall({
+    target: `${packageId}::policies::ensure_initialized`,
+    typeArguments: [fundingCoinType],
+    arguments: [tx.object(accountId), limiters, tx.object(clockId)],
+  });
+
+  const schedulerRef = tx.sharedObjectRef({
+    objectId: schedulerId,
+    initialSharedVersion: schedulerInitVersion,
+    mutable: true,
+  });
+  const platformRef = tx.sharedObjectRef({
+    objectId: platformId,
+    initialSharedVersion: platformInitVersion,
+    mutable: true,
+  });
+
+  const [fundingCoin, potato] = tx.moveCall({
+    target: `${packageId}::scheduler::withdraw_for_route`,
+    typeArguments: [fundingCoinType, platformCoinType],
+    arguments: [
+      schedulerRef,
+      platformRef,
+      tx.object(accountId),
+      limiters,
+      tx.object(clockId),
+      tx.pure.u64(maxSpend),
+    ],
+  });
+
+  const { platformCoin, fundingChange } = performSwap(fundingCoin);
+
+  tx.moveCall({
+    target: `${packageId}::scheduler::process_routed_payment`,
+    typeArguments: [fundingCoinType, platformCoinType],
+    arguments: [
+      tx.object(registryId),
+      schedulerRef,
+      potato,
+      platformRef,
+      tx.object(accountId),
+      platformCoin,
+      fundingChange,
       tx.object(clockId),
     ],
   });

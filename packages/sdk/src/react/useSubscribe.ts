@@ -83,32 +83,17 @@ export function useSubscribe(params: UseSubscribeParams) {
 
         // Fetch coins if deposit is requested
         if (depositAmount > 0n) {
-          if (!config.graphqlClient) throw new Error("GraphQL client not configured");
-          
-          const coinsQuery = `query GetCoins($owner: SuiAddress!, $type: String!) {
-            address(address: $owner) {
-              objects(first: 50, filter: { type: $type }) {
-                nodes {
-                  address
-                  contents {
-                    json
-                  }
-                }
-              }
-            }
-          }`;
-
-          const res = await config.graphqlClient.query({
-            query: coinsQuery,
-            variables: { owner: account.address, type: resolvedCoinType }
+          const owned = await client.core.listCoins({
+            owner: account.address,
+            coinType: resolvedCoinType,
+            limit: 50,
           });
 
-          const nodes = (res.data as any)?.address?.objects?.nodes || [];
           let total = 0n;
-          for (const node of nodes) {
-            const balance = BigInt(node.contents?.json?.balance || 0);
+          for (const coin of owned.objects) {
+            const balance = BigInt(coin.balance || 0);
             total += balance;
-            coinsToUse.push(node.address);
+            coinsToUse.push(coin.objectId);
             if (total >= depositAmount) break;
           }
 

@@ -1,5 +1,4 @@
-import { createContext, useContext, ReactNode, useMemo } from 'react';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { createContext, useContext, ReactNode } from 'react';
 
 export interface PayStreamerConfig {
   packageId?: string;
@@ -8,10 +7,9 @@ export interface PayStreamerConfig {
   pusdType?: string;
   pusdPackageId?: string;
   pusdTreasuryCapId?: string;
+  pusdTreasuryCapInitVersion?: number;
   sponsorApiUrl?: string;
-  network?: string; // "devnet", "testnet", "mainnet"
-  graphqlUrl?: string; // e.g. "https://graphql.testnet.sui.io/graphql"
-  graphqlClient?: SuiGraphQLClient;
+  network?: string; // "devnet", "testnet", "mainnet", "local"
   isMockMode?: boolean; // Used for UI playgrounds
 }
 
@@ -25,30 +23,15 @@ export interface PayStreamerProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Carries PayStreamer's contract addresses and config for the target
+ * network. Must be nested inside dApp Kit's `DAppKitProvider` — hooks read
+ * the live, connected client via `useCurrentClient()` rather than managing
+ * their own, so wallet network switches are picked up automatically.
+ */
 export function PayStreamerProvider({ config, children }: PayStreamerProviderProps) {
-  const finalConfig = useMemo(() => {
-    if (config.graphqlClient) return config;
-    if (config.graphqlUrl) {
-      return {
-        ...config,
-        graphqlClient: new SuiGraphQLClient({
-          url: config.graphqlUrl,
-          network: config.network || "testnet",
-        }),
-      };
-    }
-    // Fallback default client
-    return {
-      ...config,
-      graphqlClient: new SuiGraphQLClient({
-        url: "https://graphql.testnet.sui.io/graphql",
-        network: "testnet"
-      })
-    };
-  }, [config]);
-
   return (
-    <PayStreamerContext.Provider value={finalConfig}>
+    <PayStreamerContext.Provider value={config}>
       {children}
     </PayStreamerContext.Provider>
   );

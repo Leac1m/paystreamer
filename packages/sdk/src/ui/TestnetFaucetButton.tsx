@@ -31,6 +31,7 @@ export function TestnetFaucetButton({
         if (onError) onError(error);
       }
     } catch (err: any) {
+      console.error("TestnetFaucetButton mint failed:", err);
       if (onError) onError(err.message || String(err));
     }
   };

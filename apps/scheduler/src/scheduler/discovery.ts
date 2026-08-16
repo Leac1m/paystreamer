@@ -9,7 +9,18 @@ export interface DiscoveredSubscription {
   accountId: string;
   platformId: string;
   nextBillingTime: bigint;
+  /** The coin type the account actually holds (`SubscriptionAccount<T>`'s `T`). */
   denomination: string;
+  /** Index into the platform's tier `VecMap` this subscription is billed under. */
+  tierIndex: number;
+  /** Per-cycle amount owed, in the settlement currency's smallest unit (`Subscription.tier_amount`). */
+  tierAmount: bigint;
+  /**
+   * The coin type the platform's tier actually settles in
+   * (`SubscriptionTier.denomination`). Undefined if the tier lookup fails —
+   * treated as "unknown, do not route" rather than assumed same-currency.
+   */
+  settlementDenomination?: string;
 }
 
 export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
@@ -121,7 +132,9 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
                 accountId,
                 platformId,
                 nextBillingTime: BigInt(subData.next_billing_time || 0),
-                denomination
+                denomination,
+                tierIndex: Number(subData.tier_index ?? 0),
+                tierAmount: BigInt(subData.tier_amount || 0),
               });
             }
           }
@@ -130,12 +143,47 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
         console.error(`[Discovery] Error fetching objects batch:`, err);
       }
     }
-    
+
+    if (subscriptions.length > 0) {
+      const tierDenominations = await getPlatformTierDenominations(platformId);
+      for (const sub of subscriptions) {
+        sub.settlementDenomination = tierDenominations.get(sub.tierIndex);
+      }
+    }
+
     return subscriptions;
   } catch (error) {
     console.error(`[Discovery] Error discovering subscriptions for ${platformId}:`, error);
     return [];
   }
+}
+
+/**
+ * Reads a platform's tier `VecMap<u64, SubscriptionTier>` and returns
+ * tier_index -> settlement denomination (`SubscriptionTier.denomination`,
+ * a `TypeName` which gRPC encodes as a plain fully-qualified type string,
+ * e.g. `"0xpkg::pusd::PUSD"` — confirmed directly against a live testnet
+ * platform object, not assumed). One call per platform per cycle.
+ */
+export async function getPlatformTierDenominations(platformId: string): Promise<Map<number, string>> {
+  const denominations = new Map<number, string>();
+  try {
+    const res = await grpcClient.core.getObject({ objectId: platformId, include: { json: true } });
+    const json = res.object?.json as any;
+    const rawTiers = Array.isArray(json?.tiers) ? json.tiers : json?.tiers?.contents;
+    if (Array.isArray(rawTiers)) {
+      rawTiers.forEach((entry: any, idx: number) => {
+        const value = entry?.value ?? entry ?? {};
+        const key = entry?.key !== undefined ? Number(entry.key) : idx;
+        if (typeof value.denomination === 'string') {
+          denominations.set(key, value.denomination);
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`[Discovery] Error fetching tier denominations for ${platformId}:`, error);
+  }
+  return denominations;
 }
 
 export async function getCurrentTime(): Promise<bigint> {

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { usePayStreamerConfig } from './provider';
 
 export interface PlatformTier {
@@ -25,6 +26,7 @@ export interface PlatformWithTiers {
 
 export function usePlatform(platformId: string | undefined) {
   const config = usePayStreamerConfig();
+  const client = useCurrentClient();
 
   return useQuery({
     queryKey: ['paystreamer', 'platform', platformId, config.network],
@@ -53,43 +55,12 @@ export function usePlatform(platformId: string | undefined) {
         } as PlatformWithTiers & { initialSharedVersion: number };
       }
       
-      if (!config.graphqlClient) {
-        throw new Error("GraphQL client is not configured in PayStreamerProvider");
-      }
-
-      const query = `
-        query GetPlatform($id: SuiAddress!) {
-          object(address: $id) {
-            asMoveObject {
-              contents {
-                type
-                json
-              }
-            }
-            owner {
-              ... on Shared {
-                initialSharedVersion
-              }
-            }
-          }
-        }
-      `;
-
-      const result = await config.graphqlClient.query({
-        query,
-        variables: { id: platformId }
-      });
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors[0].message);
-      }
-
-      const data = result.data as any;
-      if (!data?.object?.asMoveObject?.contents?.json) {
+      const res = await client.core.getObject({ objectId: platformId, include: { json: true } });
+      if (!res.object.json) {
         return null;
       }
 
-      const typeStr = data.object.asMoveObject.contents.type;
+      const typeStr = res.object.type;
       let packageId = "";
       let coinType = "";
       if (typeStr) {
@@ -100,11 +71,35 @@ export function usePlatform(platformId: string | undefined) {
         }
       }
 
+      const owner = res.object.owner as any;
+      const json = res.object.json as any;
+
+      // `tiers` is a Move VecMap<u64, SubscriptionTier> — the on-chain JSON
+      // representation wraps entries as `{ contents: [{ key, value }, ...] }`,
+      // not a plain array. Unwrap it, and map `frequency_ms` (the raw field
+      // name on-chain) to `frequency`, which is what buildSubscribeTx/
+      // SetupSubscriptionModal expect (as a raw millisecond bigint string).
+      // Tolerate an already-flat array too (e.g. mock data).
+      const rawTiers = Array.isArray(json?.tiers) ? json.tiers : json?.tiers?.contents;
+      const tiers: PlatformTier[] = Array.isArray(rawTiers)
+        ? rawTiers.map((entry: any) => {
+            const value = entry?.value ?? entry ?? {};
+            return {
+              name: value.name ?? "",
+              amount: value.amount ?? "0",
+              frequency: value.frequency_ms ?? value.frequency ?? "0",
+              subscriber_count: Number(value.subscriber_count ?? 0),
+              is_active: value.is_active ?? true,
+            };
+          })
+        : [];
+
       return {
-        ...data.object.asMoveObject.contents.json,
+        ...json,
+        tiers,
         packageId,
         coinType,
-        initialSharedVersion: data.object.owner?.initialSharedVersion ?? 0,
+        initialSharedVersion: owner?.$kind === "Shared" ? Number(owner.Shared.initialSharedVersion) : 0,
       } as PlatformWithTiers & { initialSharedVersion: number };
     },
     enabled: !!platformId,

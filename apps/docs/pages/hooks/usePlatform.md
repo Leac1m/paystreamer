@@ -1,6 +1,6 @@
 # usePlatform
 
-The `usePlatform` hook retrieves a PayStreamer platform's metadata and list of active tiers from the blockchain, leveraging `@tanstack/react-query` and the SDK's configured `graphqlClient`.
+The `usePlatform` hook retrieves a PayStreamer platform's metadata and list of active tiers from the blockchain, leveraging `@tanstack/react-query` and the connected Sui client from dApp Kit.
 
 ## Usage
 
@@ -43,7 +43,7 @@ An object matching the React Query result structure:
 |----------|------|-------------|
 | `data` | `Platform \| undefined` | The parsed platform data containing name and array of tiers. |
 | `isLoading` | `boolean` | True if the platform data query is currently fetching. |
-| `error` | `Error \| null` | Error object if the GraphQL query fails. |
+| `error` | `Error \| null` | Error object if the underlying chain query fails. |
 
 ### Platform Schema
 

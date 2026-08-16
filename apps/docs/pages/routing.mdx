@@ -1,61 +1,173 @@
 import { Callout } from 'nextra/components';
 
-# Advanced Routing with DeepBook
+# Multi-Token Routing with DeepBook
 
-PayStreamer is built to support a unified subscription experience. The core smart contract uses a **Hot Potato** pattern (via `DepositCap`), which allows developers to natively execute a swap *and* a deposit within the same atomic transaction. 
+Every `SubscriptionAccount<T>` holds exactly one coin type, and a platform's tier settles in exactly one coin type — but they don't have to be the *same* type. PayStreamer's Move contracts already implement a hot-potato swap-routing mechanism for exactly this case; this page documents the real thing, not a conceptual sketch.
 
-This means that a user does NOT need to hold `PUSD` to pay for a subscription. They can hold `USDC`, `SUI`, or any other supported token, and the transaction will seamlessly convert it to `PUSD` before depositing it into their PayStreamer `SubscriptionAccount`.
+<Callout type="warning">
+  **Status**: The on-chain mechanism and the SDK builders below are real, tested, working code. What's missing is liquidity — no DeepBook pool exists for `PUSD` (or any other PayStreamer demo token) on any network today, so end-to-end routing can't be demoed live yet. That's a market-liquidity blocker, not a code gap. See [roadmap.md](https://github.com/paystreamer/paystreamer/blob/main/roadmap.md) Phase 3 for the full disclosure.
+</Callout>
 
-## DeepBook Integration
+There are two distinct routing use cases, both built on the same on-chain primitive:
 
-[DeepBook V3](https://sui.io/deepbook) is Sui's premier central limit order book (CLOB) and serves as the wholesale liquidity layer for the network. Because DeepBook allows for swaps without requiring complex balance managers for simple trades, it's the perfect AMM to chain with PayStreamer using Programmable Transaction Blocks (PTBs).
+1. **Onboarding** — a new user pays in whatever token they already hold, converting it to the platform's settlement currency in the same PTB as account creation.
+2. **Recurring** — the scheduler bot, opt-in per platform, converts a currency-mismatched account's held coin into the platform's settlement currency at billing time.
 
-### How it Works (PTB Composition)
+## The On-Chain Mechanism
 
-To build a swapping router on the frontend, you do not need to write custom Move code. You can use the `@mysten/deepbook-v3` SDK alongside the PayStreamer SDK.
+`move/subscriptions/sources/payment.move` defines a hot potato — a struct with no abilities, so it *must* be consumed within the same transaction it was created in:
 
-Here is the conceptual flow for routing `USDC` to `PUSD`:
+```move
+public struct RoutingPotato<phantom FundingCoin, phantom PlatformCoin> {
+    account_id: ID,
+    platform_id: ID,
+    amount_needed: u64,
+}
+```
 
-1. **Input**: The user selects a `Coin<USDC>` they wish to deposit.
-2. **Swap**: Call `swapExactBaseForQuote` (or `swapExactQuoteForBase` depending on pool configuration) in DeepBook to swap the `USDC` for `PUSD`. This returns a `Coin<PUSD>` command inside the PTB.
-3. **Deposit**: Pipe the resulting `Coin<PUSD>` command directly into PayStreamer's `account::deposit` Move call.
+Two `public(package)` functions produce and consume it (exposed publicly for scheduler/SDK use via `scheduler.move:138-186`):
+
+- **`withdraw_for_route<FundingCoin, PlatformCoin>`** (`payment.move:230-285`) — runs the same `can_bill`/policy checks as a normal payment, withdraws up to a caller-supplied `max_spend` of the account's `FundingCoin`, and returns `(Coin<FundingCoin>, RoutingPotato<FundingCoin, PlatformCoin>)`.
+- **`process_routed_payment<FundingCoin, PlatformCoin>`** (`payment.move:290-365`) — consumes the potato plus a `Coin<PlatformCoin>`. It requires **exactly** `amount_needed` (the tier's price) — not "at least" — refunds any unspent `Coin<FundingCoin>` change back into the account, and distributes fees with the same 1%/2%/97% split as a normal payment.
+
+Between those two calls, in the same PTB, you perform the actual swap. Nothing else can go there — the funding coin doesn't exist until `withdraw_for_route` runs, and the potato can't cross transaction boundaries.
+
+<Callout type="info">
+  **Why exact-amount matters**: a DEX swap's output is rarely a round number, but `process_routed_payment` demands an exact match. In practice this means swapping for *at least* the needed amount and splitting off the exact portion yourself — see `routedPayment.ts`'s handling below.
+</Callout>
+
+## Onboarding: Pay With Any Token
+
+`buildOnboardWithSwapTx` (in `@paystreamer/sdk/core`) composes a swap with the existing account-creation/subscribe flow via a `performSwap` seam — no separate "acquire the platform's coin first" step:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
-import { DeepBookClient } from '@mysten/deepbook-v3';
-// ... PayStreamer imports
+import { buildOnboardWithSwapTx } from '@paystreamer/sdk/core';
+import { createDeepBookClient, swapExactQuantity } from '@paystreamer/sdk/core/deepbook';
+import { testnetCoins, testnetPools } from '@mysten/deepbook-v3';
 
 const tx = new Transaction();
-const deepbook = new DeepBookClient({ client: suiClient });
 
-// 1. Define the input USDC coin
-const usdcCoin = tx.object('0xUSDC_COIN_ID');
+const deepbook = createDeepBookClient({
+  client: suiClient,
+  address: userAddress,
+  network: 'testnet',
+  coins: testnetCoins,
+  pools: testnetPools,
+});
 
-// 2. Perform the swap on DeepBook
-// (Note: Consult the DeepBook V3 documentation for exact pool IDs and parameters)
-const [pusdCoin, remainingUsdc] = deepbook.swapExactBaseForQuote({
-  poolId: '0xUSDC_PUSD_POOL_ID',
-  amount: 100000000n, // The amount of USDC to swap
-  coinIn: usdcCoin,
+buildOnboardWithSwapTx({
   tx,
-});
+  packageId: PACKAGE_ID,
+  clockId: CLOCK_OBJECT_ID,
+  denomination: platformCoinType, // e.g. "0x...::pusd::PUSD"
+  platformId,
+  tierIndex: 0,
+  tierAmount,
+  tierFrequencyMs,
+  performSwap: () => {
+    const usdcCoin = tx.object(userOwnedUsdcCoinId);
+    const { outputCoin, inputChange, deepChange } = swapExactQuantity({
+      deepbook,
+      tx,
+      poolKey: 'USDC_PUSD',
+      isBaseToCoin: true, // USDC is the pool's base asset
+      amount: 0, // unused when `baseCoin` is supplied — see the note below
+      minOut: tierAmount,
+      deepAmount: 1_000_000n,
+      baseCoin: usdcCoin,
+    });
 
-// 3. Deposit the newly acquired PUSD directly into PayStreamer
-tx.moveCall({
-  target: `0xPAYSTREAMER_PACKAGE_ID::account::deposit`,
-  typeArguments: ['0x...::pusd::PUSD'],
-  arguments: [
-    tx.object('0xSUBSCRIPTION_ACCOUNT_ID'),
-    pusdCoin // The output from DeepBook!
-  ],
+    // process_routed_payment isn't in play here (this is the one-shot
+    // onboarding flow, not the recurring one), but `deposit` doesn't
+    // require an exact amount — depositing the full swap output is fine.
+    // `inputChange`/`deepChange` still need consuming (Coin<T> has no
+    // `drop`); refund them to the user rather than letting them vanish.
+    tx.transferObjects([inputChange, deepChange], tx.pure.address(userAddress));
+    return outputCoin;
+  },
 });
-
-// Clean up any remaining USDC dust
-tx.transferObjects([remainingUsdc], tx.pure.address(userAddress));
 ```
 
 <Callout type="info">
-  **Atomic Execution**: Because this entire flow occurs within a single Programmable Transaction Block (PTB), it is completely atomic. If the swap fails due to slippage, or if the deposit fails for any reason, the entire transaction aborts. The user's `USDC` is never stranded!
+  **`amount` vs. a supplied coin**: verified directly against the installed `@mysten/deepbook-v3` package — `swapExactQuantity`'s `amount` parameter is only used to auto-fund a fresh input coin from your wallet when you *don't* pass `baseCoin`/`quoteCoin` explicitly. If you do (as above, and as the recurring flow below always does), that coin's entire value becomes the swap input and `amount` is ignored.
 </Callout>
 
-By leveraging DeepBook and PTBs, you can offer your users a "pay with any token" experience without modifying the PayStreamer smart contracts!
+<Callout type="info">
+  **Why `createDeepBookClient` lives at `@paystreamer/sdk/core/deepbook`, not `@paystreamer/sdk/core`**: `@mysten/deepbook-v3` is an optional peer dependency. Re-exporting it from the main `core` barrel would make *every* consumer's bundler statically resolve it, whether they use routing or not — this broke a Next.js dev build outright. Seal and Walrus follow the same pattern: `@paystreamer/sdk/core/seal`, `@paystreamer/sdk/core/walrus`.
+</Callout>
+
+## Recurring: Scheduler-Driven Routing
+
+For an *existing* subscription, the scheduler bot handles routing at billing time — but only for platforms an operator has explicitly opted in. `process_due_payment` never checks an account's coin type against the tier's declared settlement currency on-chain, so an un-opted-in mismatch is left unpaid rather than silently billed in the wrong coin.
+
+`buildProcessRoutedPaymentTx` mirrors the on-chain pair exactly:
+
+```typescript
+import { buildProcessRoutedPaymentTx } from '@paystreamer/sdk/core';
+
+buildProcessRoutedPaymentTx({
+  tx,
+  packageId: PACKAGE_ID,
+  registryId: REGISTRY_ID,
+  clockId: CLOCK_OBJECT_ID,
+  fundingCoinType: account.denomination,     // what the account actually holds
+  platformCoinType: tier.denomination,        // what the platform settles in
+  accountId,
+  platformId,
+  platformInitVersion,
+  schedulerId: PAYMENT_SCHEDULER_ID,
+  schedulerInitVersion,
+  maxSpend, // upper bound on FundingCoin this cycle may spend — see below
+  performSwap: (fundingCoin) => {
+    const { outputCoin, inputChange, deepChange } = swapExactQuantity({
+      deepbook, tx,
+      poolKey: pool.poolKey,
+      isBaseToCoin: pool.isBaseToCoin,
+      amount: maxSpend, // ignored — `fundingCoin` is supplied below
+      minOut: tierAmount,
+      deepAmount: pool.deepAmount,
+      deepCoin: tx.object(schedulerDeepCoinId),
+      ...(pool.isBaseToCoin ? { baseCoin: fundingCoin } : { quoteCoin: fundingCoin }),
+    });
+
+    // process_routed_payment requires exactly tierAmount in PlatformCoin.
+    const [exactPlatformCoin] = tx.splitCoins(outputCoin, [tx.pure.u64(tierAmount)]);
+    tx.transferObjects([outputCoin, deepChange], tx.pure.address(schedulerAddress));
+
+    // `inputChange` is Coin<FundingCoin> — process_routed_payment deposits
+    // it straight back into the user's account as change.
+    return { platformCoin: exactPlatformCoin, fundingChange: inputChange };
+  },
+});
+```
+
+This is exactly what `apps/scheduler/src/scheduler/routedPayment.ts` does. The full opt-in decision lives in `apps/scheduler/src/scheduler/routing.ts`'s `classifyPayment`:
+
+- Same currency → the plain, unchanged payment path (every demo platform today).
+- Mismatched, not opted in → skipped, logged, left for the next cycle.
+- Mismatched, opted in → routed, as above.
+
+### Operator Configuration
+
+Routing is off by default. To opt a platform + funding-currency pair in, set two environment variables on the scheduler:
+
+```sh
+# platformId -> fundingCoinType -> pool config. The operator sets maxSpend
+# explicitly — there's no price oracle here to derive a FundingCoin bound
+# from the tier's PlatformCoin amount, the same reason withdraw_for_route
+# itself takes max_spend as a caller-supplied bound rather than computing
+# one on-chain.
+ROUTING_ALLOWLIST_JSON={"0xPLATFORM_ID":{"0xFUNDING_COIN_TYPE":{"poolKey":"SUI_PUSD","isBaseToCoin":true,"deepAmount":"1000000","maxSpend":"2000000000"}}}
+
+# The DEEP token type, needed to pay DeepBook trading fees. The scheduler
+# must hold DEEP at this address for routing to work.
+DEEP_COIN_TYPE=0x...::deep::DEEP
+```
+
+`poolKey` must reference a real pool in DeepBook's own published `testnetPools`/`mainnetPools` registry (from `@mysten/deepbook-v3`) — PayStreamer doesn't maintain a separate pool schema.
+
+## Next Steps
+- [Run a Scheduler](/scheduler) for the rest of the scheduler bot's setup.
+- Read [DeepBook's documentation](https://docs.sui.io/standards/deepbook) for pool discovery and order-book mechanics.
+- See `roadmap.md` Phase 3 for the current liquidity blocker and what "done" looks like once a real pool exists.

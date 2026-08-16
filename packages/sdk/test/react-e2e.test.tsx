@@ -7,7 +7,6 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 import { PayStreamerProvider, usePlatform, useUserAccount } from '../src/react';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NETWORK_CONFIGS, NETWORK } from "../src/constants";
 
@@ -43,23 +42,32 @@ const userAddress = keypair.toSuiAddress();
 const activeConfig = NETWORK_CONFIGS[NETWORK];
 
 // Mock the dAppKit hooks
+const mockClient = {
+  core: {
+    getObject: vi.fn().mockImplementation(async ({ objectId }: any) => ({
+      object: {
+        objectId,
+        type: `${activeConfig.PACKAGE_ID}::platform::Platform<${activeConfig.PUSD_TYPE_ARG}>`,
+        owner: { $kind: "Shared", Shared: { initialSharedVersion: "1" } },
+        json: { name: "Mocked Demo Platform", id: activeConfig.DEMO_PLATFORM_ID },
+      },
+    })),
+    listOwnedObjects: vi.fn().mockImplementation(async () => ({
+      objects: [
+        { objectId: "0xMockAccountCapId", json: { account_id: "0xMockAccountId" } },
+      ],
+      hasNextPage: false,
+      cursor: null,
+    })),
+  },
+};
+
 vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
     ...actual,
     useCurrentAccount: () => ({ address: userAddress }),
-    useCurrentClient: () => ({
-      getOwnedObjects: async () => ({
-        data: [
-          {
-            data: {
-              objectId: "0xMockAccountCapId",
-              content: { fields: { account_id: "0xMockAccountId" } }
-            }
-          }
-        ]
-      })
-    }),
+    useCurrentClient: () => mockClient,
     useDAppKit: () => ({
       signTransaction: async ({ transaction }: any) => {
         console.log("Mock signTransaction called");
@@ -99,35 +107,13 @@ describe('React SDK Hooks E2E', () => {
 
 
   it('should fetch platform data and user account live against Devnet', async () => {
-    const { SuiGraphQLClient } = await import('@mysten/sui/graphql');
-    const customGraphqlClient = new SuiGraphQLClient({ 
-      url: activeConfig.GRAPHQL_URL,
-      network: NETWORK as any
-    });
-
     const config = {
       packageId: activeConfig.PACKAGE_ID,
       registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
       clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
       pusdType: activeConfig.PUSD_TYPE_ARG,
       network: NETWORK,
-      graphqlClient: customGraphqlClient,
     };
-
-    vi.spyOn(customGraphqlClient, 'query').mockResolvedValue({
-      data: {
-        object: {
-          asMoveObject: {
-            contents: {
-              json: {
-                name: "Mocked Demo Platform",
-                id: activeConfig.DEMO_PLATFORM_ID
-              }
-            }
-          }
-        }
-      }
-    } as any);
 
     render(
       <QueryClientProvider client={queryClient}>

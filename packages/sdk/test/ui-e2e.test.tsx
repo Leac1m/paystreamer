@@ -11,14 +11,46 @@ import { NETWORK_CONFIGS, NETWORK } from "../src/constants";
 const activeConfig = NETWORK_CONFIGS[NETWORK];
 
 // Mock the dAppKit hooks
+let mockPusdBalance = 50000000000n; // 50 PUSD by default
+
+const mockClient = {
+  core: {
+    getObject: vi.fn().mockImplementation(async ({ objectId }: any) => {
+      return {
+        object: {
+          objectId,
+          type: `${activeConfig.PACKAGE_ID}::platform::Platform<${activeConfig.PUSD_TYPE_ARG}>`,
+          owner: { $kind: "Shared", Shared: { initialSharedVersion: "1" } },
+          json: {
+            id: objectId,
+            name: "Test Platform",
+            tiers: [
+              {
+                name: "Premium",
+                amount: "10000000000", // 10 PUSD
+                frequency: "2592000000", // 30 days in ms
+                subscriber_count: 5,
+                is_active: true
+              }
+            ]
+          },
+        },
+      };
+    }),
+    listOwnedObjects: vi.fn().mockImplementation(async () => ({ objects: [], hasNextPage: false, cursor: null })),
+    getBalance: vi.fn().mockImplementation(async () => ({
+      balance: { balance: mockPusdBalance.toString() },
+    })),
+    executeTransaction: vi.fn(),
+  },
+};
+
 vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
     ...actual,
     useCurrentAccount: () => ({ address: "0x123" }),
-    useCurrentClient: () => ({
-      waitForTransaction: async () => ({}),
-    }),
+    useCurrentClient: () => mockClient,
     useDAppKit: () => ({
       signTransaction: async () => {
         return { signature: "mock", bytes: new Uint8Array() };
@@ -28,72 +60,12 @@ vi.mock('@mysten/dapp-kit-react', async (importOriginal) => {
 });
 
 describe('React SDK UI Components E2E', () => {
-  let mockPusdBalance = 50000000000n; // 50 PUSD by default
-
-  const mockGraphqlClient = {
-    query: vi.fn().mockImplementation(async ({ query, variables }: any) => {
-      if (query.includes('GetPlatform')) {
-        return {
-          data: {
-            object: {
-              asMoveObject: {
-                contents: {
-                  json: {
-                    id: variables.id,
-                    name: "Test Platform",
-                    tiers: [
-                      {
-                        name: "Premium",
-                        amount: "10000000000", // 10 PUSD
-                        frequency: "2592000000", // 30 days in ms
-                        subscriber_count: 5,
-                        is_active: true
-                      }
-                    ]
-                  }
-                }
-              },
-              owner: {
-                initialSharedVersion: 1
-              }
-            }
-          }
-        };
-      }
-      if (query.includes('GetAccountCap')) {
-        return {
-          data: {
-            address: {
-              objects: {
-                nodes: []
-              }
-            }
-          }
-        };
-      }
-      if (query.includes('GetPusdBalance')) {
-        return {
-          data: {
-            address: {
-              balance: {
-                totalBalance: mockPusdBalance.toString()
-              }
-            }
-          }
-        };
-      }
-      return { data: {} };
-    }),
-    executeTransaction: vi.fn(),
-  };
-
   const config = {
     packageId: activeConfig.PACKAGE_ID,
     registryId: activeConfig.COIN_TYPE_REGISTRY_ID,
     clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
     pusdType: activeConfig.PUSD_TYPE_ARG,
     network: NETWORK,
-    graphqlClient: mockGraphqlClient as any,
   };
 
   const createTestQueryClient = () => new QueryClient({
@@ -159,6 +131,41 @@ describe('React SDK UI Components E2E', () => {
       const subscribeBtn = screen.getByRole('button', { name: /Setup & Subscribe/i });
       expect(subscribeBtn).toBeDefined();
       expect(subscribeBtn.hasAttribute('disabled')).toBe(true);
+    });
+  });
+
+  it('should show an error state instead of a misleading $0.00 tier when the platform fetch fails', async () => {
+    mockPusdBalance = 50000000000n;
+    mockClient.core.getObject.mockRejectedValueOnce(new Error('network error: fetch failed'));
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PayStreamerProvider config={config}>
+          <SetupSubscriptionModal
+            isOpen={true}
+            onClose={() => {}}
+            platformId={activeConfig.DEMO_PLATFORM_ID}
+            tierIndex={0}
+          />
+        </PayStreamerProvider>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load this platform's tier data.")).toBeDefined();
+      expect(screen.getByText('network error: fetch failed')).toBeDefined();
+    });
+
+    // Must not silently render a $0.00 tier with a clickable Subscribe button
+    expect(screen.queryByText('0.00 PUSD')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Setup & Subscribe/i })).toBeNull();
+
+    // Retry re-fetches and, once it succeeds, shows the real tier data
+    const retryBtn = screen.getByRole('button', { name: /Retry/i });
+    await userEvent.click(retryBtn);
+    await waitFor(() => {
+      expect(screen.getByText('10.00 PUSD')).toBeDefined();
     });
   });
 

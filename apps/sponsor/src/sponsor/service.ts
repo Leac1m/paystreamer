@@ -56,7 +56,7 @@ export async function prepareTransaction(
   transaction.setGasOwner(sponsorAddress);
 
   // Fetch sponsor's SUI coins for gas payment
-  const coins = await client.getCoins({
+  const coins = await client.core.listCoins({
     owner: sponsorAddress,
     coinType: '0x2::sui::SUI',
   });
@@ -106,12 +106,12 @@ export async function executeTransaction(
   const signatures = [userSignature, sponsorSignature];
 
   // Execute the transaction
-  const result = await client.executeTransactionBlock({
-    transactionBlock: transactionBytes,
-    signature: signatures,
-    options: {
-      showEffects: true,
-      showEvents: true,
+  const result = await client.core.executeTransaction({
+    transaction: transactionBytes,
+    signatures: signatures,
+    include: {
+      effects: true,
+      events: true,
     },
   });
 

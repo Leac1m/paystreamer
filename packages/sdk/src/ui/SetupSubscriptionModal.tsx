@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Wallet, CheckCircle } from "lucide-react";
 import { Button } from "./components/button";
+import { ErrorState } from "./components/error-state";
 import { useSubscribe } from "../react/useSubscribe";
 
 import { usePlatform } from "../react/usePlatform";
@@ -33,7 +34,7 @@ export function SetupSubscriptionModal({
 }: SetupSubscriptionModalProps) {
   const styles = useThemeStyles(theme);
   const config = usePayStreamerConfig();
-  const { data: platform, isLoading: isPlatformLoading } = usePlatform(platformId);
+  const { data: platform, isLoading: isPlatformLoading, isError: isPlatformError, error: platformError, refetch: refetchPlatform } = usePlatform(platformId);
   const { userAccount, isLoading: isAccountLoading } = useUserAccount();
   const { data: walletBalance, isLoading: isBalanceLoading } = usePusdBalance();
 
@@ -73,6 +74,7 @@ export function SetupSubscriptionModal({
   }, [isOpen, platformId, tierIndex, defaultDepositUsd]);
 
   const isLoading = isPlatformLoading || isAccountLoading || isBalanceLoading || isSubscribeLoading;
+  const tierUnavailable = !isPlatformLoading && (isPlatformError || (platform && !tier));
 
   if (!isOpen) return null;
 
@@ -119,7 +121,13 @@ export function SetupSubscriptionModal({
           </div>
 
           <div className="p-6 space-y-6">
-            {step === "input" ? (
+            {tierUnavailable ? (
+              <ErrorState
+                title={isPlatformError ? "Couldn't load this platform's tier data." : "This tier doesn't exist on this platform."}
+                message={isPlatformError ? ((platformError as Error)?.message || "Unknown error") : undefined}
+                onRetry={isPlatformError ? () => refetchPlatform() : undefined}
+              />
+            ) : step === "input" ? (
               <>
                 <div className="bg-muted/50 p-4 rounded-lg space-y-2">
                   <div className="flex justify-between items-center text-sm">

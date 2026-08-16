@@ -12,7 +12,7 @@ echo "======================================================"
 docker compose up -d
 
 echo "Waiting for Sui node and GraphQL to be ready..."
-sleep 10
+sleep 20
 
 echo "======================================================"
 echo " 🚀 Deploying Fresh Localnet Instance..."
@@ -51,12 +51,30 @@ pnpm exec tsx packages/sdk/scripts/e2e-payment-cycle.ts
 echo "======================================================"
 echo " ⚛️  Running React SDK E2E Tests..."
 echo "======================================================"
-(cd packages/sdk && ENABLE_LOCALNET_TESTS=true pnpm exec vitest run test/react-e2e.test.tsx test/graphql-e2e.test.ts)
+(cd packages/sdk && ENABLE_LOCALNET_TESTS=true pnpm exec vitest run test/react-e2e.test.tsx test/chain-e2e.test.ts)
 
 echo "======================================================"
 echo " ⚙️  Running Scheduler Backend E2E Tests..."
 echo "======================================================"
 (cd apps/scheduler && pnpm run test:e2e)
+
+echo "======================================================"
+echo " 🚀 Booting Background Services for E2E..."
+echo "======================================================"
+export SPONSOR_PRIVATE_KEY=$E2E_PRIVATE_KEY
+export SPONSOR_ADDRESS=$ACTIVE_ADDRESS
+
+(cd apps/sponsor && pnpm dev) &
+SPONSOR_PID=$!
+
+(cd apps/scheduler && pnpm dev) &
+SCHEDULER_PID=$!
+
+# Ensure they are killed when script exits
+trap "kill $SPONSOR_PID $SCHEDULER_PID 2>/dev/null || true" EXIT
+
+echo "Waiting for background services to boot..."
+sleep 5
 
 echo "======================================================"
 echo " 🌐  Running Browser E2E Tests (Playwright)..."

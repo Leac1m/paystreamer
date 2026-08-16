@@ -11,8 +11,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mysten/dapp-kit-core": "^1.6.8",
     "@mysten/dapp-kit-react": "^2.1.10",
+    "@mysten/seal": "1.4.0",
     "@mysten/sui": "^2.23.1",
+    "@mysten/walrus": "1.2.14",
     "@paystreamer/sdk": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "framer-motion": "^12.42.2",

@@ -1,0 +1,4 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @paystreamer/sdk build && next build"
+}

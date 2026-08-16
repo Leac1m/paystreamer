@@ -20,11 +20,10 @@ export function Providers({ children }: { children: ReactNode }) {
     networks: ['localnet', 'testnet', 'mainnet'],
     defaultNetwork: defaultNetwork,
     createClient: (network: string) => {
-      const baseUrl = network === 'localnet' 
-        ? 'http://127.0.0.1:9000' 
+      const baseUrl = network === 'localnet'
+        ? 'http://127.0.0.1:9000'
         : `https://fullnode.${network}.sui.io:443`;
-      const targetNetwork = network === 'localnet' ? 'local' : network;
-      return new SuiGrpcClient({ baseUrl, network: targetNetwork as any });
+      return new SuiGrpcClient({ baseUrl, network: network as any });
     },
     walletInitializers: [createPersistentBurnerWalletInitializer() as any]
   });
@@ -43,7 +42,7 @@ export function Providers({ children }: { children: ReactNode }) {
               pusdPackageId: sdkConfig.PUSD_PACKAGE_ID,
               pusdType: sdkConfig.PUSD_TYPE_ARG,
               pusdTreasuryCapId: sdkConfig.PUSD_TREASURY_CAP_ID,
-              graphqlUrl: sdkConfig.GRAPHQL_URL
+              pusdTreasuryCapInitVersion: sdkConfig.PUSD_TREASURY_CAP_INIT_VERSION,
             }}
           >
             {children}

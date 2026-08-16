@@ -18,7 +18,7 @@ function PayStreamerProviderWrapper({ children }: { children: React.ReactNode })
     pusdType: networkConfig.PUSD_TYPE_ARG,
     pusdPackageId: networkConfig.PUSD_PACKAGE_ID,
     pusdTreasuryCapId: networkConfig.PUSD_TREASURY_CAP_ID,
-    graphqlUrl: networkConfig.GRAPHQL_URL,
+    pusdTreasuryCapInitVersion: networkConfig.PUSD_TREASURY_CAP_INIT_VERSION,
     sponsorApiUrl: import.meta.env.VITE_SPONSOR_API_URL || "http://localhost:3000/api/sponsor",
   }), [network, networkConfig]);
 
