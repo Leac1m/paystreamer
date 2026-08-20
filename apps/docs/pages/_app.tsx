@@ -28,7 +28,7 @@ const config = {
   clockId: "0x0000000000000000000000000000000000000000000000000000000000000006",
   pusdType: sdKConfig.PUSD_TYPE_ARG,
   network: NETWORK,
-  sponsorApiUrl: "/api/sponsor",
+  sponsorApiUrl: process.env.NEXT_PUBLIC_SPONSOR_API_URL || (NETWORK === "testnet" ? "https://sponsor-olive.vercel.app/api" : "/api/sponsor"),
   pusdPackageId: sdKConfig.PUSD_PACKAGE_ID,
   pusdTreasuryCapId: sdKConfig.PUSD_TREASURY_CAP_ID,
   pusdTreasuryCapInitVersion: sdKConfig.PUSD_TREASURY_CAP_INIT_VERSION,

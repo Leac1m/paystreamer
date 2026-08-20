@@ -19,7 +19,7 @@ function PayStreamerProviderWrapper({ children }: { children: React.ReactNode })
     pusdPackageId: networkConfig.PUSD_PACKAGE_ID,
     pusdTreasuryCapId: networkConfig.PUSD_TREASURY_CAP_ID,
     pusdTreasuryCapInitVersion: networkConfig.PUSD_TREASURY_CAP_INIT_VERSION,
-    sponsorApiUrl: import.meta.env.VITE_SPONSOR_API_URL || "http://localhost:3000/api/sponsor",
+    sponsorApiUrl: import.meta.env.VITE_SPONSOR_API_URL || (network === "testnet" ? "https://sponsor-olive.vercel.app/api" : "http://localhost:3000/api/sponsor"),
   }), [network, networkConfig]);
 
   return <PayStreamerProvider config={config}>{children}</PayStreamerProvider>;

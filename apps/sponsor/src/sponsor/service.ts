@@ -61,7 +61,7 @@ export async function prepareTransaction(
     coinType: '0x2::sui::SUI',
   });
 
-  if (coins.data.length === 0) {
+  if (coins.objects.length === 0) {
     throw {
       error: 'Sponsor has no SUI coins for gas',
       code: 'SUBMISSION_FAILED' as const,
@@ -69,9 +69,9 @@ export async function prepareTransaction(
   }
 
   // Use the first coin as gas payment
-  const gasCoin = coins.data[0];
+  const gasCoin = coins.objects[0];
   transaction.setGasPayment([{
-    objectId: gasCoin.coinObjectId,
+    objectId: gasCoin.objectId,
     digest: gasCoin.digest,
     version: gasCoin.version,
   }]);
@@ -115,7 +115,14 @@ export async function executeTransaction(
     },
   });
 
-  console.log(`[Sponsor] Transaction sponsored successfully: ${result.digest}`);
+  if (result.$kind === 'FailedTransaction') {
+    throw {
+      error: `Transaction failed: ${result.FailedTransaction.status.error}`,
+      code: 'SUBMISSION_FAILED' as const,
+    };
+  }
 
-  return { digest: result.digest };
+  console.log(`[Sponsor] Transaction sponsored successfully: ${result.Transaction.digest}`);
+
+  return { digest: result.Transaction.digest };
 }
