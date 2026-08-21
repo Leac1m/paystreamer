@@ -1,0 +1,5 @@
+{
+  "framework": "express",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @paystreamer/sdk build && pnpm --filter sponsor build"
+}
