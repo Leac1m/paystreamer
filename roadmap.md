@@ -416,7 +416,25 @@ matches the content's nonce, check the subscription is active, abort
 otherwise — is structurally the same pattern already documented and
 Move-tested in `/integration` (`seal_policy_example_tests.move`), just
 with `has_active_subscription` instead of `is_address_subscription_active`.
-This isn't a coincidence; it's the same primitive.
+
+This isn't a coincidence — confirmed directly with the user: Fundsui is
+their own prior project, co-built before PayStreamer, and PayStreamer was
+built specifically to solve the recurring-payment limitation Fundsui's
+own contract has (prepay-N-weeks, manual renewal, no auto-billing). This
+Phase is that fix landing back in its origin project, not a speculative
+integration exercise.
+
+**Decision: fork Fundsui, don't build fresh.** Pull the actual
+CheatCodeSam/WAL-Hackathon codebase (Next.js/tRPC/Drizzle/Postgres,
+channels/podcasts/upload/dashboard already built and working) into this
+monorepo, and replace `channel.move`'s payment/subscription logic with
+calls into PayStreamer's existing `account`/`platform`/`scheduler`
+modules — keeping `podcast.move`'s content-metadata shape and
+`seal_policy.move`'s access-control pattern largely as-is, since both
+already match PayStreamer's primitives closely (see above). This reuses
+real, working UI instead of rebuilding channels/upload/dashboard from
+scratch, at the cost of inheriting a Postgres+tRPC stack this monorepo
+doesn't otherwise use.
 
 **Where the two protocols genuinely differ:**
 
@@ -436,10 +454,10 @@ trips) rather than direct storage-node connections — worth adding as an
 option to `core/walrus.ts` regardless of this vertical, since it's a
 legitimate simpler mode for a browser client.
 
-**Proposed scope** (not yet decided with the user — see open questions):
-- A new app (name TBD) with Fundsui's UX shape (channels, podcast
-  upload/browse, subscriber dashboard) but backed by PayStreamer's actual
-  protocol: `buildRegisterPlatformTx` (channel = platform),
+**Scope:**
+- The forked app, with its existing channels/podcast upload/browse/
+  dashboard UI, backed by PayStreamer's actual protocol instead of
+  `channel.move`'s own payment logic: `buildRegisterPlatformTx` (channel = platform),
   `buildCreateTierTx` (subscription price = tier), `core/seal.ts` +
   `core/walrus.ts` for encrypt-on-upload and gated fetch (both already
   built this session, currently only exercised by the minimal
@@ -452,17 +470,14 @@ legitimate simpler mode for a browser client.
 - A `seal_approve` policy for this new module, following `/integration`'s
   documented pattern exactly (delegating to `has_active_subscription`).
 
-**Open questions for the user** (genuine decisions, not defaults to
-assume):
-- Fork Fundsui's actual Next.js/tRPC/Drizzle/Postgres codebase and rip out
-  its contract calls in favor of PayStreamer's, or build fresh inside this
-  monorepo using Fundsui purely as a UX/scope reference? The former reuses
-  real UI work; the latter avoids inheriting a Postgres+tRPC stack this
-  monorepo doesn't otherwise use.
+**Still open:**
 - Generalize past podcasts (any Walrus-hosted content) from day one, or
   ship the podcast-specific version first?
 - Adopt Fundsui's frontend-revenue-share incentive model, or leave that
-  out of scope?
+  out of scope for the initial fork?
+- Where the fork lives in this monorepo (`apps/fundsui`? a top-level
+  sibling checkout?), and whether it joins the pnpm workspace directly or
+  stays a separate install given its own Postgres/Drizzle dependency.
 
 ### 4b. Scheduler browser extension
 
@@ -474,6 +489,11 @@ are already built entirely on `@mysten/sui`'s isomorphic APIs
 (`SuiGrpcClient`, `Ed25519Keypair`, `SuiGraphQLClient`) — nothing Node-only
 in the actual scheduling logic itself, only in its dev tooling
 (`dotenv`, `tsx`).
+
+**Confirmed with the user: wanted**, with an explicit priority on good UX
+for the person earning the fee — not just a bare technical proof that it
+can run in a service worker. The popup/earnings surface below isn't an
+afterthought; it's the point.
 
 **What genuinely needs to change for a Manifest V3 extension:**
 - **Polling loop**: `setInterval` (current, 10s via `SCHEDULER_INTERVAL_MS`)
