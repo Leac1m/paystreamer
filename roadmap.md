@@ -390,3 +390,121 @@ since both features' SDK pieces build on the already-fixed provider/hooks.
 Seal (docs-only) is the faster win and could ship first; DeepBook has more
 moving parts (scheduler bot changes) and a disclosed liquidity blocker on
 full live verification.
+
+**Status: done.** `@paystreamer/sdk@0.3.0` published to npm, TypeDoc live
+at docs.usepaystreamer.xyz/typedoc.
+
+## Phase 4 — Two new verticals (planning)
+
+Two independent initiatives, both still at the planning stage — nothing
+below is implemented yet.
+
+### 4a. Creator/content subscription platform (Fundsui-inspired)
+
+Researched [CheatCodeSam/WAL-Hackathon](https://github.com/CheatCodeSam/WAL-Hackathon)
+("Fundsui") directly — cloned and read all three of its Move modules
+(`channel.move`, `podcast.move`, `seal_policy.move`), not just the README.
+It's a decentralized podcast-subscription platform: creators run a
+`Channel` (subscription price, max duration), upload `Podcast`s (Walrus
+blob reference + a Seal encryption nonce + a back-reference to the
+channel), and `seal_policy::seal_approve_subscription` gates decryption on
+`channel.is_address_subscription_active(sender, clock)`.
+
+**Key finding: the access-control shape is already solved by PayStreamer,
+almost identically.** Fundsui's `seal_approve_subscription` — check the id
+matches the content's nonce, check the subscription is active, abort
+otherwise — is structurally the same pattern already documented and
+Move-tested in `/integration` (`seal_policy_example_tests.move`), just
+with `has_active_subscription` instead of `is_address_subscription_active`.
+This isn't a coincidence; it's the same primitive.
+
+**Where the two protocols genuinely differ:**
+
+| | Fundsui | PayStreamer |
+|---|---|---|
+| Billing model | Prepay N weeks (`payment_amount ÷ weekly_price`); no auto-renewal, user must manually repurchase before expiry | True recurring — `scheduler::process_due_payment` auto-deducts every cycle from a pre-funded balance, no user action needed |
+| Currency | Hardcoded `Coin<SUI>` | Any denomination via `SubscriptionAccount<T>` generics (PUSD by default) |
+| Fee split | 2% platform + 1% frontend host, taken once at purchase | 1% scheduler + 2% protocol + 97% platform, taken every cycle |
+| User subscription state | Scattered per-`Channel`, keyed by address in an `ObjectTable` | Unified per-user `SubscriptionAccount` holding balance + every platform's subscription in one `VecMap` |
+| Frontend decentralization | Built-in: `frontend_address` param at subscribe time gets a revenue cut — anyone can host a frontend and earn from it | Not present |
+
+PayStreamer's recurring auto-billing is strictly the harder problem and
+already solved; Fundsui's frontend-revenue-share is a real idea
+PayStreamer doesn't have. Fundsui also uses Walrus's HTTP
+publisher/aggregator endpoints for upload/download (simpler, fewer round
+trips) rather than direct storage-node connections — worth adding as an
+option to `core/walrus.ts` regardless of this vertical, since it's a
+legitimate simpler mode for a browser client.
+
+**Proposed scope** (not yet decided with the user — see open questions):
+- A new app (name TBD) with Fundsui's UX shape (channels, podcast
+  upload/browse, subscriber dashboard) but backed by PayStreamer's actual
+  protocol: `buildRegisterPlatformTx` (channel = platform),
+  `buildCreateTierTx` (subscription price = tier), `core/seal.ts` +
+  `core/walrus.ts` for encrypt-on-upload and gated fetch (both already
+  built this session, currently only exercised by the minimal
+  `/gated-content` smoke test in `apps/example`).
+- A thin new Move module for content metadata only (title, description,
+  Walrus blob ref, Seal nonce, platform-id back-reference) — mirroring
+  Fundsui's `Podcast` struct. Payment/subscription state stays entirely on
+  PayStreamer's existing `account`/`platform` modules; this module doesn't
+  reimplement anything PayStreamer already has.
+- A `seal_approve` policy for this new module, following `/integration`'s
+  documented pattern exactly (delegating to `has_active_subscription`).
+
+**Open questions for the user** (genuine decisions, not defaults to
+assume):
+- Fork Fundsui's actual Next.js/tRPC/Drizzle/Postgres codebase and rip out
+  its contract calls in favor of PayStreamer's, or build fresh inside this
+  monorepo using Fundsui purely as a UX/scope reference? The former reuses
+  real UI work; the latter avoids inheriting a Postgres+tRPC stack this
+  monorepo doesn't otherwise use.
+- Generalize past podcasts (any Walrus-hosted content) from day one, or
+  ship the podcast-specific version first?
+- Adopt Fundsui's frontend-revenue-share incentive model, or leave that
+  out of scope?
+
+### 4b. Scheduler browser extension
+
+`/scheduler`'s docs already floated this ("schedulers can easily be
+packaged as lightweight web extensions... automatically earn 1% fees in
+the background") but it was never built. Checked `apps/scheduler`'s
+actual code against that claim: `discovery.ts`, `payment.ts`, and `sui.ts`
+are already built entirely on `@mysten/sui`'s isomorphic APIs
+(`SuiGrpcClient`, `Ed25519Keypair`, `SuiGraphQLClient`) — nothing Node-only
+in the actual scheduling logic itself, only in its dev tooling
+(`dotenv`, `tsx`).
+
+**What genuinely needs to change for a Manifest V3 extension:**
+- **Polling loop**: `setInterval` (current, 10s via `SCHEDULER_INTERVAL_MS`)
+  doesn't survive an MV3 service worker being suspended when idle — needs
+  `chrome.alarms`, whose minimum granularity is 1 minute. A real,
+  disclosed tradeoff: the extension can't poll as tightly as the
+  standalone service.
+- **Key management**: currently `SCHEDULER_PRIVATE_KEY` from a `.env` file
+  (a trusted server-side secret). An extension has no equivalent — needs
+  first-run keypair generation or import into `chrome.storage.local`,
+  with clear UX for funding it with a small amount of gas.
+- **Packaging**: a new Vite-based app producing a proper
+  `manifest.json` + background service worker + popup — this monorepo
+  already uses Vite everywhere else, so a Vite + CRX-plugin (or `wxt`)
+  setup fits the existing tooling rather than introducing a new build
+  system.
+- **UI surface**: a popup for status/earnings-to-date, an options page for
+  the private key and an opt-in platform allowlist (mirroring
+  `apps/scheduler`'s own opt-in routing allowlist pattern from Phase 3).
+
+**Open questions for the user:**
+- Chrome (Manifest V3) only, or also Firefox (different manifest/extension
+  APIs, meaningfully more work)?
+- Publish to the Chrome Web Store (requires a developer account and goes
+  through Google's review process — outside what I can do myself), or
+  distribute as an unpacked/sideloaded extension for now?
+- Reuse `apps/scheduler`'s discovery/payment logic via a shared internal
+  package, or fork-and-adapt directly inside the new extension app? A
+  shared package avoids drift between the two; a fork is faster to ship
+  and doesn't risk destabilizing the working standalone service.
+
+Both 4a and 4b are genuinely independent and could ship in either order —
+4b is the smaller, more contained piece if a quicker win is preferred; 4a
+is the bigger, more product-shaped effort.
