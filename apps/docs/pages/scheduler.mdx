@@ -75,3 +75,8 @@ When the transaction succeeds, the `process_due_payment` Move function automatic
 To officially become a scheduler, you must register a `Scheduler` object on-chain. This object acts as the recipient for your earned fees. 
 
 *(Note: In a production environment, you will use the `PayStreamer Portal` to register your scheduler and retrieve your `schedulerId`.)*
+
+## Next Steps
+- [Core API Reference](/core/transactions) — `buildProcessPaymentTx` and `buildProcessRoutedPaymentTx` are the two PTB builders a scheduler actually calls.
+- [Gas Sponsorship](/sponsor) — a separate backend service from the scheduler; the scheduler pays its own gas from the fees it earns, it doesn't use the sponsor.
+

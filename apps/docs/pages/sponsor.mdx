@@ -1,0 +1,91 @@
+import { Callout } from 'nextra/components';
+
+# Gas Sponsorship
+
+`apps/sponsor` is the backend service behind PayStreamer's gasless UX — it pays gas on behalf of your users via Sui's native sponsored-transaction support, so they never need to hold `SUI` to interact with your platform. On the client, this is what `useSponsoredTransaction`'s `executeSponsored` talks to.
+
+<Callout type="info">
+  Gas sponsorship is optional. `useSponsoredTransaction` auto-falls-back to the user paying their own gas if the sponsor is unreachable or the user already holds enough `SUI` — see its [hook reference](/hooks/useSponsoredTransaction). You only need to run this service if you want the gasless experience.
+</Callout>
+
+## How It Works
+
+A sponsored transaction needs two signatures — the user's and the sponsor's — combined before execution. The service exposes exactly two endpoints for that:
+
+1. **`POST /api/prepare`** — you send an unsigned `Transaction` (serialized via `tx.toJSON()`) and the user's address. The service validates every Move call in it against an allowlist, sets the sponsor as gas owner, attaches one of the sponsor's own `SUI` coins as gas payment, and returns the built transaction bytes (base64) for the user to sign.
+2. **`POST /api/execute`** — you send those bytes back along with the user's signature. The service adds its own signature and broadcasts.
+
+```
+Client                          Sponsor Service
+  │                                    │
+  │──── POST /api/prepare ───────────►│  validates, builds, attaches gas
+  │◄─── { bytes } ────────────────────│
+  │                                    │
+  │  (user signs `bytes` with wallet)  │
+  │                                    │
+  │──── POST /api/execute ───────────►│  co-signs, broadcasts
+  │◄─── { digest } ────────────────────│
+```
+
+### `POST /api/prepare`
+
+```typescript
+// Request
+{ transaction: string, userAddress: string } // transaction = await tx.toJSON()
+
+// Response (200)
+{ bytes: string } // base64, ready to sign
+
+// Response (400) — validation failure, e.g. a disallowed Move call
+{ error: string, code: "VALIDATION_ERROR" }
+```
+
+### `POST /api/execute`
+
+```typescript
+// Request
+{ bytes: string, userSignature: string, userAddress: string }
+
+// Response (200)
+{ digest: string }
+
+// Response (400) — execution failure (on-chain abort, etc.)
+{ error: string, code: "SUBMISSION_FAILED" }
+```
+
+### `GET /api/health`
+
+```typescript
+{ status: "ok", network: string, timestamp: string }
+```
+
+## The Move Call Allowlist
+
+<Callout type="warning">
+  `/api/prepare` rejects any transaction whose Move calls aren't in `validation.ts`'s `ALLOWED_TARGETS` — this is the actual security boundary, not just a nicety. Without it, the sponsor would pay gas for *any* Move call a client asked for.
+</Callout>
+
+If you extend PayStreamer's contracts, or compose a PTB with a call not already in the allowlist, `/api/prepare` will reject it with `"Move call target ... is not in ALLOWED_TARGETS"`. Add the new target in `apps/sponsor/src/sponsor/validation.ts`, built from the configured `PACKAGE_ID`/`PUSD_PACKAGE_ID` rather than a hardcoded literal — a stale hardcoded package ID here has caused real, hard-to-diagnose outages before. One entry, `0x1::type_name::get`, is a Move stdlib call (not a PayStreamer contract call) that `buildCreateTierTx` needs — it's a fixed address on every network, always the full 32-byte padded form (`0x000...0001`), not the short `0x1`.
+
+## Setup
+
+```sh
+cd apps/sponsor
+npm install
+cp .env.example .env
+```
+
+Fill in `SPONSOR_PRIVATE_KEY`/`SPONSOR_ADDRESS` (see the comments in `.env.example` for the exact key format — it's not the raw `suiprivkey1...` string) and fund that address with `SUI` on your target network. Everything else — `PACKAGE_ID`, `COIN_TYPE_REGISTRY_ID`, `PAYMENT_SCHEDULER_ID` — comes from `@paystreamer/sdk`'s `getConfig(NETWORK)` automatically; don't hardcode them.
+
+```sh
+npm run dev   # local development
+npm run build && npm start   # production
+```
+
+<Callout type="info">
+  Deploying to Vercel? The service needs a default-exported Express app (`export default app`) and its own build step that builds `@paystreamer/sdk` first — see `apps/sponsor/vercel.json` for the exact `installCommand`/`buildCommand` this repo uses.
+</Callout>
+
+## Next Steps
+- [`useSponsoredTransaction`](/hooks/useSponsoredTransaction) — the client-side hook that calls this service.
+- [Edge Cases & Errors](/edge-cases) — what `VALIDATION_ERROR`/`SUBMISSION_FAILED` map to on-chain.
