@@ -21,6 +21,13 @@ export interface NetworkConfig {
 }
 
 export const NETWORK_CONFIGS: Record<string, NetworkConfig> = {
+  // `local` is a static, frozen baseline — good enough for type-checking
+  // and tests, but NOT a live deployment. Every developer's local Sui
+  // network has different object IDs, so there's no single correct value
+  // to keep in sync here. `deploy-fresh-local.ts` no longer writes into
+  // this file for `local` (it used to, which produced pure git churn) —
+  // it writes to the gitignored packages/sdk/scripts/local-deployment.json
+  // instead. Point real local-network work at that file directly.
   local: {
     PACKAGE_ID: "0xc26c19c8995e8aa0e9013eb9ea8f2b8c19c50b49ccfee7d63c149ba4611e871e",
     COIN_TYPE_REGISTRY_ID: "0xa2fb47e58cc799612cf528327d7882a984c1171c4b1045c4b5013c43b4147a92",

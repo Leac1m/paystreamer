@@ -13,3 +13,11 @@ http://checkout.paystreamer.localhost {
 http://docs.paystreamer.localhost {
     reverse_proxy host.docker.internal:3001
 }
+
+http://example.paystreamer.localhost {
+    reverse_proxy host.docker.internal:3002
+}
+
+http://sponsor.paystreamer.localhost {
+    reverse_proxy host.docker.internal:3000
+}

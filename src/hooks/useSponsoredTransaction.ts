@@ -1,8 +1,7 @@
 import { useCurrentAccount, useDAppKit, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromBase64 } from "@mysten/sui/utils";
-
-const SPONSOR_API_URL = import.meta.env.VITE_SPONSOR_API_URL || "http://localhost:3000/api/sponsor";
+import { useAppConfig } from "./useAppConfig";
 
 export interface SponsoredTransactionResult {
   digest: string;
@@ -19,6 +18,8 @@ export function useSponsoredTransaction() {
   const account = useCurrentAccount();
   const dAppKit = useDAppKit();
   const client = useCurrentClient();
+  const { network } = useAppConfig();
+  const SPONSOR_API_URL = import.meta.env.VITE_SPONSOR_API_URL || (network === "testnet" ? "https://sponsor-olive.vercel.app/api" : "http://localhost:3000/api/sponsor");
 
   async function executeSponsored(tx: Transaction): Promise<ExecuteSponsoredResult> {
     if (!account) {

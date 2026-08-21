@@ -42,6 +42,15 @@ vi.mock('../src/react/useSubscribe', () => ({
   }))
 }));
 
+const mockMint = vi.fn();
+vi.mock('../src/react/useMintTestPusd', () => ({
+  useMintTestPusd: vi.fn(() => ({
+    mint: mockMint,
+    isLoading: false,
+    error: null
+  }))
+}));
+
 vi.mock('../src/ui/ThemeContext', () => ({
   useThemeStyles: vi.fn(() => ({}))
 }));
@@ -103,6 +112,40 @@ describe('SetupSubscriptionModal', () => {
     expect(screen.getByText('Insufficient PUSD in your wallet to fund this deposit.')).toBeDefined();
     const button = screen.getByRole('button', { name: 'Subscribe' });
     expect(button).toHaveProperty('disabled', true);
+  });
+
+  it('offers a mint button when balance is insufficient, and calls mint on click', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
+    mockBalance.mockReturnValue(0n);
+
+    render(
+      <SetupSubscriptionModal
+        isOpen={true}
+        onClose={() => {}}
+        platformId="plat_123"
+        tierIndex={0}
+      />
+    );
+
+    const mintButton = screen.getByRole('button', { name: 'Mint 1,000 Test PUSD' });
+    fireEvent.click(mintButton);
+    expect(mockMint).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show a mint button when balance is sufficient', () => {
+    vi.spyOn(provider, 'usePayStreamerConfig').mockReturnValue({ isMockMode: false } as any);
+    mockBalance.mockReturnValue(100000000000n);
+
+    render(
+      <SetupSubscriptionModal
+        isOpen={true}
+        onClose={() => {}}
+        platformId="plat_123"
+        tierIndex={0}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Mint 1,000 Test PUSD' })).toBeNull();
   });
 
   it('does not render when isOpen is false', () => {

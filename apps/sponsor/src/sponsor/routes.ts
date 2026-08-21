@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prepareTransaction, executeTransaction, SponsorError } from './service.js';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * POST /prepare

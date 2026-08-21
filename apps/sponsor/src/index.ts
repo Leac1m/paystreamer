@@ -5,7 +5,7 @@ import sponsorRoutes from './sponsor/routes.js';
 
 import cors from 'cors';
 
-export const app = express();
+export const app: express.Application = express();
 
 // Middleware
 app.use(cors({
@@ -57,14 +57,9 @@ async function verifyConfiguration(): Promise<boolean> {
     return false;
   }
 
-  // Check RPC connection
-  try {
-    const chainIdentifier = await client.getChainIdentifier();
-    console.log(`[Startup] Connected to Sui network: ${chainIdentifier}`);
-  } catch (error) {
-    console.error('[Startup] ERROR: Failed to connect to Sui RPC:', SUI_RPC_URL);
-    return false;
-  }
+  // Log connection details
+  console.log(`[Startup] Configured for Sui network: ${NETWORK}`);
+
 
   // Log configuration
   console.log('[Startup] Configuration:');
@@ -101,11 +96,18 @@ async function startServer(): Promise<void> {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-// Start the service if not running in test mode
-if (process.env.NODE_ENV !== 'test') {
+// Start the service as a long-running process outside of Vercel. On Vercel,
+// the platform invokes the default-exported Express app per-request instead
+// — calling app.listen() there is unnecessary and the module never having a
+// default export is what was causing every route to 500 with "Invalid
+// export found in module ... The default export must be a function or
+// server."
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   console.log('[Startup] Sponsor Service starting...');
   startServer().catch((error) => {
     console.error('[Startup] Failed to start service:', error);
     process.exit(1);
   });
 }
+
+export default app;

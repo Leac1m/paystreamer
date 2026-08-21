@@ -17,7 +17,7 @@ export default defineConfig({
   use: {
     actionTimeout: 10000,
     trace: 'on-first-retry',
-    baseURL: 'http://localhost:3000', // Matches next.js default
+    baseURL: 'http://localhost:3002', // Matches the dev script's port (apps/sponsor also defaults to 3000)
   },
   projects: [
     {
@@ -27,7 +27,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm dev',
-    port: 3000,
+    port: 3002,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     env: {

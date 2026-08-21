@@ -1,17 +1,25 @@
 import dotenv from 'dotenv';
+import { getConfig, SupportedNetwork } from '@paystreamer/sdk';
 
 dotenv.config();
 
 const isTestMode = process.env.NODE_ENV === 'test' || process.env.VITEST;
-export const NETWORK = process.env.NETWORK || (isTestMode ? 'localnet' : 'testnet');
-export const SUI_RPC_URL = process.env.SUI_RPC_URL || (NETWORK === 'localnet' || NETWORK === 'local' ? 'http://127.0.0.1:9000' : `https://fullnode.${NETWORK}.sui.io:443`);
+export const NETWORK = (process.env.NETWORK || (isTestMode ? 'local' : 'testnet')) as SupportedNetwork;
+const networkConfig = getConfig(NETWORK);
+
+export const SUI_RPC_URL = process.env.SUI_RPC_URL || networkConfig.GRPC_URL;
 export const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// Contracts
-export const PACKAGE_ID = process.env.PACKAGE_ID || '0xf310efaea5adf4bba799c3628563f8c6e0c9677785dca6d7865744e4a3b80afb';
-export const COIN_TYPE_REGISTRY_ID = process.env.COIN_TYPE_REGISTRY_ID || '0x076e62b38cbe903413cb7ee9a177eef0c593a9bac40d0dcdbc7d46315af65639';
-export const PAYMENT_SCHEDULER_ID = process.env.PAYMENT_SCHEDULER_ID || '0x09d3b621355da923e9076fa95a8ff253331b44b8a0f4fa61b0ca51878b1d1c4e';
-export const CLOCK_OBJECT_ID = process.env.CLOCK_OBJECT_ID || '0x0000000000000000000000000000000000000000000000000000000000000006';
+// Contracts — sourced from the SDK's centralized constants.ts rather than
+// duplicated here. The previous hardcoded fallbacks drifted from what was
+// actually deployed (they were the source of a real bug: the sponsor's
+// Move-call allowlist silently rejected every real transaction because it
+// was built from a stale package ID no app was actually using anymore).
+export const PACKAGE_ID = networkConfig.PACKAGE_ID;
+export const PUSD_PACKAGE_ID = networkConfig.PUSD_PACKAGE_ID;
+export const COIN_TYPE_REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
+export const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
+export const CLOCK_OBJECT_ID = '0x0000000000000000000000000000000000000000000000000000000000000006';
 
 // Sponsor
 export const SPONSOR_PRIVATE_KEY = process.env.SPONSOR_PRIVATE_KEY || '';
