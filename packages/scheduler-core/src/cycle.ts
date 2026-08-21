@@ -13,6 +13,9 @@ export interface CycleResult {
   finishedAt: number;
   /** false when the cycle was declined because a previous one was still running. */
   ran: boolean;
+  /** Platforms found on chain, before the allowlist is applied. */
+  platformsDiscovered: number;
+  /** Platforms actually billed against, after the allowlist. */
   platformsScanned: number;
   dueFound: number;
   succeeded: PaymentSuccess[];
@@ -27,6 +30,7 @@ function emptyResult(startedAt: number, ran: boolean): CycleResult {
     startedAt,
     finishedAt: startedAt,
     ran,
+    platformsDiscovered: 0,
     platformsScanned: 0,
     dueFound: 0,
     succeeded: [],
@@ -50,8 +54,16 @@ export async function runCycle(ctx: SchedulerContext): Promise<CycleResult> {
     console.log('[Scheduler] Starting cycle...');
     const now = await getCurrentTime(ctx);
 
-    const platforms = await discoverPlatforms(ctx);
+    const discovered = await discoverPlatforms(ctx);
+    const platforms = ctx.platformAllowlist
+      ? discovered.filter((p) => ctx.platformAllowlist!.includes(p.platformId))
+      : discovered;
+    result.platformsDiscovered = discovered.length;
     result.platformsScanned = platforms.length;
+
+    if (ctx.platformAllowlist && platforms.length < discovered.length) {
+      console.log(`[Scheduler] Platform allowlist active: serving ${platforms.length} of ${discovered.length} discovered platforms`);
+    }
 
     for (const p of platforms) {
       const subs = await discoverSubscriptions(ctx, p.platformId);

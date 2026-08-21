@@ -21,19 +21,36 @@ A scheduler is fundamentally an off-chain worker. It can be built using any tech
 
 The core loop of a scheduler is simple:
 
-### 1. Listen for Events
-When a user subscribes to a platform, the smart contract emits a `DuePaymentEvent`. Schedulers monitor the Sui blockchain (via GraphQL or RPC WebSockets) for these events. 
+### 1. Discover Due Subscriptions
 
-The event contains critical information:
-- The `SubscriptionAccount` ID
-- The `Platform` ID
-- The exact Unix timestamp when the payment is due.
+There is **no due-payment event to subscribe to** — payment schedules live in
+account state, not in an event stream. A scheduler polls:
 
-### 2. Wait
-The scheduler stores this event in memory or a database and waits until the blockchain clock reaches the due timestamp.
+1. Query `PlatformRegistered` events to find platforms.
+2. Query `SubscriptionCreated` events to find the `SubscriptionAccount` objects
+   subscribed to each one.
+3. Read those account objects and compare each subscription's
+   `next_billing_time` against the on-chain `Clock` (`0x6`).
 
-### 3. Execute the PTB
-Once the payment is due, the scheduler constructs and signs a Programmable Transaction Block (PTB) calling `process_due_payment`.
+Anything whose `next_billing_time` has passed is due now. This is exactly what
+`packages/scheduler-core`'s `discovery.ts` does, and it is worth reading before
+writing your own.
+
+<Callout type="warning">
+  **Check the coin type carefully.** A subscription's account holds
+  `Coin<T>`, while the platform tier declares the currency it settles in.
+  `process_due_payment` does **not** check those against each other on-chain,
+  so a mismatched account can be billed in the wrong coin. Compare them
+  *canonically*: an account's type comes from its object type string and
+  carries the `0x` prefix, while a tier's `denomination` is a Move `TypeName`
+  that gRPC encodes **without** one. A naive string comparison reports a
+  mismatch between a coin and itself.
+</Callout>
+
+### 2. Execute the PTB
+
+Once a payment is due, the scheduler builds and signs a Programmable
+Transaction Block calling `process_due_payment`.
 
 Using the PayStreamer SDK, this looks like:
 
@@ -52,7 +69,9 @@ buildProcessPaymentTx({
   accountId: "0xUSER_ACCOUNT",
   platformId: "0xPLATFORM",
   platformInitVersion: 1, // obtained from RPC
-  schedulerId: "0xYOUR_SCHEDULER_ID", // Your registered scheduler object
+  // The protocol's single shared PaymentScheduler object — the same id for
+  // everyone on a given network, not something you own or register.
+  schedulerId: "0xPAYMENT_SCHEDULER",
   schedulerInitVersion: 1,
 });
 
@@ -63,18 +82,84 @@ const result = await client.signAndExecuteTransaction({
 });
 ```
 
-<Callout type="info">
-  **Browser Extensions**: Because the execution logic is just querying events and signing PTBs, schedulers can easily be packaged as lightweight web extensions. Users could install the PayStreamer Scheduler extension, leave their browser open, and automatically earn 1% fees in the background!
-</Callout>
+### 3. Earn
 
-### 4. Earn
-When the transaction succeeds, the `process_due_payment` Move function automatically deducts the subscription amount from the user, routes the platform's cut, and sends your 1% fee directly to your scheduler's `Coin<PUSD>` balance.
+When the transaction succeeds, `process_due_payment` deducts the subscription
+amount from the subscriber, routes the platform's cut, and transfers your 1%
+fee as a fresh `Coin<T>` to **whichever address sent the transaction**
+(`ctx.sender()`).
+
+That has one consequence worth knowing: since the fee recipient is the sender,
+`PaymentProcessed` carries a `scheduler_fee` amount but **not** the address it
+was paid to. To total your earnings, query `PaymentProcessed` events filtered
+by `sender` and sum `scheduler_fee`:
+
+```graphql
+query schedulerFees($type: String!, $sender: SuiAddress!) {
+  events(filter: { type: $type, sender: $sender }, first: 50) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      timestamp
+      transaction { digest }
+      contents { json }
+    }
+  }
+}
+```
+
+<Callout type="warning">
+  **Don't compute earnings from your coin balance.** The fee lands as a real
+  `Coin<T>`, so watching your balance looks tempting — but if you also operate
+  the platform or the protocol treasury (as on the demo deployment, where all
+  three are the same address), your balance moves by the *full billed amount*
+  rather than your 1% cut. `scheduler_fee` is the only correct source.
+</Callout>
 
 ## Getting Started
 
-To officially become a scheduler, you must register a `Scheduler` object on-chain. This object acts as the recipient for your earned fees. 
+**No registration is required.** Running a scheduler is permissionless: there
+is no `Scheduler` object to create and no allowlist to join. `PaymentScheduler`
+is a single shared object owned by the protocol, identical for every scheduler
+on a network. All you need is:
 
-*(Note: In a production environment, you will use the `PayStreamer Portal` to register your scheduler and retrieve your `schedulerId`.)*
+- a funded Sui address to pay gas, and
+- a process that polls for due payments and submits the PTB above.
+
+The first scheduler to land a transaction for a given due payment collects the
+fee, so in practice schedulers compete on latency and reliability.
+
+## Run the browser extension
+
+`apps/extension` packages the scheduler as a Chrome MV3 extension: install it,
+leave your browser open, and it bills due payments in the background.
+
+```sh
+pnpm --filter @paystreamer/extension build
+```
+
+Then in Chrome: open `chrome://extensions`, enable **Developer mode**, choose
+**Load unpacked**, and select `apps/extension/dist`. The extension generates a
+signing key on first run and shows its address — fund that address with a small
+amount of SUI for gas (the popup has a testnet faucet button), and it starts
+earning on the next cycle.
+
+<Callout type="warning">
+  **Its signing key is stored unencrypted** in `chrome.storage.local`. A
+  scheduler signs every cycle unattended, so it cannot prompt a wallet or hold
+  a passphrase a suspended service worker would forget. Treat it as a
+  low-value key holding only gas and accrued fees — never import an address
+  you keep other funds on.
+</Callout>
+
+Two limits worth knowing before you install it:
+
+- **Cycles run at most once per minute.** `chrome.alarms` cannot go faster, and
+  a suspended MV3 service worker loses `setInterval` timers entirely. The
+  standalone service polls every 10 seconds, so it will usually win a contested
+  payment.
+- **Your browser must be running** for cycles to fire.
+
+The extension is distributed unpacked rather than through the Chrome Web Store.
 
 ## Next Steps
 - [Core API Reference](/core/transactions) — `buildProcessPaymentTx` and `buildProcessRoutedPaymentTx` are the two PTB builders a scheduler actually calls.

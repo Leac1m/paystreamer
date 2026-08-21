@@ -38,6 +38,11 @@ cd packages/scheduler-core
 npx vitest run
 cd ../..
 
+echo "-> Running tests in apps/extension..."
+cd apps/extension
+npx vitest run
+cd ../..
+
 echo "-> Running tests in apps/docs..."
 cd apps/docs
 npx vitest run

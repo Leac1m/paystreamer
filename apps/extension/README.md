@@ -5,61 +5,84 @@ background and earns the 1% scheduler fee. Chrome only — Firefox's MV3
 differs enough (background scripts rather than service workers, the
 `browser.*` namespace, different alarm behavior) that it was descoped.
 
-**Status: Milestone 2 (viability spike) complete.** The service worker runs
-real billing cycles against testnet. There is no UI yet — the popup,
-options page, key management, and earnings surface are Milestones 3-6. Do
-not treat this as installable by an end user.
-
-## What the spike proved
-
-Run against a real Chromium with the extension loaded unpacked:
-
-1. The MV3 service worker registers and boots.
-2. Config loads asynchronously from `chrome.storage.local` — the path the
-   `SchedulerContext` refactor exists to support. The old `process.env`
-   singletons evaluated at import time and could not be satisfied here.
-3. `SuiGrpcClient` and `SuiGraphQLClient` reach testnet from a service
-   worker (proven separately from `apps/portal`, which runs them in a page).
-4. `Ed25519Keypair` signs under the extension CSP — no eval, no remote
-   code — and real billing transactions execute.
-5. `chrome.alarms` fires on its own after ~60s and drives a full cycle with
-   no page open, where `setInterval` cannot: a suspended MV3 worker loses
-   its timers.
-6. Cycle state persists to `chrome.storage.local`, so a popup can read a
-   cycle it was not alive for.
+## Install
 
 ```sh
-pnpm build
-pnpm spike                              # read-only: discovery + classification
-pnpm spike -- --execute                 # bills real due payments on testnet
-pnpm spike -- --execute --wait-alarm    # also waits ~60s for the alarm to fire
+pnpm --filter @paystreamer/extension build
 ```
 
-The spike is not in CI: it needs network, a browser, and it submits real
-transactions. Only `pnpm build` is verified by `ci/verify-builds.sh`.
+Then in Chrome: open `chrome://extensions`, enable **Developer mode**, choose
+**Load unpacked**, and select `apps/extension/dist`. It generates a signing key
+on first run and shows the address — fund it with a little SUI for gas (the
+popup has a testnet faucet button) and it starts earning on the next cycle.
+
+Distributed unpacked rather than through the Chrome Web Store.
+
+## What it does
+
+- **Background worker** — `chrome.alarms` drives a billing cycle once a
+  minute. Every cycle's summary is written to `chrome.storage.local`, because
+  the popup usually opens with no worker alive to ask.
+- **Popup** — fees earned, gas health, last cycle, recent payments, and a
+  running/paused toggle that actually clears the alarm rather than just
+  flipping a flag.
+- **Options** — network, an opt-in platform allowlist, the DeepBook routing
+  allowlist, and key import/export.
+
+## Verification
+
+Unit tests fake `chrome.*`; `scripts/spike.ts` drives the real extension in a
+real Chromium via Playwright, which is the only place real Chrome behavior is
+knowable.
+
+```sh
+pnpm test                              # unit tests (faked chrome.*)
+pnpm spike                             # real browser, read-only
+pnpm spike -- --execute --wait-alarm   # bills on testnet; waits for the alarm
+```
+
+The spike checks, end to end: the worker registers; a key is generated on
+install with none in the source; importing a funded key replaces it; testnet
+reads work from a worker; a real cycle bills due payments; pausing clears the
+alarm and resuming restores it; the alarm fires on its own and drives a cycle
+with no page open; and both the popup and options page render real state and
+persist changes.
+
+Only `pnpm build` and `pnpm test` are in CI — the spike needs a network and a
+browser, and submits real transactions.
 
 ## Deliberate design notes
 
+- **Unencrypted hot key.** A scheduler signs every cycle unattended, so it
+  cannot prompt a wallet, and passphrase-encrypting the secret would stop
+  background earning every time the worker suspends — defeating the point.
+  Framed as a low-value key holding only gas and fees, and the options page
+  says so plainly.
+- **Earnings come from `PaymentProcessed.scheduler_fee`, never a balance
+  delta.** The fee lands as a real coin, so watching the balance is tempting,
+  but on the demo deployment the platform and protocol treasuries are the same
+  address as the scheduler — the balance moves by the full billed amount, not
+  the 1% cut. Verified live on testnet.
 - **No DeepBook.** This app never imports
   `@paystreamer/scheduler-core/routed-payment`, the only module pulling in
-  `@mysten/deepbook-v3`. No real DeepBook liquidity exists for any
-  PayStreamer token, so routing would be dead weight in the worker bundle.
-  Routed payments are skipped rather than mispaid. Verified against the
-  built output: no DeepBook, React, Walrus, or Seal code in the bundle.
+  `@mysten/deepbook-v3`. No real DeepBook liquidity exists for any PayStreamer
+  token, so routing would be dead weight in the worker bundle; routed payments
+  are skipped rather than mispaid. Verified against the built output: no
+  DeepBook, React, Walrus, or Seal code in the service worker bundle.
 - **`@paystreamer/sdk/constants`, not the SDK root.** The root barrel
-  re-exports `./react` and `./ui`; importing `getConfig` from it would drag
-  React into a service worker with no DOM to render into.
-- **`@crxjs/vite-plugin` over `wxt`.** Both support Vite 8 (checked against
-  the registry, not assumed). `wxt`'s main draw is cross-browser support,
-  which was descoped, and it imposes its own directory conventions —
-  `@crxjs` keeps this a plain Vite app like every other app here.
+  re-exports `./react` and `./ui`, which would drag React into a worker with no
+  DOM.
+- **`@crxjs/vite-plugin` over `wxt`.** Both support Vite 8 (checked against the
+  registry, not assumed). `wxt`'s main draw is cross-browser support, which was
+  descoped, and it imposes its own directory conventions.
 
 ## Known limits
 
 - **1-minute alarm floor.** `chrome.alarms` cannot poll faster, versus the
-  standalone service's 10s. Billing is due-time-based rather than
-  latency-sensitive, so a missed cycle simply bills on the next one.
+  standalone service's 10s — so the standalone service will usually win a
+  contested payment. Billing is due-time-based rather than latency-sensitive,
+  so a late cycle simply bills on the next pass.
 - **The browser must be running** for cycles to fire.
-- **The signing key is seeded from a shared demo key** and stored
-  unencrypted. Milestone 4 replaces this with real first-run generation,
-  import/export, and a funding flow.
+- Platform discovery re-queries the last 50 `PlatformRegistered` events and
+  walks every account each cycle. Fine at demo scale, not how this would work
+  at real volume.

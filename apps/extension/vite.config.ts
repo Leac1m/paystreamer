@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react-swc';
+import tailwindcss from '@tailwindcss/vite';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.config.js';
 
@@ -6,11 +8,16 @@ import manifest from './manifest.config.js';
 // directory conventions, which matters because every other app in this
 // monorepo is already plain Vite.
 export default defineConfig({
-  plugins: [crx({ manifest })],
+  plugins: [react(), tailwindcss(), crx({ manifest })],
   build: {
-    // The spike needs readable output to confirm what actually landed in the
-    // service worker bundle.
+    // Readable output makes it possible to confirm what actually landed in
+    // the service worker bundle — see the README's bundle checks.
     minify: false,
     target: 'esnext',
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['test/**/*.test.ts'],
   },
 });

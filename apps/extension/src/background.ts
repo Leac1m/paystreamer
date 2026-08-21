@@ -1,54 +1,38 @@
-import {
-  classifyPayment,
-  discoverPlatforms,
-  discoverSubscriptions,
-  filterDueSubscriptions,
-  getCurrentTime,
-} from '@paystreamer/scheduler-core';
-import { STORAGE_KEYS } from './config.js';
-import { getScheduler } from './scheduler.js';
+import { fetchSchedulerEarnings } from '@paystreamer/scheduler-core';
+import { getConfig } from '@paystreamer/sdk/constants';
+import type { EarningsResponse, Request, Response, StatusResponse } from './lib/messages.js';
+import { exportPrivateKey, importPrivateKey } from './lib/keys.js';
+import { getBalance, getScheduler, resetScheduler } from './lib/scheduler.js';
+import { loadCycles, loadSettings, recordCycle, saveSettings, type CycleRecord } from './lib/storage.js';
 
 /**
- * Milestone 2 spike: prove a PayStreamer billing cycle can actually run
- * inside a Chrome MV3 service worker. Three things are being tested that
- * could not be assumed from `apps/portal` running the same clients in a
- * page context:
+ * The MV3 background service worker.
  *
- *   1. `SuiGrpcClient` / `SuiGraphQLClient` work in a service worker.
- *   2. `Ed25519Keypair` signing works under the extension CSP (no eval,
- *      no remote code, WebCrypto only).
- *   3. `chrome.alarms` drives the loop where `setInterval` cannot — a
- *      suspended MV3 worker loses its timers.
+ * `chrome.alarms` drives the loop, not `setInterval`: a suspended worker
+ * loses its timers, and MV3 suspends aggressively. The alarm floor is one
+ * minute, versus the standalone service's ten seconds. That is a real,
+ * disclosed trade rather than a defect — billing is due-time-based, not
+ * latency-sensitive, so a late cycle simply bills on the next pass.
  *
- * The UI surfaces (popup, options) are Milestones 3-6; this file stays
- * deliberately thin so the spike proves the runtime, not the app.
+ * Nothing durable is kept in module scope. Every cycle writes its summary
+ * to `chrome.storage.local` so the popup, which usually opens with no
+ * worker alive, has something to read.
  */
 
 const ALARM_NAME = 'paystreamer-cycle';
-/** chrome.alarms enforces a 1-minute floor, well above the standalone service's 10s. */
 const PERIOD_MINUTES = 1;
 
-type CycleRecord = {
-  at: number;
-  ran: boolean;
-  dueFound: number;
-  succeeded: number;
-  skipped: number;
-  failed: number;
-  digests: string[];
-  error?: string;
-};
+/** ~0.05 SUI. Below this, gas is nearly out and cycles will start failing. */
+const LOW_GAS_THRESHOLD = 50_000_000n;
 
-async function recordCycle(record: CycleRecord) {
-  await chrome.storage.local.set({ [STORAGE_KEYS.lastCycle]: record });
+async function syncAlarm(enabled: boolean) {
+  if (enabled) {
+    await chrome.alarms.create(ALARM_NAME, { periodInMinutes: PERIOD_MINUTES });
+  } else {
+    await chrome.alarms.clear(ALARM_NAME);
+  }
 }
 
-/**
- * Runs one billing cycle and persists a summary. State goes to
- * `chrome.storage.local` rather than memory because the worker is
- * suspended between alarms — a popup opened later has no live worker to
- * ask, only what was written down.
- */
 export async function runOneCycle(): Promise<CycleRecord> {
   const { scheduler } = await getScheduler();
   const result = await scheduler.runCycle();
@@ -56,75 +40,168 @@ export async function runOneCycle(): Promise<CycleRecord> {
   const record: CycleRecord = {
     at: Date.now(),
     ran: result.ran,
+    platformsDiscovered: result.platformsDiscovered,
+    platformsScanned: result.platformsScanned,
     dueFound: result.dueFound,
     succeeded: result.succeeded.length,
     skipped: result.skipped.length,
     failed: result.failed.length,
     digests: result.succeeded.map((s) => s.digest),
     error: result.error,
+    firstFailure: result.failed[0]?.error,
   };
 
-  await recordCycle(record);
+  // A declined overlapping cycle isn't activity; recording it would just
+  // push real history out of a bounded list.
+  if (record.ran) await recordCycle(record);
   console.log('[PayStreamer] cycle complete', record);
   return record;
 }
 
-/**
- * Discovery and classification only — no signing, no transactions. Lets the
- * spike prove the read path from a service worker without billing anyone.
- */
-export async function discoverOnly() {
+async function buildStatus(): Promise<StatusResponse> {
   const { context } = await getScheduler();
-  const now = await getCurrentTime(context);
-  const platforms = await discoverPlatforms(context);
+  const settings = await loadSettings();
+  const [cycles, alarm] = await Promise.all([loadCycles(), chrome.alarms.get(ALARM_NAME)]);
 
-  let active = 0;
-  let due = 0;
-  const classifications: Record<string, number> = {};
-
-  for (const p of platforms) {
-    const subs = await discoverSubscriptions(context, p.platformId);
-    active += subs.length;
-    for (const sub of filterDueSubscriptions(subs, now)) {
-      due++;
-      const kind = classifyPayment(sub, context.routingAllowlist).kind;
-      classifications[kind] = (classifications[kind] ?? 0) + 1;
-    }
+  let suiBalance = 0n;
+  try {
+    suiBalance = await getBalance(context, '0x2::sui::SUI');
+  } catch (err) {
+    console.error('[PayStreamer] failed to read gas balance', err);
   }
 
-  return { clock: String(now), platforms: platforms.length, active, due, classifications };
+  return {
+    address: context.senderAddress,
+    network: context.network,
+    enabled: settings.enabled,
+    suiBalance: suiBalance.toString(),
+    lowGas: suiBalance < LOW_GAS_THRESHOLD,
+    nextCycleAt: alarm?.scheduledTime ?? null,
+    cycles,
+    settings,
+  };
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[PayStreamer] installed; registering alarm');
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: PERIOD_MINUTES });
+async function buildEarnings(): Promise<EarningsResponse> {
+  const { context } = await getScheduler();
+  const summary = await fetchSchedulerEarnings(context, { recentLimit: 10 });
+  return {
+    totalFee: summary.totalFee.toString(),
+    paymentCount: summary.paymentCount,
+    truncated: summary.truncated,
+    recent: summary.recent.map((r) => ({
+      digest: r.digest,
+      timestampMs: r.timestampMs,
+      platformId: r.platformId,
+      schedulerFee: r.schedulerFee.toString(),
+    })),
+  };
+}
+
+/**
+ * Requests testnet gas for the scheduler address. Only meaningful on
+ * testnet/devnet — mainnet has no faucet, and saying so is better than a
+ * button that silently does nothing.
+ */
+async function requestFaucet(): Promise<{ message: string }> {
+  const { context } = await getScheduler();
+  if (context.network !== 'testnet' && context.network !== 'devnet') {
+    throw new Error(`No faucet exists for ${context.network}. Fund the address directly.`);
+  }
+
+  const response = await fetch(`https://faucet.${context.network}.sui.io/v2/gas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ FixedAmountRequest: { recipient: context.senderAddress } }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Faucet returned ${response.status}. It rate-limits per address; try again shortly.`);
+  }
+  return { message: 'Faucet request accepted. Gas usually arrives within a few seconds.' };
+}
+
+async function handle(request: Request): Promise<unknown> {
+  switch (request.type) {
+    case 'status':
+      return buildStatus();
+    case 'runNow':
+      return runOneCycle();
+    case 'earnings':
+      return buildEarnings();
+    case 'requestFaucet':
+      return requestFaucet();
+    case 'setEnabled':
+      await saveSettings({ enabled: request.enabled });
+      await syncAlarm(request.enabled);
+      return buildStatus();
+    case 'saveSettings':
+      await saveSettings(request.patch);
+      // Settings feed the context; drop the memo so the next cycle rebuilds.
+      resetScheduler();
+      if (request.patch.enabled !== undefined) await syncAlarm(request.patch.enabled);
+      return buildStatus();
+    case 'importKey': {
+      const address = await importPrivateKey(request.secret);
+      resetScheduler();
+      return { address };
+    }
+    case 'exportKey':
+      return { secret: await exportPrivateKey() };
+    default:
+      throw new Error(`Unknown request: ${JSON.stringify(request)}`);
+  }
+}
+
+chrome.runtime.onMessage.addListener((request: Request, _sender, sendResponse) => {
+  handle(request)
+    .then((data) => sendResponse({ ok: true, data } satisfies Response<unknown>))
+    .catch((err) => {
+      console.error('[PayStreamer] request failed', request.type, err);
+      sendResponse({ ok: false, error: err?.message || String(err) } satisfies Response<never>);
+    });
+  // Keeps the message channel open for the async work above.
+  return true;
+});
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const settings = await loadSettings();
+  // Generating the key at install rather than on first cycle means the
+  // popup can show a fundable address immediately.
+  const { context } = await getScheduler();
+  console.log('[PayStreamer] installed; scheduler address', context.senderAddress);
+  console.log('[PayStreamer] network', getConfig(settings.network).PACKAGE_ID);
+  await syncAlarm(settings.enabled);
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  const settings = await loadSettings();
+  await syncAlarm(settings.enabled);
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== ALARM_NAME) return;
-  console.log('[PayStreamer] alarm fired');
-  void runOneCycle();
+  void (async () => {
+    const settings = await loadSettings();
+    if (!settings.enabled) {
+      await chrome.alarms.clear(ALARM_NAME);
+      return;
+    }
+    await runOneCycle();
+  })();
 });
 
-// Spike harness hook. Playwright drives the real service worker through
-// this rather than waiting on a 1-minute alarm; the alarm path above is
-// exercised separately by firing it directly.
+// Harness hook — see scripts/spike.ts. Exposes the same `handle` the popup
+// reaches through `chrome.runtime.sendMessage`, so the spike drives exactly
+// the code path the UI uses rather than a parallel one.
 Object.assign(self, {
-  __paystreamerSpike: {
-    runOneCycle,
-    discoverOnly,
-    async address() {
-      const { context } = await getScheduler();
-      return context.senderAddress;
-    },
-    async info() {
-      const { context } = await getScheduler();
-      return {
-        address: context.senderAddress,
-        network: context.network,
-        packageId: context.packageId,
-        routedExecutorWired: Boolean(context.routedPaymentExecutor),
-      };
+  __paystreamerTest: {
+    handle: async (request: Request) => {
+      try {
+        return { ok: true, data: await handle(request) };
+      } catch (err: any) {
+        return { ok: false, error: err?.message || String(err) };
+      }
     },
   },
 });

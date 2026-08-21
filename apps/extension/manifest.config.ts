@@ -10,6 +10,11 @@ export default defineManifest({
   name: 'PayStreamer Scheduler',
   version: '0.1.0',
   description: 'Runs PayStreamer billing cycles in the background and earns the 1% scheduler fee.',
+  action: {
+    default_popup: 'src/popup/index.html',
+    default_title: 'PayStreamer Scheduler',
+  },
+  options_page: 'src/options/index.html',
   background: {
     service_worker: 'src/background.ts',
     type: 'module',

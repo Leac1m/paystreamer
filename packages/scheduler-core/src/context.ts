@@ -50,6 +50,13 @@ export interface SchedulerContext {
   paymentSchedulerId: string;
   /** Overridable only for tests; defaults to `CLOCK_OBJECT_ID`. */
   clockId?: string;
+  /**
+   * Restricts which platforms this scheduler serves. `undefined` means all
+   * discovered platforms (the standalone service's behavior). An explicit
+   * array means exactly those ids — and an empty array therefore means
+   * none, which is a deliberate way to idle without unregistering.
+   */
+  platformAllowlist?: string[];
   /** Opt-in DeepBook routing config, keyed platformId -> fundingCoinType. */
   routingAllowlist: RoutingAllowlist;
   /** The DEEP coin type used to pay DeepBook trading fees. Routing is skipped if unset. */

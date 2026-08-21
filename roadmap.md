@@ -687,57 +687,103 @@ option was worth it: the work was required either way.
    The spike is not in CI — it needs network and a browser, and it submits
    real transactions. `apps/extension`'s `pnpm build` (which runs
    `tsc --noEmit`) is wired into `ci/verify-builds.sh`.
-3. **Background worker.** `chrome.alarms` replaces `setInterval` — minimum
-   granularity is 1 minute, so the extension polls at 1/6th the standalone
-   service's 10s rate. That's a real disclosed tradeoff, not a defect:
-   billing is due-time-based, not latency-sensitive, and a missed cycle
-   just bills on the next one. Cycle state (last run, last error, digests,
-   fees earned) is written to `chrome.storage.local` so the popup can read
-   it without the worker being alive. Guards a cycle against overlapping
-   itself the same way `scheduler/index.ts` already does.
-4. **Key management + funding UX.** First-run generation into
-   `chrome.storage.local`, address display with copy/QR, SUI gas balance
-   with a low-balance warning (gas selection in `payment.ts` throws outright
-   on an empty balance today — the extension should surface that as a
-   prompt to fund, not a console error), a testnet faucet action, and
-   export/import for moving a funded key between machines. Explicit,
-   non-buried warning that the key is stored unencrypted.
-5. **Earnings surface — the priority the user called out.**
-   `PaymentProcessed` (`payment.move:71-81`) carries `scheduler_fee` but
-   **not** the scheduler's address, so earnings can't be attributed by
-   reading the event alone. Two sources, both already available with **no
-   contract change**: the extension's own locally-recorded digests, and a
-   GraphQL `events` query filtered by `sender` = the extension's address,
-   summed over `scheduler_fee` — which also recovers history after a
-   reinstall. Milestone 1's testnet run **ruled out** the balance-delta
-   cross-check originally planned here: the scheduler, platform treasury,
-   and protocol treasury are the same address on the demo deployment, so
-   the delta reflects total billed volume rather than the fee. Show the PUSD
-   balance as wallet state, never as computed earnings. Popup: running/paused
-   toggle, next alarm, fees earned, recent payments, gas health.
-6. **Options page.** Network selection, an opt-in platform allowlist
-   (mirroring `routingConfig.ts`'s existing opt-in shape from Phase 3, so
-   an operator can run the extension against only platforms they choose),
-   and the DeepBook routing allowlist as a JSON field — the same
-   `ROUTING_ALLOWLIST_JSON` schema, just sourced from storage instead of
-   an env var.
-7. **Tests and docs.** `scheduler-core`'s migrated tests plus new coverage
-   for the storage/alarm/earnings layers against a faked `chrome.*` API.
-   Then update `apps/docs/pages/scheduler.mdx`, whose extension callout
-   (line 67) is currently an aspiration, into a real install guide.
-   **While there: that page has a fictional-API bug of exactly the kind
-   Phases 1-3 kept finding.** Line 25 claims "the smart contract emits a
-   `DuePaymentEvent`" that schedulers monitor. No such event exists —
-   `grep` over `move/` returns nothing, and the real `discovery.ts` polls
-   `PlatformRegistered` events and then reads account objects. Fix it.
+3. - [x] **Background worker.** `chrome.alarms` replaces `setInterval` at a
+   1-minute floor versus the standalone service's 10s — a disclosed trade,
+   since billing is due-time-based rather than latency-sensitive. Every cycle
+   writes a bounded summary (20 records) to `chrome.storage.local`, including
+   the first failure message, so the popup can show what happened without a
+   log console. Pausing genuinely `chrome.alarms.clear()`s rather than
+   flipping a flag, verified in a real browser.
+4. - [x] **Key management + funding UX.** First run generates an Ed25519
+   keypair via WebCrypto into `chrome.storage.local`; import accepts a
+   `suiprivkey1…` or its hex encoding and validates *before* saving, so a bad
+   paste can't strand the extension; export reveals the secret for backup. Gas
+   balance uses `core.getBalance` (never a `listCoins` page sum — Milestone 1
+   proved that under-reports four-fold), with a low-gas warning and a testnet
+   faucet button. The unencrypted-at-rest warning is stated plainly on the
+   options page with the reasoning, not buried.
 
-**Known limits to disclose rather than paper over:** the 1-minute alarm
-floor; the unencrypted hot key; the browser must be running for cycles to
+   **Found and fixed a real concurrency bug here, only visible in a real
+   browser.** `chrome.runtime.onInstalled` and the popup's first `status`
+   request both fire at install; each read empty storage, each generated a
+   *different* keypair, and the later write won. The spike caught it because
+   the install log printed one address while `status` returned another — so a
+   user could have funded an address the extension no longer held the key for.
+   Fixed with a single-flight promise memo (dropped on import), plus a
+   regression test racing three concurrent callers. Also dropped the
+   `created` flag from `getOrCreateKeypair`'s return: with memoization it
+   meant "generated this worker lifetime", which is murky and no caller used.
+5. - [x] **Earnings surface — the priority called out for this phase.**
+   `fetchSchedulerEarnings` in `scheduler-core` queries `PaymentProcessed`
+   filtered by transaction `sender` and sums `scheduler_fee`, paginating with
+   a page cap and reporting `truncated` rather than silently understating.
+   Verified against real testnet before any UI was written: the address has
+   231 historical payments totalling 23,100 PUSD in fees, and the popup
+   renders exactly that.
+
+   Both tempting shortcuts are documented as wrong in the code: the event
+   carries `scheduler_fee` but **not** the recipient address (attribution has
+   to come from the sender filter), and a balance delta is not earnings
+   (Milestone 1 proved it reflects full billed volume on the demo deployment).
+   Popup shows fees earned, payment count, gas health with a faucet button,
+   next-cycle countdown, last-cycle outcome including failures, recent
+   payments, and a running/paused toggle.
+6. - [x] **Options page.** Network selection, an opt-in platform allowlist
+   (new `platformAllowlist` on `SchedulerContext` — `undefined` means all
+   discovered platforms, an explicit array means exactly those, and an empty
+   array is a deliberate idle), the DeepBook routing allowlist as JSON reusing
+   the same schema, and key import/export/reveal. Settings changes reset the
+   memoized context so the next cycle picks them up without a worker restart.
+7. - [x] **Tests and docs.** 23 unit tests in `apps/extension` against a faked
+   `chrome.*` (storage defaults and the stored-`false` trap, bounded cycle
+   history, key generation/import/race, formatters), plus 8 new
+   `scheduler-core` tests for earnings and the platform allowlist — 42 there
+   now. `scripts/spike.ts` drives the real extension in real Chromium across
+   8 end-to-end checks including a live billing cycle and an alarm firing on
+   its own. Extension build and unit tests are wired into
+   `ci/verify-builds.sh`; the spike is not, since it needs a browser and
+   submits real transactions.
+
+   **`scheduler.mdx` had more fiction than the one known bug.** Rewritten
+   against verified behavior:
+   - `DuePaymentEvent` does not exist. Nothing emits it; discovery polls
+     `PlatformRegistered`/`SubscriptionCreated` and compares
+     `next_billing_time` to the `Clock`. The old "listen, store in a database,
+     wait for the timestamp" flow described a system that was never built.
+   - **"To officially become a scheduler, you must register a `Scheduler`
+     object on-chain"** — entirely fictional, and actively harmful since it
+     told readers to perform a step that does not exist. `scheduler.move` has
+     no registration function; `PaymentScheduler` is one shared object
+     identical for everyone on a network, and fees go to `ctx.sender()`.
+     Running a scheduler is permissionless. The code sample's
+     `schedulerId: "0xYOUR_SCHEDULER_ID" // Your registered scheduler object`
+     was wrong in the same way.
+   - Added the earnings query, the balance-delta warning, the coin-type
+     canonicalization warning from Milestone 1, and a real install guide for
+     the extension with its two disclosed limits.
+
+
+**Phase 4b status: complete.** All 7 milestones done, each verified against
+real testnet and — where it mattered — inside a real browser rather than
+against mocks. Two genuine bugs were found and fixed along the way that no
+amount of unit testing would have surfaced: a live billing outage from a
+coin-type encoding mismatch (Milestone 1), and a key-generation race that
+could have had a user fund an address the extension no longer held the key
+for (Milestone 4).
+
+**Known limits, disclosed rather than papered over:** the 1-minute alarm
+floor, which means the standalone service will usually win a contested
+payment; the unencrypted hot key; the browser must be running for cycles to
 fire; `discoverPlatforms` re-queries the last 50 `PlatformRegistered`
 events and then walks every account each cycle, which is fine at demo
 scale but is not how this would work at real volume; and the DeepBook
-routed path inherits Phase 3's liquidity blocker, so it stays structurally
-wired and untested live in the extension too.
+routed path inherits Phase 3's liquidity blocker — the extension does not
+bundle DeepBook at all, so it skips routed payments rather than mispaying
+them.
+
+**Not done, and deliberately so:** Chrome Web Store submission (needs a
+developer account and Google's review — outside what I can do), and any
+mainnet posture. The extension is testnet-shaped and distributed unpacked.
 
 Both 4a and 4b are genuinely independent and could ship in either order —
 4b is the smaller, more contained piece if a quicker win is preferred; 4a

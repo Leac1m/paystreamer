@@ -37,6 +37,40 @@ describe('runCycle', () => {
   });
 });
 
+describe('platform allowlist', () => {
+  function withPlatforms(ctx: ReturnType<typeof makeContext>, ids: string[]) {
+    (ctx.gqlClient.query as any).mockImplementation(async (args: any) => {
+      // First query is platform discovery; subscription discovery follows.
+      if (String(args.variables.eventType).includes('PlatformRegistered')) {
+        return { data: { events: { nodes: ids.map((id) => ({ contents: { json: { platform_id: id } } })) } } };
+      }
+      return { data: { events: { nodes: [] } } };
+    });
+    return ctx;
+  }
+
+  it('scans every discovered platform when no allowlist is set', async () => {
+    const ctx = withPlatforms(withClock(makeContext(), '1000'), ['0xa', '0xb']);
+    const result = await runCycle(ctx);
+    expect(result.platformsDiscovered).toBe(2);
+    expect(result.platformsScanned).toBe(2);
+  });
+
+  it('serves only allowlisted platforms, reporting both counts', async () => {
+    const ctx = withPlatforms(withClock(makeContext({ platformAllowlist: ['0xb'] }), '1000'), ['0xa', '0xb']);
+    const result = await runCycle(ctx);
+    expect(result.platformsDiscovered).toBe(2);
+    expect(result.platformsScanned).toBe(1);
+  });
+
+  it('treats an empty allowlist as a deliberate idle, not as "all"', async () => {
+    const ctx = withPlatforms(withClock(makeContext({ platformAllowlist: [] }), '1000'), ['0xa', '0xb']);
+    const result = await runCycle(ctx);
+    expect(result.platformsDiscovered).toBe(2);
+    expect(result.platformsScanned).toBe(0);
+  });
+});
+
 describe('createScheduler', () => {
   it('declines an overlapping cycle rather than running two against the same accounts', async () => {
     const ctx = withClock(makeContext(), '1000');

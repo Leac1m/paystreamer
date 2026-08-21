@@ -40,6 +40,12 @@ export {
 export { classifyPayment, type PaymentClassification } from './routing.js';
 
 export {
+  fetchSchedulerEarnings,
+  type EarningsSummary,
+  type SchedulerEarning,
+} from './earnings.js';
+
+export {
   getRoutingPoolConfig,
   parseRoutingAllowlist,
   type RoutingAllowlist,
