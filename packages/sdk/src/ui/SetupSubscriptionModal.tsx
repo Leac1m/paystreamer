@@ -9,6 +9,7 @@ import { useSubscribe } from "../react/useSubscribe";
 import { usePlatform } from "../react/usePlatform";
 import { useUserAccount } from "../react/useUserAccount";
 import { usePusdBalance } from "../react/usePusdBalance";
+import { useMintTestPusd } from "../react/useMintTestPusd";
 import { PayStreamerTheme, useThemeStyles } from "./ThemeContext";
 import { usePayStreamerConfig } from "../react/provider";
 
@@ -37,6 +38,7 @@ export function SetupSubscriptionModal({
   const { data: platform, isLoading: isPlatformLoading, isError: isPlatformError, error: platformError, refetch: refetchPlatform } = usePlatform(platformId);
   const { userAccount, isLoading: isAccountLoading } = useUserAccount();
   const { data: walletBalance, isLoading: isBalanceLoading } = usePusdBalance();
+  const { mint: mintPusd, isLoading: isMinting, error: mintError } = useMintTestPusd();
 
   const tier = platform?.tiers?.[tierIndex];
   const resolvedTierAmount = tier ? BigInt(tier.amount) : 0n;
@@ -73,7 +75,7 @@ export function SetupSubscriptionModal({
     }
   }, [isOpen, platformId, tierIndex, defaultDepositUsd]);
 
-  const isLoading = isPlatformLoading || isAccountLoading || isBalanceLoading || isSubscribeLoading;
+  const isLoading = isPlatformLoading || isAccountLoading || isBalanceLoading || isSubscribeLoading || isMinting;
   const tierUnavailable = !isPlatformLoading && (isPlatformError || (platform && !tier));
 
   if (!isOpen) return null;
@@ -87,6 +89,10 @@ export function SetupSubscriptionModal({
       setStep("success");
       if (onSuccess) onSuccess(digest);
     }
+  };
+
+  const handleMintPusd = async () => {
+    await mintPusd();
   };
 
 
@@ -180,6 +186,16 @@ export function SetupSubscriptionModal({
                     <p className="text-sm text-red-600 dark:text-red-400 font-medium">
                       Insufficient PUSD in your wallet to fund this deposit.
                     </p>
+                    <Button
+                      onClick={handleMintPusd}
+                      disabled={isMinting}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium"
+                    >
+                      {isMinting ? "Minting..." : "Mint 1,000 Test PUSD"}
+                    </Button>
+                    {mintError && (
+                      <p className="text-xs text-red-600 dark:text-red-400">{mintError}</p>
+                    )}
                   </div>
                 )}
 
