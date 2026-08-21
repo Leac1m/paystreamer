@@ -1,6 +1,6 @@
 {
   "name": "@paystreamer/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "PayStreamer SDK for integrating recurring billing on Sui",
   "license": "MIT",
   "repository": {
@@ -50,7 +50,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "codegen": "rm -rf src/contracts && sui-ts-codegen generate",
