@@ -1,5 +1,5 @@
-import { gqlClient, grpcClient } from '../lib/sui.js';
-import { PACKAGE_ID } from '../lib/config.js';
+import type { SchedulerContext } from './context.js';
+import { normalizeCoinType } from './typeNames.js';
 
 export interface DiscoveredPlatform {
   platformId: string;
@@ -9,7 +9,7 @@ export interface DiscoveredSubscription {
   accountId: string;
   platformId: string;
   nextBillingTime: bigint;
-  /** The coin type the account actually holds (`SubscriptionAccount<T>`'s `T`). */
+  /** The coin type the account actually holds (`SubscriptionAccount<T>`'s `T`), canonicalized by `normalizeCoinType`. */
   denomination: string;
   /** Index into the platform's tier `VecMap` this subscription is billed under. */
   tierIndex: number;
@@ -17,18 +17,19 @@ export interface DiscoveredSubscription {
   tierAmount: bigint;
   /**
    * The coin type the platform's tier actually settles in
-   * (`SubscriptionTier.denomination`). Undefined if the tier lookup fails —
-   * treated as "unknown, do not route" rather than assumed same-currency.
+   * (`SubscriptionTier.denomination`), canonicalized by `normalizeCoinType`.
+   * Undefined if the tier lookup fails — treated as "unknown, do not route"
+   * rather than assumed same-currency.
    */
   settlementDenomination?: string;
 }
 
-export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
+export async function discoverPlatforms(ctx: SchedulerContext): Promise<DiscoveredPlatform[]> {
   console.log('[Discovery] Discovering platforms from PlatformRegistered events...');
-  
+
   try {
-    const platformRegisteredEventType = `${PACKAGE_ID}::platform::PlatformRegistered`;
-    
+    const platformRegisteredEventType = `${ctx.packageId}::platform::PlatformRegistered`;
+
     const query = `
       query getPlatformEvents($eventType: String!) {
         events(filter: { type: $eventType }, last: 50) {
@@ -40,22 +41,22 @@ export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
         }
       }
     `;
-    
-    const result = await gqlClient.query({
+
+    const result = await ctx.gqlClient.query({
       query,
       variables: { eventType: platformRegisteredEventType }
     });
-    
+
     const platforms: DiscoveredPlatform[] = [];
     const nodes = (result.data as any)?.events?.nodes || [];
-    
+
     for (const node of nodes) {
       const json = node.contents?.json;
       if (json && (json.platform_id || json.id)) {
         platforms.push({ platformId: json.platform_id || json.id });
       }
     }
-    
+
     console.log(`[Discovery] Discovered ${platforms.length} platforms`);
     return platforms;
   } catch (error) {
@@ -64,10 +65,13 @@ export async function discoverPlatforms(): Promise<DiscoveredPlatform[]> {
   }
 }
 
-export async function discoverSubscriptions(platformId: string): Promise<DiscoveredSubscription[]> {
+export async function discoverSubscriptions(
+  ctx: SchedulerContext,
+  platformId: string,
+): Promise<DiscoveredSubscription[]> {
   try {
-    const subscriptionCreatedEventType = `${PACKAGE_ID}::subscription::SubscriptionCreated`;
-    
+    const subscriptionCreatedEventType = `${ctx.packageId}::subscription::SubscriptionCreated`;
+
     const query = `
       query getSubEvents($eventType: String!) {
         events(filter: { type: $eventType }, last: 50) {
@@ -79,33 +83,33 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
         }
       }
     `;
-    
-    const result = await gqlClient.query({
+
+    const result = await ctx.gqlClient.query({
       query,
       variables: { eventType: subscriptionCreatedEventType }
     });
-    
+
     const accountIds = new Set<string>();
     const nodes = (result.data as any)?.events?.nodes || [];
-    
+
     for (const node of nodes) {
       const json = node.contents?.json;
       if (json && json.platform_id === platformId && json.account_id) {
         accountIds.add(json.account_id);
       }
     }
-    
+
     if (accountIds.size === 0) return [];
-    
+
     const accountIdsArray = Array.from(accountIds);
     const subscriptions: DiscoveredSubscription[] = [];
-    
+
     const BATCH_SIZE = 50;
     for (let i = 0; i < accountIdsArray.length; i += BATCH_SIZE) {
       const batchIds = accountIdsArray.slice(i, i + BATCH_SIZE);
-      
+
       try {
-        const objects = await grpcClient.core.getObjects({
+        const objects = await ctx.grpcClient.core.getObjects({
           objectIds: batchIds,
           include: { json: true, type: true }
         });
@@ -117,7 +121,9 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
           const typeStr = obj.type || '';
 
           const match = typeStr.match(/<(.+)>/);
-          const denomination = match ? match[1] : '';
+          // Canonicalized so it compares equal to the tier's `TypeName`,
+          // which the chain encodes without the `0x` prefix.
+          const denomination = match ? normalizeCoinType(match[1]) : '';
           if (!denomination) continue;
 
           const fields = obj.json as any;
@@ -145,7 +151,7 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
     }
 
     if (subscriptions.length > 0) {
-      const tierDenominations = await getPlatformTierDenominations(platformId);
+      const tierDenominations = await getPlatformTierDenominations(ctx, platformId);
       for (const sub of subscriptions) {
         sub.settlementDenomination = tierDenominations.get(sub.tierIndex);
       }
@@ -165,10 +171,13 @@ export async function discoverSubscriptions(platformId: string): Promise<Discove
  * e.g. `"0xpkg::pusd::PUSD"` — confirmed directly against a live testnet
  * platform object, not assumed). One call per platform per cycle.
  */
-export async function getPlatformTierDenominations(platformId: string): Promise<Map<number, string>> {
+export async function getPlatformTierDenominations(
+  ctx: SchedulerContext,
+  platformId: string,
+): Promise<Map<number, string>> {
   const denominations = new Map<number, string>();
   try {
-    const res = await grpcClient.core.getObject({ objectId: platformId, include: { json: true } });
+    const res = await ctx.grpcClient.core.getObject({ objectId: platformId, include: { json: true } });
     const json = res.object?.json as any;
     const rawTiers = Array.isArray(json?.tiers) ? json.tiers : json?.tiers?.contents;
     if (Array.isArray(rawTiers)) {
@@ -176,7 +185,7 @@ export async function getPlatformTierDenominations(platformId: string): Promise<
         const value = entry?.value ?? entry ?? {};
         const key = entry?.key !== undefined ? Number(entry.key) : idx;
         if (typeof value.denomination === 'string') {
-          denominations.set(key, value.denomination);
+          denominations.set(key, normalizeCoinType(value.denomination));
         }
       });
     }
@@ -186,13 +195,13 @@ export async function getPlatformTierDenominations(platformId: string): Promise<
   return denominations;
 }
 
-export async function getCurrentTime(): Promise<bigint> {
+export async function getCurrentTime(ctx: SchedulerContext): Promise<bigint> {
   try {
-    const clockObject = await grpcClient.core.getObject({
+    const clockObject = await ctx.grpcClient.core.getObject({
       objectId: '0x6',
       include: { json: true }
     });
-    
+
     if (clockObject.object?.json) {
       const content = clockObject.object.json as { timestamp_ms?: string | number };
       return BigInt(content.timestamp_ms || 0);

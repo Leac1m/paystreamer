@@ -230,9 +230,15 @@ Decisions locked in before planning:
       for that index via a new `getPlatformTierDenominations` — confirmed
       live against the real testnet demo platform
       (`0xe6baf886...eb1eb`) that gRPC encodes a `TypeName` field as a
-      plain fully-qualified type string (e.g.
-      `"0x74d1...::pusd::PUSD"`), not a nested object — grounded in real
-      data, not assumed. `routing.ts`'s `classifyPayment` (pure, 4 tests
+      plain fully-qualified type string, not a nested object.
+      **Correction (Phase 4b Milestone 1): the example given here was
+      originally written as `"0x74d1...::pusd::PUSD"`, with a `0x` prefix
+      the real value does not have.** A `TypeName` comes back as
+      `74d1...::pusd::PUSD`, unprefixed, while an account's coin type —
+      parsed from its object type string — is prefixed. `classifyPayment`'s
+      raw-string comparison of the two therefore reported a currency
+      mismatch between a coin and itself and skipped every affected
+      payment, an outage found and fixed in Phase 4b. See that milestone. `routing.ts`'s `classifyPayment` (pure, 4 tests
       in `test/routing.test.ts`) is the actual behavior change: same
       currency → `direct` (the untouched existing path, i.e. every demo
       platform today); mismatched but not in
@@ -514,16 +520,197 @@ afterthought; it's the point.
   the private key and an opt-in platform allowlist (mirroring
   `apps/scheduler`'s own opt-in routing allowlist pattern from Phase 3).
 
-**Open questions for the user:**
-- Chrome (Manifest V3) only, or also Firefox (different manifest/extension
-  APIs, meaningfully more work)?
-- Publish to the Chrome Web Store (requires a developer account and goes
-  through Google's review process — outside what I can do myself), or
-  distribute as an unpacked/sideloaded extension for now?
-- Reuse `apps/scheduler`'s discovery/payment logic via a shared internal
-  package, or fork-and-adapt directly inside the new extension app? A
-  shared package avoids drift between the two; a fork is faster to ship
-  and doesn't risk destabilizing the working standalone service.
+**Decisions locked in (confirmed with the user):**
+- **Chrome / Manifest V3 only.** Firefox's MV3 differs enough (background
+  scripts rather than service workers, the `browser.*` namespace, different
+  alarm behavior) that supporting both roughly doubles packaging and
+  testing for a first version.
+- **Extract a shared `packages/scheduler-core`**, don't fork. Both
+  `apps/scheduler` and the extension consume it, so Phase 3's routing rules
+  and the billing PTB never exist in two drifting copies.
+- **Generated in-extension hot key**, stored unencrypted in
+  `chrome.storage.local`, with export/import and a funding flow. A
+  scheduler signs unattended every cycle, so a connected wallet that
+  prompts per transaction cannot work, and passphrase-encrypting the key
+  would stop background earning every time the service worker suspends —
+  directly at odds with the point of the extension. Mitigated by framing
+  and treating it as a low-value gas key, with an explicit at-rest warning
+  in the UI.
+- **Unpacked / sideloaded distribution** plus a load-unpacked guide on the
+  docs site. No Google developer account, no review latency, and it matches
+  the testnet-only posture of the rest of the product.
+
+**Grounding — what the code looked like before Milestone 1** (read, not
+assumed): the scheduling logic was 665 lines across
+`apps/scheduler/src/scheduler/{index,discovery,payment,routing,routedPayment}.ts`
+and `src/lib/{config,sui,routingConfig}.ts`. The Phase-4 note that "nothing
+Node-only is in the scheduling logic itself" held up with two exceptions
+found on a full sweep: `src/lib/sui.ts:31` used `Buffer` in the hex branch
+of `getSchedulerKeypair`, and `src/lib/config.ts` calls `dotenv`. The
+deeper barrier wasn't Node APIs at all — it was that `config.ts`, `sui.ts`,
+and `routingConfig.ts` were **module-level singletons evaluated at import
+time from `process.env`**, including a hard `throw` on a missing key. An
+extension's config arrives asynchronously from `chrome.storage.local` after
+the module graph has already loaded, so those singletons had to become an
+injected context regardless of which sharing strategy was chosen. That
+refactor is the real cost of this phase, and it's why the shared-package
+option was worth it: the work was required either way.
+
+**Milestones:**
+
+1. - [x] **`packages/scheduler-core` extraction (no behavior change).**
+   Discovery/payment/routing/routedPayment now live in a private workspace
+   package whose entry points take an explicit `SchedulerContext`
+   (clients, signer, sender address, network, the three object ids, routing
+   allowlist, DEEP coin type) instead of importing `../lib/*` singletons.
+   `apps/scheduler` keeps its `.env` loading and is now a thin adapter
+   (`src/scheduler/index.ts`) that builds a context and owns only the
+   `setInterval` lifecycle; `src/index.ts`'s Vercel/standalone HTTP handler
+   is untouched. `Buffer` is gone from the key decoder — `parseSchedulerKeypair`
+   uses `TextDecoder`, so it runs unchanged in a service worker.
+
+   Three things came out of the extraction beyond a straight move:
+   - **`routedPayment` got its own subpath entry point**
+     (`@paystreamer/scheduler-core/routed-payment`) and reaches the billing
+     loop through an injected `routedPaymentExecutor` rather than a static
+     import. It is the only module that touches `@mysten/deepbook-v3`, and
+     a root-barrel re-export would have pulled DeepBook into the extension
+     bundle — the same regression Phase 3 already paid for once. Verified
+     against the built output: zero `deepbook` references in `dist/index.js`.
+     A host that wires no executor has routed payments **skipped**, never
+     billed through the plain path.
+   - **`runCycle` returns a `CycleResult`** (scanned/billed/skipped/failed)
+     instead of only logging, and `processDuePayments` returns the full
+     breakdown rather than just digests. Additive for the service, and it's
+     what Milestones 3 and 5 need to persist cycle state and earnings for a
+     popup that outlives the service worker.
+   - **`createScheduler(ctx)`** carries the single-flight guard that was
+     previously a module-level `isRunning` boolean.
+
+   **Verified against real testnet, and it found a live billing outage.**
+   `apps/scheduler/scripts/verify-testnet.ts` (new; read-only by default,
+   `--execute` to bill) reported 8 platforms and 5 overdue subscriptions,
+   all of which the scheduler was classifying **`unroutable` and skipping** —
+   one of them overdue by ~3.75 days.
+
+   Root cause, confirmed by dumping raw chain data rather than inferring:
+   an account's coin type is parsed out of its object *type string* and
+   carries the `0x` prefix
+   (`SubscriptionAccount<0x74d1…::pusd::PUSD>`), while a tier's
+   `denomination` is a Move `TypeName` that gRPC encodes **without** one
+   (`74d1…::pusd::PUSD`). `classifyPayment`'s strict `===` therefore
+   reported a currency mismatch between a coin and itself, and `payment.ts`
+   skipped rather than billed. **This is a pre-existing Phase 3 regression,
+   not something the extraction introduced** — the classifier has compared
+   raw strings since it was written, and Phase 3's own note above claims the
+   live `TypeName` looks like `"0x74d1...::pusd::PUSD"`, with a prefix it
+   does not actually have. That wrong observation is why the bug shipped.
+   Before Phase 3 added the classifier, everything took the direct path and
+   billed fine.
+
+   Fixed with `normalizeCoinType` (`src/typeNames.ts`, wrapping
+   `@mysten/sui/utils`'s `normalizeStructTag`, falling back to the raw string
+   rather than throwing mid-cycle). Both denominations are canonicalized at
+   the discovery boundary, and routing-allowlist funding-coin keys are
+   canonicalized at parse and lookup so an operator can write `0x2::sui::SUI`
+   and still match the zero-padded type the chain reports. 7 regression tests
+   use the exact byte-for-byte pair observed on the live demo platform.
+
+   After the fix, a real `--execute` run billed **all 5 due payments,
+   0 skipped, 0 failed**, and a follow-up run cleared the remaining backlog
+   to 0 due. Digests are in the session log; the demo platforms bill on a
+   60-second tier frequency, so new payments come due continuously.
+
+   **Two measurement findings that change Milestone 5's design:**
+   - `core.listCoins` is **paginated at 50 objects**. The testnet scheduler
+     holds 653 PUSD coin objects, so summing the first page under-reports its
+     balance roughly four-fold — it read 500,000 PUSD against a true
+     2,129,947. Anything reporting balances must use `core.getBalance` or
+     paginate to exhaustion. (Latent related issue, not fixed here: the gas
+     selection in `payment.ts` picks the largest SUI coin from `listCoins`'
+     *first page only*, so an address with many small SUI coins ahead of its
+     large one could select an inadequate gas coin.)
+   - **A balance delta is not a valid earnings signal.** After billing 5
+     payments the scheduler's PUSD rose by 50,000 — the full billed amount,
+     not the 1% fee — because on this demo deployment the platform treasury
+     and the registry's protocol treasury are *the same address as the
+     scheduler* (one key seeded everything; verified by reading both). So
+     Milestone 5's plan to cross-check computed earnings against the live
+     PUSD balance is unsound; `PaymentProcessed.scheduler_fee` filtered by
+     transaction sender is the only correct source.
+
+   Tests went from 9 to 34 and got simpler — injecting a fake context
+   replaced `vi.mock`-ing the singleton modules, so config can vary per case
+   instead of per module. New coverage for the executor-absent skip path,
+   the single-flight guard, allowlist parse failures, keypair decoding in
+   both accepted formats, and the coin-type normalization regression. `packages/scheduler-core` is now built and
+   tested in `ci/verify-builds.sh`, which never ran the scheduler's tests at
+   all before. Full verification green: all workspace builds, SDK 46 passed
+   / 1 skipped, scheduler-core 34 passed, docs 15 passed. Also repointed the
+   two stale references to the moved files (`apps/scheduler/tests/e2e.ts`
+   and `routing.mdx`'s file citations).
+2. **Browser/MV3 viability spike, before any UI.** Three things need to be
+   proven in a real service worker rather than assumed: (a) `SuiGrpcClient`
+   works there — `apps/portal` already runs it in a browser with no Node
+   polyfills, which is strong evidence but not the same runtime; (b) the
+   build toolchain — this monorepo is on Vite 8, and neither `wxt` nor
+   `@crxjs/vite-plugin` is confirmed to support Vite 8 yet, so this
+   milestone picks the packaging story for real (possibly pinning an older
+   Vite for this one app) instead of guessing; (c) `Ed25519Keypair`
+   signing under the extension CSP. A throwaway extension that loads
+   `scheduler-core`, runs one `runCycle` against testnet, and logs a digest
+   is the exit criterion.
+3. **Background worker.** `chrome.alarms` replaces `setInterval` — minimum
+   granularity is 1 minute, so the extension polls at 1/6th the standalone
+   service's 10s rate. That's a real disclosed tradeoff, not a defect:
+   billing is due-time-based, not latency-sensitive, and a missed cycle
+   just bills on the next one. Cycle state (last run, last error, digests,
+   fees earned) is written to `chrome.storage.local` so the popup can read
+   it without the worker being alive. Guards a cycle against overlapping
+   itself the same way `scheduler/index.ts` already does.
+4. **Key management + funding UX.** First-run generation into
+   `chrome.storage.local`, address display with copy/QR, SUI gas balance
+   with a low-balance warning (gas selection in `payment.ts` throws outright
+   on an empty balance today — the extension should surface that as a
+   prompt to fund, not a console error), a testnet faucet action, and
+   export/import for moving a funded key between machines. Explicit,
+   non-buried warning that the key is stored unencrypted.
+5. **Earnings surface — the priority the user called out.**
+   `PaymentProcessed` (`payment.move:71-81`) carries `scheduler_fee` but
+   **not** the scheduler's address, so earnings can't be attributed by
+   reading the event alone. Two sources, both already available with **no
+   contract change**: the extension's own locally-recorded digests, and a
+   GraphQL `events` query filtered by `sender` = the extension's address,
+   summed over `scheduler_fee` — which also recovers history after a
+   reinstall. Milestone 1's testnet run **ruled out** the balance-delta
+   cross-check originally planned here: the scheduler, platform treasury,
+   and protocol treasury are the same address on the demo deployment, so
+   the delta reflects total billed volume rather than the fee. Show the PUSD
+   balance as wallet state, never as computed earnings. Popup: running/paused
+   toggle, next alarm, fees earned, recent payments, gas health.
+6. **Options page.** Network selection, an opt-in platform allowlist
+   (mirroring `routingConfig.ts`'s existing opt-in shape from Phase 3, so
+   an operator can run the extension against only platforms they choose),
+   and the DeepBook routing allowlist as a JSON field — the same
+   `ROUTING_ALLOWLIST_JSON` schema, just sourced from storage instead of
+   an env var.
+7. **Tests and docs.** `scheduler-core`'s migrated tests plus new coverage
+   for the storage/alarm/earnings layers against a faked `chrome.*` API.
+   Then update `apps/docs/pages/scheduler.mdx`, whose extension callout
+   (line 67) is currently an aspiration, into a real install guide.
+   **While there: that page has a fictional-API bug of exactly the kind
+   Phases 1-3 kept finding.** Line 25 claims "the smart contract emits a
+   `DuePaymentEvent`" that schedulers monitor. No such event exists —
+   `grep` over `move/` returns nothing, and the real `discovery.ts` polls
+   `PlatformRegistered` events and then reads account objects. Fix it.
+
+**Known limits to disclose rather than paper over:** the 1-minute alarm
+floor; the unencrypted hot key; the browser must be running for cycles to
+fire; `discoverPlatforms` re-queries the last 50 `PlatformRegistered`
+events and then walks every account each cycle, which is fine at demo
+scale but is not how this would work at real volume; and the DeepBook
+routed path inherits Phase 3's liquidity blocker, so it stays structurally
+wired and untested live in the extension too.
 
 Both 4a and 4b are genuinely independent and could ship in either order —
 4b is the smaller, more contained piece if a quicker win is preferred; 4a

@@ -1,30 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { discoverPlatforms, discoverSubscriptions, filterDueSubscriptions, getCurrentTime, getPlatformTierDenominations } from '../src/scheduler/discovery.js';
-import { gqlClient, grpcClient } from '../src/lib/sui.js';
-
-vi.mock('../src/lib/sui.js', () => ({
-  gqlClient: {
-    query: vi.fn()
-  },
-  grpcClient: {
-    core: {
-      getObjects: vi.fn(),
-      getObject: vi.fn()
-    }
-  }
-}));
-
-vi.mock('../src/lib/config.js', () => ({
-  PACKAGE_ID: '0xmock'
-}));
+import { describe, it, expect } from 'vitest';
+import {
+  discoverPlatforms,
+  discoverSubscriptions,
+  filterDueSubscriptions,
+  getPlatformTierDenominations,
+} from '../src/discovery.js';
+import { makeContext } from './helpers.js';
 
 describe('discovery', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('discoverPlatforms parses graphql nodes correctly and checks last: 50', async () => {
-    (gqlClient.query as any).mockResolvedValueOnce({
+    const ctx = makeContext();
+    (ctx.gqlClient.query as any).mockResolvedValueOnce({
       data: {
         events: {
           nodes: [
@@ -36,18 +22,29 @@ describe('discovery', () => {
       }
     });
 
-    const platforms = await discoverPlatforms();
+    const platforms = await discoverPlatforms(ctx);
     expect(platforms).toEqual([
       { platformId: '0x1' },
       { platformId: '0x2' }
     ]);
-    expect(gqlClient.query).toHaveBeenCalledWith(expect.objectContaining({
+    expect(ctx.gqlClient.query).toHaveBeenCalledWith(expect.objectContaining({
       query: expect.stringContaining('last: 50')
     }));
   });
 
+  it('discoverPlatforms derives the event type from the context package id', async () => {
+    const ctx = makeContext({ packageId: '0xdeadbeef' });
+    (ctx.gqlClient.query as any).mockResolvedValueOnce({ data: { events: { nodes: [] } } });
+
+    await discoverPlatforms(ctx);
+    expect(ctx.gqlClient.query).toHaveBeenCalledWith(expect.objectContaining({
+      variables: { eventType: '0xdeadbeef::platform::PlatformRegistered' }
+    }));
+  });
+
   it('discoverSubscriptions filters by status 0, and attaches tier index/amount and settlement denomination', async () => {
-    (gqlClient.query as any).mockResolvedValueOnce({
+    const ctx = makeContext();
+    (ctx.gqlClient.query as any).mockResolvedValueOnce({
       data: {
         events: {
           nodes: [
@@ -57,7 +54,7 @@ describe('discovery', () => {
       }
     });
 
-    (grpcClient.core.getObjects as any).mockResolvedValueOnce({
+    (ctx.grpcClient.core.getObjects as any).mockResolvedValueOnce({
       objects: [
         {
           objectId: 'acc1',
@@ -87,7 +84,7 @@ describe('discovery', () => {
       ]
     });
 
-    (grpcClient.core.getObject as any).mockResolvedValueOnce({
+    (ctx.grpcClient.core.getObject as any).mockResolvedValueOnce({
       object: {
         json: {
           tiers: {
@@ -99,7 +96,7 @@ describe('discovery', () => {
       }
     });
 
-    const subs = await discoverSubscriptions('0x1');
+    const subs = await discoverSubscriptions(ctx, '0x1');
     expect(subs).toEqual([
       {
         accountId: 'acc1',
@@ -114,7 +111,8 @@ describe('discovery', () => {
   });
 
   it('getPlatformTierDenominations unwraps the tier VecMap into an index -> denomination map', async () => {
-    (grpcClient.core.getObject as any).mockResolvedValueOnce({
+    const ctx = makeContext();
+    (ctx.grpcClient.core.getObject as any).mockResolvedValueOnce({
       object: {
         json: {
           tiers: {
@@ -127,15 +125,20 @@ describe('discovery', () => {
       }
     });
 
-    const denominations = await getPlatformTierDenominations('0x1');
-    expect(denominations.get(0)).toBe('0x2::sui::SUI');
+    const denominations = await getPlatformTierDenominations(ctx, '0x1');
+    // Canonicalized on the way out, so it can be compared against an
+    // account's `0x`-prefixed, zero-padded coin type.
+    expect(denominations.get(0)).toBe(
+      '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+    );
     expect(denominations.get(1)).toBe('0xcoin::PUSD');
   });
 
   it('getPlatformTierDenominations returns an empty map and does not throw on RPC failure', async () => {
-    (grpcClient.core.getObject as any).mockRejectedValueOnce(new Error('boom'));
+    const ctx = makeContext();
+    (ctx.grpcClient.core.getObject as any).mockRejectedValueOnce(new Error('boom'));
 
-    const denominations = await getPlatformTierDenominations('0x1');
+    const denominations = await getPlatformTierDenominations(ctx, '0x1');
     expect(denominations.size).toBe(0);
   });
 

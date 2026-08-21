@@ -678,17 +678,19 @@ async function main() {
     process.env.SPONSOR_PRIVATE_KEY = parsed[0];
   }
 
-  const { runCycle } = await import("../src/scheduler/index.js");
-  const { discoverPlatforms, discoverSubscriptions } = await import("../src/scheduler/discovery.js");
+  // Imported dynamically (after the env above is set) because the adapter
+  // builds its SchedulerContext from that env at module load.
+  const { runCycle, context } = await import("../src/scheduler/index.js");
+  const { discoverPlatforms, discoverSubscriptions } = await import("@paystreamer/scheduler-core");
 
   // Verify we can fetch platforms
-  const platforms = await discoverPlatforms();
+  const platforms = await discoverPlatforms(context);
   console.log(`[E2E] Found ${platforms.length} platforms`);
   
   // Verify we can fetch subscriptions
   let totalSubs = 0;
   for (const p of platforms) {
-      const subs = await discoverSubscriptions(p.platformId);
+      const subs = await discoverSubscriptions(context, p.platformId);
       totalSubs += subs.length;
   }
   console.log(`[E2E] Found ${totalSubs} total active subscriptions across platforms.`);

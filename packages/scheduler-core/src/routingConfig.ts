@@ -1,3 +1,5 @@
+import { normalizeCoinType } from './typeNames.js';
+
 /**
  * DeepBook routing is opt-in per platform, per funding currency — never
  * automatic. A mismatched-currency account (holding a coin type the
@@ -32,26 +34,44 @@ export interface RoutingPoolConfig {
   maxSpend: string;
 }
 
-type RoutingAllowlist = Record<string, Record<string, RoutingPoolConfig>>;
+/** Keyed by platformId -> fundingCoinType -> pool config. */
+export type RoutingAllowlist = Record<string, Record<string, RoutingPoolConfig>>;
 
-function parseRoutingAllowlist(raw: string | undefined): RoutingAllowlist {
+/**
+ * Parses the operator-supplied allowlist JSON. Malformed input disables
+ * routing entirely rather than throwing — a bad config should degrade to
+ * "route nothing", never take the whole billing cycle down.
+ *
+ * Shape, e.g.:
+ *   {"0xPLATFORM": {"0x2::sui::SUI": {"poolKey": "SUI_PUSD", "isBaseToCoin": true, "deepAmount": "1000000", "maxSpend": "2000000000"}}}
+ */
+export function parseRoutingAllowlist(raw: string | undefined | null): RoutingAllowlist {
   if (!raw) return {};
   try {
-    return JSON.parse(raw) as RoutingAllowlist;
+    const parsed = JSON.parse(raw) as RoutingAllowlist;
+    // Canonicalize the funding-coin keys so an operator can write the
+    // short, natural form (`0x2::sui::SUI`) and still match the
+    // zero-padded type the chain reports.
+    const normalized: RoutingAllowlist = {};
+    for (const [platformId, byCoin] of Object.entries(parsed)) {
+      normalized[platformId] = {};
+      for (const [coinType, pool] of Object.entries(byCoin ?? {})) {
+        normalized[platformId][normalizeCoinType(coinType)] = pool;
+      }
+    }
+    return normalized;
   } catch (err) {
-    console.error('[RoutingConfig] Failed to parse ROUTING_ALLOWLIST_JSON — routing disabled:', err);
+    console.error('[RoutingConfig] Failed to parse routing allowlist JSON — routing disabled:', err);
     return {};
   }
 }
 
-// Keyed by platformId -> fundingCoinType -> pool config. Set via
-// ROUTING_ALLOWLIST_JSON, e.g.:
-//   {"0xPLATFORM": {"0x2::sui::SUI": {"poolKey": "SUI_PUSD", "isBaseToCoin": true, "deepAmount": "1000000"}}}
-export const ROUTING_ALLOWLIST: RoutingAllowlist = parseRoutingAllowlist(process.env.ROUTING_ALLOWLIST_JSON);
-
-/** The DEEP token's coin type, needed to pay DeepBook trading fees. Routing is skipped if unset. */
-export const DEEP_COIN_TYPE = process.env.DEEP_COIN_TYPE;
-
-export function getRoutingPoolConfig(platformId: string, fundingCoinType: string): RoutingPoolConfig | undefined {
-  return ROUTING_ALLOWLIST[platformId]?.[fundingCoinType];
+export function getRoutingPoolConfig(
+  allowlist: RoutingAllowlist,
+  platformId: string,
+  fundingCoinType: string,
+): RoutingPoolConfig | undefined {
+  const byCoin = allowlist[platformId];
+  if (!byCoin) return undefined;
+  return byCoin[fundingCoinType] ?? byCoin[normalizeCoinType(fundingCoinType)];
 }

@@ -13,6 +13,10 @@ export const REGISTRY_ID = networkConfig.COIN_TYPE_REGISTRY_ID;
 export const PAYMENT_SCHEDULER_ID = networkConfig.PAYMENT_SCHEDULER_ID;
 export const SCHEDULER_PRIVATE_KEY = (process.env.SCHEDULER_PRIVATE_KEY || process.env.SPONSOR_PRIVATE_KEY || (NETWORK !== 'mainnet' ? "suiprivkey1qr4shgju6rsqyz3dyyg5nhtfla3hld4x6k98ayuc382q8ck0mp68cduyj45" : undefined)) as string;
 export const PUSD_TYPE_ARG = networkConfig.PUSD_TYPE_ARG;
-export const CLOCK_OBJECT_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
+
+/** Opt-in DeepBook routing, keyed platformId -> fundingCoinType. See `@paystreamer/scheduler-core`'s `parseRoutingAllowlist`. */
+export const ROUTING_ALLOWLIST_JSON = process.env.ROUTING_ALLOWLIST_JSON;
+/** The DEEP token's coin type, needed to pay DeepBook trading fees. Routing is skipped if unset. */
+export const DEEP_COIN_TYPE = process.env.DEEP_COIN_TYPE;
 
 if (!SCHEDULER_PRIVATE_KEY) throw new Error("SCHEDULER_PRIVATE_KEY is not set in environment variables");

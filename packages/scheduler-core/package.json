@@ -1,0 +1,49 @@
+{
+  "name": "@paystreamer/scheduler-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Runtime-agnostic PayStreamer scheduler logic (discovery, billing, DeepBook routing), shared by the standalone service and the browser extension",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./routed-payment": {
+      "types": "./dist/routedPayment.d.ts",
+      "import": "./dist/routedPayment.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/routedPayment.ts --format esm --external @mysten/sui --external @mysten/deepbook-v3 --external @paystreamer/sdk --no-splitting && tsc --emitDeclarationOnly",
+    "dev": "tsup src/index.ts src/routedPayment.ts --format esm --watch --external @mysten/sui --external @mysten/deepbook-v3 --external @paystreamer/sdk --no-splitting",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@mysten/deepbook-v3": "^1.6.4",
+    "@mysten/sui": "^2.23.1",
+    "@paystreamer/sdk": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@mysten/deepbook-v3": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@mysten/deepbook-v3": "1.6.4",
+    "@mysten/sui": "2.23.1",
+    "@paystreamer/sdk": "workspace:*",
+    "tsup": "^8.2.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

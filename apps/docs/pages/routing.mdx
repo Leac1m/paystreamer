@@ -142,7 +142,7 @@ buildProcessRoutedPaymentTx({
 });
 ```
 
-This is exactly what `apps/scheduler/src/scheduler/routedPayment.ts` does. The full opt-in decision lives in `apps/scheduler/src/scheduler/routing.ts`'s `classifyPayment`:
+This is exactly what `packages/scheduler-core/src/routedPayment.ts` does. The full opt-in decision lives in `packages/scheduler-core/src/routing.ts`'s `classifyPayment`:
 
 - Same currency → the plain, unchanged payment path (every demo platform today).
 - Mismatched, not opted in → skipped, logged, left for the next cycle.

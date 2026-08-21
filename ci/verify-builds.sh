@@ -8,6 +8,11 @@ cd packages/sdk
 pnpm build
 cd ../..
 
+echo "-> Building packages/scheduler-core..."
+cd packages/scheduler-core
+pnpm build
+cd ../..
+
 echo "-> Building apps/scheduler..."
 cd apps/scheduler
 pnpm build
@@ -21,6 +26,11 @@ cd ../..
 echo "-> Running tests in packages/sdk..."
 cd packages/sdk
 npx vitest run --exclude '**/*-e2e.test.ts*'
+cd ../..
+
+echo "-> Running tests in packages/scheduler-core..."
+cd packages/scheduler-core
+npx vitest run
 cd ../..
 
 echo "-> Running tests in apps/docs..."
