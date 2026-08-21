@@ -1,0 +1,84 @@
+import { Callout } from 'nextra/components';
+
+# Chain Queries & Events
+
+`@paystreamer/sdk/core` also exports read-only functions for querying on-chain objects and events directly — the same functions the React hooks (`usePlatform`, `useUserAccount`, ...) are built on top of. Use these when you need data outside a React component (a script, a backend service, a non-React frontend) or an event stream the hooks don't cover.
+
+All of them take an optional trailing `network?: SupportedNetwork` argument (`"local" | "devnet" | "testnet" | "mainnet"`) and default to whatever `NETWORK` your environment resolves to.
+
+<Callout type="warning">
+  These query the Sui **gRPC** client, not JSON-RPC or GraphQL — `getGrpcClient(network)` is exported if you need direct access to the underlying `SuiGrpcClient`. Earlier versions of this SDK used GraphQL; if you find old example code using `getGraphQLClient`, it's stale.
+</Callout>
+
+## Object Queries
+
+| Function | Returns |
+|---|---|
+| `queryPlatform(platformId)` | A single platform's full state, including its unwrapped `tiers` array |
+| `queryMultiplePlatforms(platformIds)` | Same shape, batched, plus each platform's `initialSharedVersion` |
+| `queryAccount(accountId)` | A `SubscriptionAccount`'s basic fields (`owner`, `paused`, `closed`, `address_balance`) |
+| `queryCoinTypeRegistry(registryId)` | The coin-type registry object |
+| `queryPaymentScheduler(schedulerId)` | The scheduler object, including `initialSharedVersion` |
+| `queryPlatformInitialVersions(platformIds)` | Just the `initialSharedVersion` for each ID — cheaper than `queryMultiplePlatforms` when that's all you need |
+| `queryCoins(owner, coinType)` | An owner's coin objects of one type, as `{ id, balance }[]` |
+
+```tsx
+import { queryPlatform } from "@paystreamer/sdk/core";
+
+const platform = await queryPlatform(platformId, "testnet");
+console.log(platform.tiers); // already unwrapped from the Move VecMap<u64, SubscriptionTier> shape
+```
+
+<Callout type="info">
+  **The VecMap trap**: Move's `VecMap` serializes on-chain as `{ contents: [{ key, value }, ...] }`, not a plain array or object. `queryPlatform`/`queryMultiplePlatforms` already unwrap `tiers` for you — but if you're reading a raw object's JSON yourself (e.g. via `getGrpcClient().core.getObject`), watch for this shape on any `VecMap`-typed field. It's caused real bugs in this SDK before.
+</Callout>
+
+## Getting `platformInitVersion`
+
+Several [transaction builders](/core/transactions) need a platform's shared-object `initialSharedVersion`, not its current version — Sui requires the *initial* version when constructing a `tx.sharedObjectRef` for a mutable shared object.
+
+```tsx
+const [{ initialSharedVersion }] = await queryPlatformInitialVersions([platformId]);
+```
+
+## Events
+
+Every event query defaults to scanning the **most recent 50 events** of that type and filtering client-side — gRPC's `listEvents` doesn't support server-side filtering by affected object the way GraphQL did. This is fine for the volumes this protocol sees today; a platform or account with heavy event history could see older matching events fall off that window.
+
+| Function | Filters by |
+|---|---|
+| `queryPlatformsByOwner(owner)` | Platforms a given address has registered — see [Register Your Platform](/platform-setup) for the full onboarding flow this powers |
+| `queryPlatformRegisteredEvents()` | All `PlatformRegistered` events, unfiltered |
+| `queryAccountCreatedEvents(sender)` | `AccountCreated` events by sender address |
+| `querySubscriptionCreatedEvents(accountId)` | `SubscriptionCreated` events for one account |
+| `querySubscriptionCreatedEventsByPlatform(platformId)` | Same event, filtered by platform instead |
+| `querySubscriptionUpdatedEventsByPlatform(platformId)` | Pause/resume/cancel activity for a platform's subscribers |
+| `queryPaymentProcessedEvents(accountId?, platformId?)` | Successful payments — both filters optional, pass either or both |
+| `queryPaymentFailedEvents(accountId?, platformId?)` | Failed payment attempts |
+| `queryDepositEvents(accountId)` | Deposits into one account |
+| `queryRecentEventsByType(type, limit?)` | Escape hatch — any event type string, not just the ones with a dedicated function |
+
+```tsx
+import { queryPaymentProcessedEvents } from "@paystreamer/sdk/core";
+
+// Build a "recent payments" feed for a platform, no scheduler required
+const payments = await queryPaymentProcessedEvents(undefined, platformId, "testnet");
+```
+
+<Callout type="info">
+  You don't need to run a [scheduler bot](/scheduler) just to know when your own platform gets paid — these event queries are the lighter-weight option for a notification feed or dashboard. Only build a scheduler if you actually want to *trigger* payments and earn the 1% incentive.
+</Callout>
+
+### Escape hatch: querying an event type directly
+
+If there's no dedicated function for an event you need, `queryRecentEventsByType` takes any fully-qualified event type string:
+
+```tsx
+const events = await queryRecentEventsByType(
+  `${sdkConfig.PACKAGE_ID}::subscription::SubscriptionCreated`,
+  25,
+  "testnet"
+);
+```
+
+Move event types are `${packageId}::${module}::${StructName}` — check the relevant `.move` source under `move/subscriptions/sources/` for the exact module and struct name if you're not sure. (This is exactly how a real bug in this SDK was caught: two of the dedicated functions above were querying a module name — `billing` — that hadn't existed in the contract for a while.)

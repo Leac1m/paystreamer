@@ -1,0 +1,127 @@
+import { Callout } from 'nextra/components';
+
+# Transaction Builders
+
+`@paystreamer/sdk/core` exports the PTB (Programmable Transaction Block) builders that power every hook and UI component in this SDK. Each one takes a `Transaction` you own and composes Move calls into it — you're responsible for signing and executing (via `useSponsoredTransaction`, your own `signAndExecuteTransaction`, or the gRPC client directly).
+
+<Callout type="info">
+  All of these are plain functions, not hooks — call them from inside a hook, an event handler, or a script, wherever you're already building a `Transaction`. None of them execute anything themselves.
+</Callout>
+
+```tsx
+import { Transaction } from "@mysten/sui/transactions";
+import { buildDepositTx } from "@paystreamer/sdk/core";
+
+const tx = new Transaction();
+buildDepositTx({ tx, /* ...params */ });
+const result = await executeSponsored(tx);
+```
+
+## Account Lifecycle
+
+### `buildCreateAccountTx`
+Creates a fresh `SubscriptionAccount<T>` and shares it, optionally depositing an initial amount in the same PTB. Returns `{ accountObj, cap }` — transaction-argument references, not real IDs (you don't get the real object ID until the transaction executes).
+
+```tsx
+buildCreateAccountTx({
+  tx, packageId, clockId,
+  denomination: pusdTypeArg, // "0x...::pusd::PUSD"
+  depositAmount: 10_000_000_000n, // optional, in mist
+  coinsToUse: ["0xCOIN_OBJECT_ID"], // required if depositAmount > 0 and isSuiDenomination is false
+  isSuiDenomination: false, // true splits from tx.gas instead of coinsToUse
+});
+```
+
+Most integrations don't call this directly — `buildSubscribeTx` creates the account for you if the caller doesn't already have one.
+
+### `buildDepositTx`
+Deposits more of an account's denomination coin into an existing account. Requires `coinsToUse` (owned coin object IDs to merge/split from) — there's no `isSuiDenomination` shortcut here, unlike account creation.
+
+```tsx
+buildDepositTx({ tx, packageId, denomination, accountId, depositAmount: 5_000_000_000n, coinsToUse });
+```
+
+### `buildWithdrawTx`
+Withdraws from an account back to a recipient address. Requires the account's `AccountCap` (`capId`) — only the cap holder can withdraw.
+
+```tsx
+buildWithdrawTx({ tx, packageId, denomination, accountId, capId, withdrawAmount, recipientAddress });
+```
+
+## Subscribing
+
+### `buildSubscribeTx`
+The main entry point for a user subscribing to a platform tier. Composes account creation (if `accountId`/`accountCapId` aren't both provided), an optional deposit, and `account::create_subscription` into one PTB.
+
+```tsx
+buildSubscribeTx({
+  tx, packageId, clockId,
+  denomination: pusdTypeArg,
+  platformId, tierIndex, tierAmount, tierFrequencyMs,
+  maxAttempts: 3, // optional, defaults to 3 — consecutive failed payments before auto-pause
+  // Existing-account case:
+  accountId, accountCapId,
+  // Deposit — either owned coins:
+  depositAmount, coinsToUse,
+  // ...or a fresh transaction-argument coin (see buildOnboardWithSwapTx below):
+  depositCoin,
+});
+```
+
+`tierAmount`/`tierFrequencyMs` aren't looked up on-chain by this function — pass the values you already have from `usePlatform`/`queryPlatform`, since the Move contract needs them as explicit arguments (the account's own copy of the subscription, not a live pointer to the tier).
+
+### `buildOnboardWithSwapTx`
+Lets a brand-new user subscribe by paying in whatever token they hold, not just the platform's settlement coin — swap and subscribe in one PTB. See [Advanced Routing](/routing) for the full pattern with DeepBook, including why `performSwap` is a callback rather than a pre-built coin argument.
+
+### `buildPauseSubscriptionTx` / `buildResumeSubscriptionTx` / `buildCancelSubscriptionTx`
+Same shape, one per lifecycle action. All three require the account's `AccountCap`:
+
+```tsx
+buildPauseSubscriptionTx({ tx, packageId, clockId, denomination, accountId, capId, platformId });
+```
+
+## Processing Payments
+
+<Callout type="info">
+  These are what a **scheduler bot** calls, not what an end user's client calls — see [Run a Scheduler](/scheduler) for the full context on the 1% incentive and the due-payment discovery loop.
+</Callout>
+
+### `buildProcessPaymentTx`
+The plain, same-currency payment path: `policies::empty_limiters` → `policies::ensure_initialized` → `scheduler::process_due_payment`, one PTB.
+
+```tsx
+buildProcessPaymentTx({
+  tx, packageId, registryId, clockId, denomination,
+  accountId, platformId, platformInitVersion,
+  schedulerId, schedulerInitVersion,
+});
+```
+
+### `buildProcessRoutedPaymentTx`
+The multi-currency path, for an account whose held coin doesn't match the platform's settlement coin. See [Advanced Routing](/routing) for the full `performSwap` composition contract and the DEEP-fee/exact-amount details that matter here.
+
+## Platform & Tiers
+
+`buildRegisterPlatformTx`, `buildCreateTierTx`, and `buildDeactivateTierTx` are covered in full, with the actual event-based pattern for recovering a new `platformId`, in [Register Your Platform & Create Tiers](/platform-setup) — that page is the complete reference for this group, not duplicated here.
+
+## Treasury Management
+
+A platform's payout address changes via a two-step, 48-hour-timelocked flow — `propose` while the old treasury is still authoritative, then `accept` after the timelock elapses (or `cancel` to abort a pending change).
+
+```tsx
+buildProposeTreasuryChangeTx({ tx, packageId, clockId, platformId, platformInitVersion, newTreasury });
+
+// ...48 hours later...
+buildAcceptTreasuryChangeTx({ tx, packageId, clockId, platformId, platformInitVersion });
+
+// or, to abort a pending change before it takes effect:
+buildCancelTreasuryChangeTx({ tx, packageId, platformId, platformInitVersion });
+```
+
+<Callout type="warning">
+  Calling `accept` before the 48-hour timelock elapses aborts the transaction (`ETreasuryChangeNotYetDue`) — see [Edge Cases & Errors](/edge-cases) for the full error reference.
+</Callout>
+
+## Getting `platformInitVersion`
+
+Several builders above need a platform's `initialSharedVersion`, not just its object ID — Sui requires this for referencing mutable shared objects via `tx.sharedObjectRef`. Get it from `queryPlatformInitialVersions` (see [Chain Queries & Events](/core/queries)), not from the platform object's *current* version.

@@ -1,0 +1,93 @@
+import { Callout } from 'nextra/components';
+
+# Register Your Platform & Create Tiers
+
+Before any of the [Quickstart](/quickstart)'s subscribe flow works, you need a real `platformId` — the `0xYOUR_PLATFORM_ID` placeholder that example assumes you already have. This page covers the step it skips: registering your platform on-chain and creating at least one billing tier.
+
+<Callout type="info">
+  **You only do this once per platform**, not per user. Registration and tier creation are owner-only actions — run them from an admin screen in your own app, or via the [Portal](/portal)'s Platform Management UI, not from your public subscribe page.
+</Callout>
+
+## 1. Register the Platform
+
+`buildRegisterPlatformTx` composes two Move calls into one PTB: `platform::create_platform` builds a fresh `Platform` object and an ownership receipt, then `platform::register_platform` shares it and consumes the receipt.
+
+```tsx
+import { Transaction } from "@mysten/sui/transactions";
+import { buildRegisterPlatformTx } from "@paystreamer/sdk/core";
+import { CLOCK_OBJECT_ID } from "@paystreamer/sdk";
+
+const tx = new Transaction();
+
+buildRegisterPlatformTx({
+  tx,
+  packageId: sdkConfig.PACKAGE_ID,
+  clockId: CLOCK_OBJECT_ID,
+  name: "My SaaS",
+  description: "Project management for small teams",
+  category: "Software",
+  iconUrl: "https://example.com/icon.png", // optional
+});
+
+const result = await executeSponsored(tx); // or sign/execute directly
+```
+
+<Callout type="warning">
+  **Getting the new `platformId` back**: the transaction doesn't return it directly in a form you can read off client-side. The real pattern (used by the Portal's own registration flow) is to query for it afterward via `queryPlatformsByOwner`, which reads the `PlatformRegistered` event emitted by `register_platform`:
+
+  ```tsx
+  import { queryPlatformsByOwner } from "@paystreamer/sdk/core";
+
+  const events = await queryPlatformsByOwner(account.address, "testnet");
+  const platformId = events[events.length - 1]?.platform_id; // most recently registered
+  ```
+
+  In a React app, wrap this in a query keyed on the owner's address and `invalidateQueries` it after the registration transaction confirms, rather than polling.
+</Callout>
+
+## 2. Create a Tier
+
+A platform with no tiers can't be subscribed to — `create_tier` needs the platform's `platformId` and its `initialSharedVersion` (get both from the query above, or from `queryPlatformInitialVersions`).
+
+```tsx
+import { buildCreateTierTx } from "@paystreamer/sdk/core";
+
+const tx = new Transaction();
+
+buildCreateTierTx({
+  tx,
+  packageId: sdkConfig.PACKAGE_ID,
+  platformId,
+  platformInitVersion, // from queryPlatformInitialVersions([platformId])
+  name: "Pro",
+  amount: 10_000_000_000n, // 10 PUSD, in mist (9 decimals)
+  frequencySeconds: 30 * 24 * 60 * 60, // 30 days
+  pusdTypeArg: sdkConfig.PUSD_TYPE_ARG,
+});
+
+await executeSponsored(tx);
+```
+
+<Callout type="info">
+  `amount` is denominated in whatever `pusdTypeArg`'s coin decimals are (9 for `PUSD`) — 10 PUSD is `10_000_000_000n`, not `10n`. This is the same `tierAmount`/`tierIndex` pair the Quickstart's `<SetupSubscriptionModal />` example expects; the tier you create here at index `0` is what a fresh platform's first subscriber will see as `tierIndex={0}`.
+</Callout>
+
+A platform can have up to 20 tiers (`MAX_TIERS`). Tiers are append-only by index — there's no delete, only `buildDeactivateTierTx` to retire one:
+
+```tsx
+import { buildDeactivateTierTx } from "@paystreamer/sdk/core";
+
+buildDeactivateTierTx({
+  tx,
+  packageId: sdkConfig.PACKAGE_ID,
+  platformId,
+  platformInitVersion,
+  tierIndex: 0,
+});
+```
+
+A deactivated tier stays at its original index (so existing subscribers' `tierIndex` references don't break) but is rejected for new subscriptions.
+
+## Next Steps
+- Head to the [Quickstart](/quickstart) — your `platformId` and tier are now ready for the subscribe flow there.
+- See the [Core API Reference](/core/transactions) for the rest of the transaction builders (deposits, withdrawals, pause/resume/cancel, treasury management).

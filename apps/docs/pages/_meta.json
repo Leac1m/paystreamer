@@ -1,11 +1,14 @@
 {
   "index": "Overview",
   "quickstart": "Quickstart",
+  "platform-setup": "Register Your Platform",
   "hooks": "React Hooks",
   "components": "UI Components",
+  "core": "Core API Reference",
   "routing": "Advanced Routing",
   "scheduler": "Run a Scheduler",
+  "sponsor": "Gas Sponsorship",
   "portal": "User Portal",
   "integration": "Seal & Walrus",
-  "edge-cases": "Edge Cases"
+  "edge-cases": "Edge Cases & Errors"
 }

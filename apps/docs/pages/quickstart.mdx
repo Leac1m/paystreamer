@@ -76,6 +76,10 @@ export default function App({ children }) {
 
 With the provider configured, you can import drop-in UI components or use headless hooks. Here is how to easily render a subscription modal.
 
+<Callout type="warning">
+  The example below subscribes to an existing `platformId` — it doesn't create one. If you don't have a platform registered yet, do that first: [Register Your Platform & Create Tiers](/platform-setup).
+</Callout>
+
 ```tsx
 import { useState } from "react";
 import { SetupSubscriptionModal } from "@paystreamer/sdk/ui";
