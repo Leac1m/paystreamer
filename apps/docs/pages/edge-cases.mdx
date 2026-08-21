@@ -1,39 +1,104 @@
 import { Callout } from 'nextra/components';
 
-# Smart Contract Edge Cases
+# Edge Cases & Errors
 
-When building a decentralized application, it's important to understand how the smart contracts handle edge cases, particularly regarding user funds and subscription states.
+When building on PayStreamer, it's important to understand how the smart contracts handle edge cases around user funds and subscription state, and what to do when a transaction aborts.
 
 ## Insufficient Funds
 
-One of the most common edge cases in a subscription protocol is when a user's account does not have enough balance to cover their next billing cycle. 
+The most common edge case: a user's account balance can't cover the next billing cycle.
 
-PayStreamer handles this automatically during the `process_due_payment` execution:
+`process_due_payment` handles this without aborting the transaction — a single insufficient-balance attempt does **not** cancel or pause anything by itself:
 
-1. **The Scheduler Triggers**: The scheduler attempts to call `process_due_payment` because the timestamp indicates the payment is due.
-2. **Balance Check**: The smart contract inspects the `SubscriptionAccount` balance.
-3. **Graceful Deactivation**: If the balance is less than the required tier amount, the contract **does not abort**. Instead, it gracefully deactivates the subscription by updating the internal state (setting `is_active = false`) and emits a `SubscriptionCancelledEvent`.
-4. **No Reverts**: This is crucial. If the transaction aborted, the scheduler would waste gas and might repeatedly try to process the payment in a loop. By gracefully handling it, the scheduler still receives a tiny success fee (if configured) for doing the work of cleaning up the inactive subscription, and the protocol remains healthy.
+1. **The scheduler triggers** `process_due_payment` because the subscription is due.
+2. **Balance check**: the contract checks `account::balance(account) < amount`.
+3. **Graceful failure, not a revert**: if the balance is too low, the contract calls `record_failed_payment` and returns — it does **not** abort. This matters because an abort would waste the scheduler's gas and could loop; a graceful return lets the scheduler move on and still collect its incentive for the attempt.
+4. **Three strikes, then pause**: `record_failed_payment` increments the subscription's `attempt_count`. Only once `attempt_count >= 3` does the contract set `status = 1` (**paused**, not cancelled) — `subscription.move`'s `record_failed_payment`. Each failed attempt emits a `PaymentFailed` event (`payment.move`) you can subscribe to via `queryPaymentFailedEvents`.
+
+<Callout type="warning">
+  **Paused ≠ cancelled.** A subscription auto-paused by 3 failed attempts is `status == 1`, not `status == 2` (cancelled). Once the user tops up their balance, resume it with `buildResumeSubscriptionTx` — there's no need to create a new subscription. A brand-new `create_subscription` call is only required if the subscription was explicitly cancelled (`status == 2`), which auto-pause never does on its own.
+</Callout>
 
 ### Handling on the Frontend
 
-Because the subscription is cancelled automatically on-chain, your frontend should listen to the state of the user's subscriptions.
-
-If a user deposits more funds later, they will need to create a **new** subscription to the platform. 
+Listen for `PaymentFailed` events (or poll `attempt_count`/`status` on the account) to show the right UI — a warning after 1-2 failures, a "resume after topping up" prompt once paused:
 
 ```typescript
-// Example: Checking if a subscription was cancelled due to insufficient funds
-if (!subscription.isActive && subscription.balance < subscription.tierAmount) {
-  console.log("Subscription paused due to insufficient funds.");
+import { queryPaymentFailedEvents } from "@paystreamer/sdk/core";
+
+const failures = await queryPaymentFailedEvents(accountId, platformId, "testnet");
+if (failures.length > 0) {
+  console.log(`${failures.length} failed payment attempt(s) recorded.`);
 }
 ```
 
 ## Over-depositing
 
-When a user deposits more than is strictly necessary for the current billing cycle, the funds remain safely inside their `SubscriptionAccount`. 
-
-These funds belong entirely to the user. The platform **cannot** withdraw more than the agreed-upon tier amount per billing cycle. The user can withdraw their excess funds at any time using the `withdraw` function.
+Depositing more than one billing cycle's worth is fine and common (the SDK's own recommended-deposit calculation in `useSubscribe`/`SetupSubscriptionModal` targets several cycles of buffer by default). The excess belongs entirely to the user — the platform can never withdraw more than the tier amount per cycle, and the user can withdraw their own excess at any time via `buildWithdrawTx`, gated by their `AccountCap`.
 
 <Callout type="info">
-  **Security Note**: PayStreamer uses Sui's Object capability model. The `DepositCap` and `AccountCap` ensure that only authorized entities can interact with the funds, strictly bound by the rules defined in the Move smart contracts.
+  **Security model**: access to an account's funds is gated by Sui's object capability model — the `AccountCap` returned when an account is created. There's no separate "deposit capability"; anyone can deposit into an account (deposits don't need authorization), but only the `AccountCap` holder can withdraw.
 </Callout>
+
+## Error Reference
+
+Every Move abort surfaces as a numeric code in the transaction error (e.g. `MoveAbort ... abort code: 32769`). Sui reports these in **decimal**; the contracts define them in **hex** — the table below has both. All codes verified directly against the current contract source, not assumed.
+
+### `account.move`
+
+| Decimal | Hex | Code | Meaning |
+|---|---|---|---|
+| 4097 | `0x01001` | `EInvalidCap` | The `AccountCap` doesn't match the account it's presented against (wrong account, not just unauthorized). |
+| 4099 | `0x01003` | `EAccountClosed` | The account is closed. |
+| 4100 | `0x01004` | `EZeroAmount` | A zero-amount deposit was attempted. |
+| 4101 | `0x01005` | `EInsufficientBalance` | `withdraw` for more than the account's live balance. |
+| 4106 | `0x0100A` | `EAccountNotPaused` | `resume_subscription`-style call on an account that isn't paused. |
+| 24578 | `0x06002` | `ESubscriptionNotFound` | Reserved — not currently asserted anywhere in the contract. |
+| 24579 | `0x06003` | `ESubscriptionAlreadyExists` | Tried to create a subscription for a platform the account already has a non-cancelled subscription with. |
+| 24582 | `0x06006` | `EAccountPaused` | The account itself (not a specific subscription) is paused. |
+
+### `subscription.move`
+
+| Decimal | Hex | Code | Meaning |
+|---|---|---|---|
+| 24580 | `0x06004` | `ESubscriptionNotActive` | The operation requires an active subscription — it's paused or cancelled. |
+| 24581 | `0x06005` | `ESubscriptionNotPaused` | The operation requires `status == 1` (paused), but it isn't. |
+
+### `payment.move`
+
+| Decimal | Hex | Code | Meaning |
+|---|---|---|---|
+| 36865 | `0x09001` | `ENotDue` | `can_bill` returned false — not active, or not yet time to bill. |
+| 36866 | `0x09002` | `EInvalidAmount` | Invalid payment amount. |
+| 36867 | `0x09003` | `EInsufficientBalance` | Balance check failed inside the payment path itself. |
+| 36869 | `0x09005` | `EPolicyViolation` | The account's own [policy limiters](/core/transactions) rejected this payment (per-tx max, monthly max, min balance, or frequency). |
+| 36870 | `0x09006` | `EZeroAmount` | Zero-amount payment — a programmer/configuration error, aborts before any funds move. |
+| 36871 | `0x09007` | `EInvalidPotato` | The `RoutingPotato` presented to `process_routed_payment` doesn't match this payment settlement — see [Advanced Routing](/routing). |
+
+### `platform.move`
+
+| Decimal | Hex | Code | Meaning |
+|---|---|---|---|
+| 32769 | `0x08001` | `EInvalidOwner` | Caller isn't `platform.owner` — every owner-gated function (tier management, treasury changes) aborts with this on mismatch. |
+| 32770 | `0x08002` | `EInvalidTier` | Tier validation failed (e.g. duplicate tier name in `create_tier`). |
+| 32771 | `0x08003` | `ETooManyTiers` | `create_tier` would exceed the 20-tier cap (`MAX_TIERS`). |
+| 32772 | `0x08004` | `ETierNotFound` | `tier_index` is out of range for this platform. |
+| 32773 | `0x08005` | `EZeroAddress` | A zero address was supplied where a real one is required (e.g. a treasury change target). |
+| 32774 | `0x08006` | `EInvalidAmount` | Zero tier billing amount. |
+| 32775 | `0x08007` | `EInvalidFrequency` | Zero `frequency_ms` for a tier. |
+| 32776 | `0x08008` | `ETreasuryChangeAlreadyPending` | `propose_treasury_change` called while another change is already pending — cancel it first. |
+| 32777 | `0x08009` | `ENoPendingTreasuryChange` | `accept`/`cancel_treasury_change` called with no pending change on the platform. |
+| 32778 | `0x0800A` | `ETreasuryChangeNotYetDue` | `accept_treasury_change` called before the 48-hour timelock elapsed. |
+| 32779 | `0x0800B` | `EInvalidReceipt` | The `PlatformRegistrationReceipt` doesn't match the `Platform` being registered — see [Register Your Platform](/platform-setup). |
+
+### `policies.move`
+
+Self-imposed spending limits a user can set on their own account (`per_tx_max`, `monthly_max`, `min_balance`, `frequency_min_ms`) — these protect the user, not the platform, and only trigger if the user configured them.
+
+| Decimal | Hex | Code | Meaning |
+|---|---|---|---|
+| 28673 | `0x07001` | `EPerTxExceeded` | Payment exceeds the account's per-transaction limit. |
+| 28674 | `0x07002` | `EMonthlyExceeded` | Payment would exceed the account's rolling 30-day spending cap. |
+| 28675 | `0x07003` | `EMinBalanceViolated` | Payment would drop the account below its configured minimum balance. |
+| 28676 | `0x07004` | `EFrequencyViolated` | Payment attempted before the account's configured minimum interval. |
+| 28677 | `0x07005` | `EInvalidLimit` | An invalid (e.g. contradictory) limit configuration was supplied. |
