@@ -14,7 +14,7 @@ async function connectWalletIfPrompted(page: Page) {
         const btn = Array.from(modal.shadowRoot.querySelectorAll('*')).find(
           (el) => el.children.length === 0 && el.textContent?.includes('Persistent Burner Wallet')
         );
-        if (btn) (btn.closest('button, [role="button"], li, div') || (btn as HTMLElement)).click();
+        if (btn) ((btn.closest('button, [role="button"], li, div') as HTMLElement | null) || (btn as HTMLElement)).click();
       }
     });
     await page.waitForTimeout(1000);
