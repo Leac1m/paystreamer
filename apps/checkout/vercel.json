@@ -1,6 +1,7 @@
 {
   "framework": "vite",
-  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @paystreamer/sdk build && pnpm build",
   "outputDirectory": "dist",
   "rewrites": [
     {

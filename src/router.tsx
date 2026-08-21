@@ -4,13 +4,15 @@ import { ExplorePage } from "./pages/ExplorePage";
 import PricingPage from "./pages/PricingPage";
 
 function PortalRedirect() {
-  window.location.href = `http://localhost:5177${window.location.pathname}`;
+  const portalBase = import.meta.env.DEV ? "http://localhost:5177" : "https://app.usepaystreamer.xyz";
+  window.location.href = `${portalBase}${window.location.pathname}`;
   return null;
 }
 
 function CheckoutRedirect() {
   const { platformId } = useParams<{ platformId: string }>();
-  window.location.href = `http://localhost:5178/${platformId}`;
+  const checkoutBase = import.meta.env.DEV ? "http://localhost:5178" : "https://checkout-iota-mocha.vercel.app";
+  window.location.href = `${checkoutBase}/${platformId}`;
   return null;
 }
 
