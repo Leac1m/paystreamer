@@ -289,7 +289,7 @@ export async function queryPlatformRegisteredEvents(network?: SupportedNetwork):
 export async function querySubscriptionCreatedEvents(accountId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
   const config = getConfig(network);
   return listEventsOfType<SubscriptionCreatedEvent>(
-    `${config.PACKAGE_ID}::billing::SubscriptionCreated`,
+    `${config.PACKAGE_ID}::subscription::SubscriptionCreated`,
     (json) => ({ ...(json as any), timestamp: eventTimestamp(json) }),
     network,
     (e) => e.account_id === accountId,
@@ -299,7 +299,7 @@ export async function querySubscriptionCreatedEvents(accountId: string, network?
 export async function querySubscriptionCreatedEventsByPlatform(platformId: string, network?: SupportedNetwork): Promise<SubscriptionCreatedEvent[]> {
   const config = getConfig(network);
   return listEventsOfType<SubscriptionCreatedEvent>(
-    `${config.PACKAGE_ID}::billing::SubscriptionCreated`,
+    `${config.PACKAGE_ID}::subscription::SubscriptionCreated`,
     (json) => ({ ...(json as any), timestamp: eventTimestamp(json) }),
     network,
     (e) => e.platform_id === platformId,
@@ -365,7 +365,7 @@ export async function querySubscriptionUpdatedEventsByPlatform(
 ): Promise<SubscriptionUpdatedEvent[]> {
   const config = getConfig(network);
   return listEventsOfType<SubscriptionUpdatedEvent>(
-    `${config.PACKAGE_ID}::billing::SubscriptionUpdated`,
+    `${config.PACKAGE_ID}::subscription::SubscriptionUpdated`,
     (json) => ({ ...(json as any), timestamp: eventTimestamp(json) }),
     network,
     (e) => e.platform_id === platformId,
