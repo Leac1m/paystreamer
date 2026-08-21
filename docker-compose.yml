@@ -34,7 +34,9 @@ services:
     container_name: paystreamer-proxy
     restart: unless-stopped
     ports:
-      - "80:80"
+      # Host port 80 is taken by an unrelated local service (nuxbill-app);
+      # mapped to 8080 instead. Access via e.g. http://paystreamer.localhost:8080
+      - "8080:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
