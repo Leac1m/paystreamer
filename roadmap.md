@@ -45,9 +45,12 @@ feature checklist.
       **Conclusion: none of Phase 0/1's fixes reach real developers until a
       new version is published to npm. This is now the single blocking
       action for the north star.**
-- [ ] Publish a new `@paystreamer/sdk` version with this session's fixes
-      (deliberately held for now — continuing other Phase 1 items locally
-      first; publishing needs explicit go-ahead when the time comes)
+- [x] Publish a new `@paystreamer/sdk` version with this session's fixes —
+      `0.3.0` shipped with the Phase 0-3 work, and `0.4.0` followed with the
+      `@paystreamer/sdk/constants` subpath entry point added during Phase 4b
+      (the root barrel re-exports `./react`/`./ui`, so importing `getConfig`
+      from it drags React into workers and Node services that have no use
+      for it). Both are on npm; `0.4.0` is `latest`.
 - [x] Pin and publish a compatibility matrix (SDK / dApp Kit / Sui CLI /
       node versions actually tested together) — the dogfood run found the
       root cause: `@mysten/dapp-kit-react`, `@mysten/sui`, and

@@ -2,6 +2,15 @@
 
 All notable changes to `@paystreamer/sdk` are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 0.4.0
+
+### Added
+- `@paystreamer/sdk/constants` — a subpath entry point exposing `getConfig`, `SupportedNetwork`, and the per-network deployment ids without pulling in the rest of the SDK.
+
+  The root barrel re-exports `./react` and `./ui`, so `import { getConfig } from '@paystreamer/sdk'` drags React into the bundle. That is fine in a React app and wrong everywhere else — a Node service, a worker, or a browser-extension service worker with no DOM to render into. This is the same bundling discipline as 0.3.0's `core/seal`, `core/deepbook`, and `core/walrus` split, applied to network config.
+
+  Nothing is removed or renamed: importing `getConfig` from the root still works exactly as before.
+
 ## 0.3.0
 
 ### Added
