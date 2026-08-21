@@ -18,6 +18,11 @@ cd apps/scheduler
 pnpm build
 cd ../..
 
+echo "-> Building apps/extension..."
+cd apps/extension
+pnpm build
+cd ../..
+
 echo "-> Building apps/docs..."
 cd apps/docs
 pnpm build

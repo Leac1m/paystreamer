@@ -649,17 +649,44 @@ option was worth it: the work was required either way.
    / 1 skipped, scheduler-core 34 passed, docs 15 passed. Also repointed the
    two stale references to the moved files (`apps/scheduler/tests/e2e.ts`
    and `routing.mdx`'s file citations).
-2. **Browser/MV3 viability spike, before any UI.** Three things need to be
-   proven in a real service worker rather than assumed: (a) `SuiGrpcClient`
-   works there — `apps/portal` already runs it in a browser with no Node
-   polyfills, which is strong evidence but not the same runtime; (b) the
-   build toolchain — this monorepo is on Vite 8, and neither `wxt` nor
-   `@crxjs/vite-plugin` is confirmed to support Vite 8 yet, so this
-   milestone picks the packaging story for real (possibly pinning an older
-   Vite for this one app) instead of guessing; (c) `Ed25519Keypair`
-   signing under the extension CSP. A throwaway extension that loads
-   `scheduler-core`, runs one `runCycle` against testnet, and logs a digest
-   is the exit criterion.
+2. - [x] **Browser/MV3 viability spike, before any UI. Passed — the exit
+   criterion was met and exceeded.** `apps/extension` loads unpacked into a
+   real Chromium (driven headlessly by Playwright in `scripts/spike.ts`) and
+   its service worker ran full billing cycles against testnet, settling real
+   payments. Six things proven rather than assumed:
+   1. the MV3 service worker registers and boots;
+   2. config loads asynchronously from `chrome.storage.local` — the exact
+      path Milestone 1's refactor exists to enable;
+   3. `SuiGrpcClient`/`SuiGraphQLClient` reach testnet from a worker (a
+      different runtime from `apps/portal`'s page context);
+   4. `Ed25519Keypair` signs under the extension CSP and transactions
+      execute — 5 real payments in one run, 0 skipped, 0 failed;
+   5. **`chrome.alarms` fired on its own at ~60s and drove a complete cycle
+      with no page open**, billing 3 more payments. This is the piece
+      `setInterval` cannot do in MV3, and it is now demonstrated rather than
+      argued;
+   6. cycle state persists to `chrome.storage.local`, so a popup can read a
+      cycle it was not alive for — the mechanism Milestones 3 and 5 depend on.
+
+   **The Vite 8 toolchain risk is resolved.** Checked against the registry
+   rather than assumed: `@crxjs/vite-plugin@2.7.1` declares
+   `vite: ^3 || ^4 || ^5 || ^6 || ^7 || ^8` and `wxt@0.21.4` declares
+   `vite: ^6.3.4 || ^7 || ^8.0.0-0`. Both work; no Vite pin needed. Picked
+   `@crxjs` — `wxt`'s main draw is cross-browser support, which was
+   descoped, and it imposes its own directory conventions, whereas `@crxjs`
+   keeps this a plain Vite app like every other app in the monorepo.
+
+   Two supporting changes: **`@paystreamer/sdk/constants` is a new subpath
+   entry point** (the root barrel re-exports `./react` and `./ui`, so
+   importing `getConfig` from it would drag React into a service worker with
+   no DOM), and the extension deliberately never imports
+   `scheduler-core/routed-payment`, so DeepBook stays out. Verified against
+   the built bundle: no DeepBook, React, Walrus, or Seal code present, only
+   source comments mentioning them.
+
+   The spike is not in CI — it needs network and a browser, and it submits
+   real transactions. `apps/extension`'s `pnpm build` (which runs
+   `tsc --noEmit`) is wired into `ci/verify-builds.sh`.
 3. **Background worker.** `chrome.alarms` replaces `setInterval` — minimum
    granularity is 1 minute, so the extension polls at 1/6th the standalone
    service's 10s rate. That's a real disclosed tradeoff, not a defect:

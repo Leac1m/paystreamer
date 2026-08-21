@@ -1,0 +1,25 @@
+{
+  "name": "@paystreamer/extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PayStreamer scheduler as a Chrome MV3 extension — earn the 1% scheduler fee in the background",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "spike": "tsx scripts/spike.ts"
+  },
+  "dependencies": {
+    "@mysten/sui": "^2.23.1",
+    "@paystreamer/scheduler-core": "workspace:*",
+    "@paystreamer/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@playwright/test": "^1.61.1",
+    "@types/chrome": "^0.0.287",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.5"
+  }
+}
