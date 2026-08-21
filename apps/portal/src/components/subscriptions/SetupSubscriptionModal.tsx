@@ -179,8 +179,12 @@ export function SetupSubscriptionModal({
       await client.waitForTransaction({ digest: txDigest });
       
       setTimeout(async () => {
-        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getCoins"] });
-        await queryClient.invalidateQueries({ queryKey: ["sui-client", "getAllBalances"] });
+        // Matches SubscribePage.tsx's actual wallet-balance query key
+        // (["getCoins", address, PUSD_TYPE_ARG, network]) via prefix match —
+        // the previous ["sui-client", "getCoins"] key didn't match anything
+        // in the cache, so this invalidation was a silent no-op and the
+        // "insufficient balance" state never updated without a hard refresh.
+        await queryClient.invalidateQueries({ queryKey: ["getCoins"] });
         setTxStatus("success");
         setTxMessage("Successfully minted 1,000 PUSD!");
         setTxDigest(txDigest);

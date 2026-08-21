@@ -10,6 +10,15 @@ import { PACKAGE_ID, PUSD_PACKAGE_ID } from '../lib/config.js';
 // @paystreamer/sdk's transaction builders (packages/sdk/src/core/transactions.ts)
 // actually call — verified against that file directly, not assumed.
 export const ALLOWED_TARGETS = [
+  // Move stdlib — buildCreateTierTx (packages/sdk/src/core/transactions.ts)
+  // calls this directly to construct the TypeName argument create_tier
+  // needs for a tier's denomination. Not a PayStreamer contract call, so
+  // it isn't built from PACKAGE_ID — it's the same fixed address (0x1)
+  // on every network. Must be the fully-padded 32-byte form: verified
+  // live that command.MoveCall.package normalizes "0x1" to
+  // "0x000...0001" — a bare "0x1" here silently never matches.
+  "0x0000000000000000000000000000000000000000000000000000000000000001::type_name::get",
+
   // pusd module
   `${PUSD_PACKAGE_ID}::pusd::mint`,
 
