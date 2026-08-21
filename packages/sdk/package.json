@@ -57,6 +57,7 @@
     "build": "tsup src/index.ts src/core/index.ts src/core/seal.ts src/core/deepbook.ts src/core/walrus.ts src/react/index.ts src/ui/index.ts --format esm --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @mysten/deepbook-v3 --external @mysten/walrus --external @tanstack/react-query --no-splitting && tsc --emitDeclarationOnly",
     "dev": "tsup src/index.ts src/core/index.ts src/core/seal.ts src/core/deepbook.ts src/core/walrus.ts src/react/index.ts src/ui/index.ts --format esm --watch --external react --external react-dom --external react/jsx-runtime --external @mysten/dapp-kit-react --external @mysten/sui --external @mysten/seal --external @mysten/deepbook-v3 --external @mysten/walrus --external @tanstack/react-query --no-splitting",
     "prepublishOnly": "pnpm build",
+    "docs:typedoc": "typedoc",
     "test": "vitest",
     "seed:demo": "tsx scripts/seed-demo-platform.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
@@ -108,6 +109,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tsup": "^8.2.3",
+    "typedoc": "^0.28.20",
     "typescript": "^5.5.3",
     "vitest": "^4.1.10"
   }

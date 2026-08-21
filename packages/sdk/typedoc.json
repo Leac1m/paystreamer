@@ -1,0 +1,25 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/index.ts",
+    "src/core/index.ts",
+    "src/core/seal.ts",
+    "src/core/deepbook.ts",
+    "src/core/walrus.ts",
+    "src/react/index.ts",
+    "src/ui/index.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "out": "../../apps/docs/public/typedoc",
+  "name": "@paystreamer/sdk",
+  "tsconfig": "./tsconfig.json",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "readme": "README.md",
+  "navigationLinks": {
+    "Docs": "https://docs.usepaystreamer.xyz",
+    "GitHub": "https://github.com/paystreamer/paystreamer"
+  },
+  "skipErrorChecking": true
+}

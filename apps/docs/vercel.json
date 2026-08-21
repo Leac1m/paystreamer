@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "next build",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @paystreamer/sdk build && pnpm --filter @paystreamer/sdk docs:typedoc && next build",
   "outputDirectory": ".next"
 }

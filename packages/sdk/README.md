@@ -4,10 +4,12 @@ The official TypeScript/React SDK for [PayStreamer](https://usepaystreamer.xyz),
 
 ## Features
 
-- ⚡ **Core Client**: Build, sign, and manage subscription contracts on Sui.
-- ⚛️ **React Hooks**: Pre-built React hooks (`usePayStreamer`, `useSponsoredTransaction`, etc.).
-- 🎨 **UI Components**: Turnkey components including `SetupSubscriptionModal`, `TestnetFaucetButton`, and customizable billing UI.
-- ⛽ **Sponsored Transactions**: Seamless gas station integration for gasless user transactions.
+- ⚡ **Core Client**: PTB builders and chain queries for the full subscription lifecycle — accounts, tiers, payments, treasury management.
+- ⚛️ **React Hooks**: Pre-built hooks (`useSubscribe`, `usePlatform`, `useUserAccount`, `usePusdBalance`, `useSponsoredTransaction`, etc.).
+- 🎨 **UI Components**: Turnkey components including `SetupSubscriptionModal` and `TestnetFaucetButton`.
+- ⛽ **Sponsored Transactions**: Gas station integration for gasless user transactions.
+- 🔀 **Multi-Token Routing**: Pay or bill in any token via DeepBook, converted to the platform's settlement currency in the same PTB (`@paystreamer/sdk/core/deepbook`, optional peer dependency).
+- 🔒 **Seal & Walrus**: Helpers for gating decrypted content on real subscription status (`@paystreamer/sdk/core/seal`, `@paystreamer/sdk/core/walrus`, optional peer dependencies).
 
 ## Compatibility
 
@@ -116,10 +118,15 @@ export function SubscribeButton({ platformId }: { platformId: string }) {
 
 ## Modular Exports
 
-- `@paystreamer/sdk` — Main bundle entry point
-- `@paystreamer/sdk/core` — Low-level Sui PTB builders, transaction utilities, and client methods
+- `@paystreamer/sdk` — Main bundle entry point (re-exports `core` + `react` + `ui`)
+- `@paystreamer/sdk/core` — PTB builders, chain queries, and event queries
 - `@paystreamer/sdk/react` — React hooks and context providers
 - `@paystreamer/sdk/ui` — React UI components and modal dialogs
+- `@paystreamer/sdk/core/seal`, `@paystreamer/sdk/core/deepbook`, `@paystreamer/sdk/core/walrus` — optional integrations, each behind its own optional peer dependency. These are deliberately **not** re-exported from `@paystreamer/sdk/core` — importing any of them there would make every consumer's bundler resolve `@mysten/seal`/`@mysten/deepbook-v3`/`@mysten/walrus` even if unused, which broke real builds before this split existed. Install only the peer dependency you actually need.
+
+## Documentation
+
+Full guides at [docs.usepaystreamer.xyz](https://docs.usepaystreamer.xyz), including a complete [Core API Reference](https://docs.usepaystreamer.xyz/core/transactions) and a generated [TypeDoc reference](https://docs.usepaystreamer.xyz/typedoc/) for exact type signatures.
 
 ## License
 
