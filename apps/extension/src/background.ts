@@ -116,7 +116,16 @@ async function requestFaucet(): Promise<{ message: string }> {
   });
 
   if (!response.ok) {
-    throw new Error(`Faucet returned ${response.status}. It rate-limits per address; try again shortly.`);
+    // The faucet's own body carries the useful part — a 429 says how many
+    // seconds to wait. Surface that rather than guessing at the cause; the
+    // limit is per source IP, not per address, so a brand-new address can be
+    // refused too.
+    const body = (await response.text().catch(() => '')).trim();
+    throw new Error(
+      body
+        ? `Faucet refused the request (${response.status}): ${body}`
+        : `Faucet returned ${response.status}. Try again shortly, or fund the address directly.`,
+    );
   }
   return { message: 'Faucet request accepted. Gas usually arrives within a few seconds.' };
 }

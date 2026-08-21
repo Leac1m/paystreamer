@@ -25,14 +25,16 @@ const EXECUTE = process.argv.includes('--execute');
 const WAIT_ALARM = process.argv.includes('--wait-alarm');
 
 /**
- * The funded testnet demo key this repo already ships hardcoded as a
- * non-mainnet fallback in `apps/scheduler/src/lib/config.ts`. Imported here
- * so `--execute` has gas; the extension itself generates a fresh key on
- * install and never ships one.
+ * A funded testnet key, supplied by the operator — never committed.
+ *
+ * Export one from the Sui CLI and pass it in:
+ *   SCHEDULER_PRIVATE_KEY=$(sui keytool export --key-identity <address> --json | jq -r .exportedPrivateKey) \
+ *     pnpm spike -- --execute
+ *
+ * Only `--execute` needs it; the read-only run exercises key generation and
+ * every UI surface without one.
  */
-const FUNDED_TESTNET_KEY =
-  'suiprivkey1qr4shgju6rsqyz3dyyg5nhtfla3hld4x6k98ayuc382q8ck0mp68cduyj45';
-const FUNDED_ADDRESS = '0x472083c45f28f6fed624f1f252966a753332111a931127f047a9759800672793';
+const FUNDED_TESTNET_KEY = process.env.SCHEDULER_PRIVATE_KEY;
 
 let stepNumber = 0;
 function step(label: string) {
@@ -88,23 +90,29 @@ async function main() {
     step('A signing key is generated on first install, under the extension CSP');
     const generated = await callWorker<any>(worker, { type: 'status' });
     assert(/^0x[0-9a-f]{64}$/.test(generated.address), `Not a Sui address: ${generated.address}`);
-    assert(generated.address !== FUNDED_ADDRESS, 'Extension shipped a key instead of generating one.');
     ok(`generated fresh address ${generated.address.slice(0, 10)}… with no key in the source`);
     ok(`gas balance reads ${generated.suiBalance} MIST — correctly zero and flagged lowGas=${generated.lowGas}`);
+    assert(generated.lowGas, 'A brand-new address should be flagged as low on gas.');
 
-    step('Importing a funded key replaces the generated one');
-    await callWorker(worker, { type: 'importKey', secret: FUNDED_TESTNET_KEY });
-    const imported = await callWorker<any>(worker, { type: 'status' });
-    assert(imported.address === FUNDED_ADDRESS, `Import produced ${imported.address}`);
-    ok(`address is now ${imported.address.slice(0, 10)}…, gas ${imported.suiBalance} MIST`);
-    assert(!imported.lowGas, 'Funded address still reports low gas.');
+    if (FUNDED_TESTNET_KEY) {
+      step('Importing a funded key replaces the generated one');
+      await callWorker(worker, { type: 'importKey', secret: FUNDED_TESTNET_KEY });
+      const imported = await callWorker<any>(worker, { type: 'status' });
+      assert(imported.address !== generated.address, 'Import did not replace the generated key.');
+      ok(`address is now ${imported.address.slice(0, 10)}…, gas ${imported.suiBalance} MIST`);
+      assert(!imported.lowGas, 'Imported address has no gas — fund it before running with --execute.');
+    } else {
+      step('Importing a funded key — SKIPPED (no SCHEDULER_PRIVATE_KEY in env)');
+    }
 
     step('Sui clients reach testnet from the service worker');
     const earningsBefore = await callWorker<any>(worker, { type: 'earnings' });
     ok(`earnings query returned ${earningsBefore.paymentCount} historical payments, ${earningsBefore.totalFee} MIST of fees`);
-    assert(BigInt(earningsBefore.totalFee) > 0n, 'Expected non-zero historical fees for this address.');
 
     step(EXECUTE ? 'Full billing cycle — REAL transactions' : 'Billing cycle skipped (pass --execute to bill)');
+    if (EXECUTE && !FUNDED_TESTNET_KEY) {
+      throw new Error('--execute needs SCHEDULER_PRIVATE_KEY in the environment to have gas.');
+    }
     if (EXECUTE) {
       const cycle = await callWorker<any>(worker, { type: 'runNow' });
       console.log(`   ${JSON.stringify(cycle)}`);
@@ -175,7 +183,8 @@ async function main() {
       optionsText.includes('This key is stored unencrypted'),
       'Options page does not disclose the unencrypted key.',
     );
-    assert(optionsText.includes(FUNDED_ADDRESS), 'Options page does not show the scheduler address.');
+    const currentAddress = (await callWorker<any>(worker, { type: 'status' })).address;
+    assert(optionsText.includes(currentAddress), 'Options page does not show the scheduler address.');
 
     await options.getByPlaceholder('0x…').fill('0xtest-platform-id');
     await options.getByRole('button', { name: 'Save platforms' }).click();

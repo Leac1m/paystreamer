@@ -36,9 +36,13 @@ real Chromium via Playwright, which is the only place real Chrome behavior is
 knowable.
 
 ```sh
-pnpm test                              # unit tests (faked chrome.*)
-pnpm spike                             # real browser, read-only
-pnpm spike -- --execute --wait-alarm   # bills on testnet; waits for the alarm
+pnpm test    # unit tests (faked chrome.*)
+pnpm spike   # real browser, read-only — needs no key
+
+# --execute bills real testnet payments, so it needs a funded key from your
+# environment. Nothing is committed; export one from the Sui CLI.
+SCHEDULER_PRIVATE_KEY=$(sui keytool export --key-identity <address> --json | jq -r .exportedPrivateKey) \
+  pnpm spike -- --execute --wait-alarm
 ```
 
 The spike checks, end to end: the worker registers; a key is generated on

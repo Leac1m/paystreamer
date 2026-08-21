@@ -33,6 +33,16 @@ The scheduler is designed to be deployed as a background worker on platforms lik
 
 You must provide a `SCHEDULER_PRIVATE_KEY` in the root `.env` file to pay for the minimal gas fees required to submit the trigger transactions.
 
+There is **no default key**, deliberately — a missing signing key stops the process rather than silently signing as somebody else. Generate and export one:
+
+```sh
+sui client new-address ed25519 my-scheduler
+sui client switch --env testnet
+sui keytool export --key-identity <address>
+```
+
+Put the resulting `suiprivkey1...` in the root `.env` and fund that address with a little SUI. Never commit it — `.env` is gitignored.
+
 ```bash
 cd apps/scheduler
 pnpm dev
